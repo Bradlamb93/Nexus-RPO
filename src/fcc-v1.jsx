@@ -921,7 +921,7 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
                   <span key={role} style={{fontSize:11,padding:"3px 10px",borderRadius:20,
                     background:overridden?"#fef3c7":"#dcfce7",
                     color:overridden?"#b45309":T.green,fontWeight:700}}>
-                    {role}: {overridden?"overridden":`£${gr?.weekday||"—"}/hr`}
+                    {role}: {overridden?"overridden":`£${gr?.weekday||"—"}{"/hr"}`}
                   </span>
                 );
               })}
@@ -968,7 +968,7 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
                     <Td>£{r.bankHoliday}</Td>
                     <Td>
                       <span style={{fontSize:12,fontWeight:700,color:T.muted}}>×{r.nightMod}</span>
-                      <div style={{fontSize:10,color:T.muted}}>Night: £{Math.round(r.weekday*r.nightMod)}/hr</div>
+                      <div style={{fontSize:10,color:T.muted}}>Night: £{Math.round(r.weekday*r.nightMod)}{"/hr"}</div>
                     </Td>
                     <Td style={{fontSize:12,color:T.muted}}>{r.notes||"—"}</Td>
                     <Td>
@@ -996,12 +996,12 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
                 {SHIFT_DAYS.map(d=>(
                   <div key={d.k} style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:5}}>
                     <span style={{color:T.muted}}>{d.l}</span>
-                    <span style={{fontWeight:700,color:T.text}}>£{r[d.k]}/hr</span>
+                    <span style={{fontWeight:700,color:T.text}}>£{r[d.k]}{"/hr"}</span>
                   </div>
                 ))}
                 <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
                   <span style={{color:T.muted}}>Night (wkday)</span>
-                  <span style={{fontWeight:700,color:accent}}>£{Math.round(r.weekday*r.nightMod)}/hr</span>
+                  <span style={{fontWeight:700,color:accent}}>£{Math.round(r.weekday*r.nightMod)}{"/hr"}</span>
                 </div>
               </div>
             ))}
@@ -1413,7 +1413,7 @@ const ShiftBoard = ({navigate}) => {
               <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
               <Td>{s.date}</Td>
               <Td>{s.time}</Td>
-              <Td bold>£{s.rate}/hr</Td>
+              <Td bold>£{s.rate}{"/hr"}</Td>
               <Td><SBadge s={s.status}/></Td>
               <Td>{s.agency||<span style={{color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Unassigned</span>}</Td>
               <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>—</span>}</Td>
@@ -3547,7 +3547,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
             <Btn full disabled={validBRows.length===0}
               onClick={()=>validBRows.length>0?setBSubmitted(true):null}
               style={{opacity:validBRows.length===0?0.5:1,fontSize:14,padding:"13px"}}>
-              Publish {validBRows.length>0?validBRows.length:""} Shift{validBRows.length!==1?"s":""} →
+              Publish {validBRows.length>0?validBRows.length:""} Shift{validBRows.length!==1?"s":""} {"→"}
             </Btn>
             {validBRows.length===0 && <div style={{fontSize:11,color:T.muted,textAlign:"center",marginTop:-8}}>Add at least one date to continue</div>}
           </div>
@@ -3820,8 +3820,8 @@ const CareHomeCalendar = () => {
                         <div style={{fontSize:12,color:T.muted,marginTop:2}}>{s.agency||"Unassigned"}{s.worker?` · ${s.worker}`:""}</div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:800,fontSize:15,color:T.navy}}>£{s.rate}/hr</div>
-                        <div style={{fontSize:11,color:T.muted}}>Est. £{s.rate*12}/shift</div>
+                        <div style={{fontWeight:800,fontSize:15,color:T.navy}}>£{s.rate}{"/hr"}</div>
+                        <div style={{fontSize:11,color:T.muted}}>Est. £{s.rate*12}{"/shift"}</div>
                       </div>
                     </div>
                   ))}
@@ -3918,7 +3918,7 @@ const AgencyDashboard = ({user, navigate}) => {
       {claimModal && (
         <Modal title={`Claim Shift — ${claimModal.carehome}`} onClose={()=>setClaimModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-            {[["Role",claimModal.role],["Date",claimModal.date],["Time",claimModal.time],["Rate",`£${claimModal.rate}/hr`],["Urgency",claimModal.urgency],["Care Home",claimModal.carehome]].map(([k,v])=>(
+            {[["Role",claimModal.role],["Date",claimModal.date],["Time",claimModal.time],["Rate",`£${claimModal.rate}{"/hr"}`],["Urgency",claimModal.urgency],["Care Home",claimModal.carehome]].map(([k,v])=>(
               <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600,textTransform:"capitalize"}}>{v}</div>
@@ -3949,7 +3949,7 @@ const AgencyDashboard = ({user, navigate}) => {
                 <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
                 <Td>{s.date}</Td>
                 <Td>{s.time}</Td>
-                <Td bold>£{s.rate}/hr</Td>
+                <Td bold>£{s.rate}{"/hr"}</Td>
                 <Td><span style={{fontSize:12,color:urgencyColor(s.urgency)}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
                 <Td>{claimed.includes(s.id)?<Badge label="✓ Claimed" color={T.green} bg={T.greenBg}/>:<Btn small onClick={()=>setClaimModal(s)}>Claim</Btn>}</Td>
               </tr>
@@ -4525,10 +4525,10 @@ const BankStaffManagement = () => {
               <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
               <Td>{s.date}</Td>
               <Td>{s.time}</Td>
-              <Td bold>£{s.rate}/hr</Td>
+              <Td bold>£{s.rate}{"/hr"}</Td>
               <Td>{s.status==="bank-claimed"?<Badge label="Claimed" color={T.green} bg={T.greenBg} dot/>:<span style={{display:"flex",alignItems:"center",gap:5}}><Badge label="Bank Window" color={T.teal} bg={T.tealBg} dot/>{s.bankWindowMins>0&&<span style={{fontSize:10,color:T.teal,fontWeight:700}}>{s.bankWindowMins}m left</span>}</span>}</Td>
               <Td>{s.claimedBy||<span style={{color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Awaiting claim</span>}</Td>
-              <Td><Btn small variant="secondary" onClick={()=>alert(`Shift: ${s.carehome} · ${s.role}\nDate: ${s.date} · ${s.time}\nRate: £${s.rate}/hr\nStatus: ${s.status}\nClaimed by: ${s.claimedBy||"Unclaimed"}`)}>View</Btn></Td>
+              <Td><Btn small variant="secondary" onClick={()=>alert(`Shift: ${s.carehome} · ${s.role}\nDate: ${s.date} · ${s.time}\nRate: £${s.rate}{"/hr"}\nStatus: ${s.status}\nClaimed by: ${s.claimedBy||"Unclaimed"}`)}>View</Btn></Td>
             </tr>
           ))}
         />
@@ -4566,7 +4566,7 @@ const BankDashboard = ({user}) => {
                   <Td bold>{s.carehome}</Td>
                   <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
                   <Td>{s.date}</Td><Td>{s.time}</Td>
-                  <Td bold>£{s.rate}/hr</Td>
+                  <Td bold>£{s.rate}{"/hr"}</Td>
                   <Td><div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:11,fontWeight:700,color:s.bankWindowMins<60?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:40,height:4,background:T.border,borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:s.bankWindowMins<60?T.red:T.teal}}/></div></div></Td>
                   <Td><Btn small onClick={()=>claim(s.id)}>Claim</Btn></Td>
                 </tr>
@@ -4706,7 +4706,7 @@ const BankAvailableShifts = ({user}) => {
                   <Td bold>{s.carehome}</Td>
                   <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
                   <Td>{s.date}</Td><Td>{s.time}</Td>
-                  <Td bold>£{s.rate}/hr</Td>
+                  <Td bold>£{s.rate}{"/hr"}</Td>
                   <Td><span style={{fontWeight:700,color:T.green}}>£{s.rate*hrs}</span></Td>
                   <Td><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,fontSize:12,color:urgent?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:52,height:5,background:T.border,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:urgent?T.red:T.teal,borderRadius:3}}/></div></div></Td>
                   <Td><Btn small onClick={()=>claim(s.id)}>Claim ✓</Btn></Td>
@@ -4724,7 +4724,7 @@ const BankAvailableShifts = ({user}) => {
               rows={claimed.map(s=>(
                 <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`}}>
                   <Td bold>{s.carehome}</Td><Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
-                  <Td>{s.date}</Td><Td>{s.time}</Td><Td bold>£{s.rate}/hr</Td>
+                  <Td>{s.date}</Td><Td>{s.time}</Td><Td bold>£{s.rate}{"/hr"}</Td>
                   <Td><span style={{fontWeight:700,color:T.green}}>£{s.rate*12}</span></Td>
                   <Td><Badge label="Confirmed" color={T.green} bg={T.greenBg} dot/></Td>
                 </tr>
@@ -4754,7 +4754,7 @@ const BankMyShifts = ({user}) => {
       {detailModal&&(
         <Modal title={`Shift Details — ${detailModal.carehome}`} onClose={()=>setDetailModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-            {[["Care Home",detailModal.carehome],["Role",detailModal.role],["Date",detailModal.date],["Time",detailModal.time],["Rate",`£${detailModal.rate}/hr`],["Pay",`£${detailModal.rate*12}`]].map(([k,v])=>(
+            {[["Care Home",detailModal.carehome],["Role",detailModal.role],["Date",detailModal.date],["Time",detailModal.time],["Rate",`£${detailModal.rate}{"/hr"}`],["Pay",`£${detailModal.rate*12}`]].map(([k,v])=>(
               <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
                 <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600}}>{v}</div>
@@ -4780,7 +4780,7 @@ const BankMyShifts = ({user}) => {
               <Td bold>{s.carehome}</Td>
               <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
               <Td>{s.date}</Td><Td>{s.time}</Td>
-              <Td>£{s.rate}/hr</Td><Td bold>£{s.rate*12}</Td>
+              <Td>£{s.rate}{"/hr"}</Td><Td bold>£{s.rate*12}</Td>
               <Td>{s.status==="completed"?<Badge label="Completed" color={T.green} bg={T.greenBg} dot/>:<Badge label="Confirmed" color={T.blue} bg={T.blueBg} dot/>}</Td>
               <Td><div style={{display:"flex",gap:5}}>
                 <Btn small variant="secondary" onClick={()=>setDetailModal(s)}>Details</Btn>
@@ -4873,9 +4873,9 @@ const BankEarnings = ({user}) => {
             <tr key={p.id} style={{borderBottom:`1px solid ${T.border}`}}>
               <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700}}>{p.id}</span></Td>
               <Td>{p.period}</Td><Td>{p.shifts}</Td><Td>{p.hours}hrs</Td>
-              <Td>£{rate}/hr</Td><Td bold>£{p.gross.toLocaleString()}</Td>
+              <Td>£{rate}{"/hr"}</Td><Td bold>£{p.gross.toLocaleString()}</Td>
               <Td><SBadge s={p.status}/></Td>
-              <Td>{p.status==="paid"?<Btn small variant="secondary" onClick={()=>exportCSV(`${p.id}-${p.period.replace(/ /g,"-")}.csv`,["Payslip","Period","Shifts","Hours","Rate/hr","Gross","Status"],[[p.id,p.period,p.shifts,p.hours,`£${rate}/hr`,`£${p.gross}`,p.status]])}>PDF</Btn>:<span style={{fontSize:12,color:T.muted}}>Processing</span>}</Td>
+              <Td>{p.status==="paid"?<Btn small variant="secondary" onClick={()=>exportCSV(`${p.id}-${p.period.replace(/ /g,"-")}.csv`,["Payslip","Period","Shifts","Hours","Rate/hr","Gross","Status"],[[p.id,p.period,p.shifts,p.hours,`£${rate}{"/hr"}`,`£${p.gross}`,p.status]])}>PDF</Btn>:<span style={{fontSize:12,color:T.muted}}>Processing</span>}</Td>
             </tr>
           ))}
         />
@@ -5233,7 +5233,7 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                                   style={{width:58,padding:"6px 8px",borderRadius:7,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",textAlign:"center"}}
                                 />}
                             </td>
-                            <td style={{padding:"10px 8px",fontSize:12,fontWeight:600}}>£{s.rate}/hr</td>
+                            <td style={{padding:"10px 8px",fontSize:12,fontWeight:600}}>£{s.rate}{"/hr"}</td>
                             <td style={{padding:"10px 8px"}}>
                               <span style={{fontWeight:800,color:T.green,fontSize:14}}>£{total.toLocaleString()}</span>
                             </td>
@@ -5291,7 +5291,7 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                   <Td>{ts.date}</Td>
                   <Td style={{color:T.muted}}>{ts.scheduledHrs}h</Td>
                   <Td bold>{ts.hoursWorked}h</Td>
-                  <Td>£{ts.rate}/hr</Td>
+                  <Td>£{ts.rate}{"/hr"}</Td>
                   <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
                   <Td><TsBadge s={ts.status}/></Td>
                   <Td style={{fontSize:11,color:T.muted}}>{ts.submittedAt}</Td>
@@ -5301,7 +5301,7 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                         <Btn small onClick={()=>setTimesheets(prev=>prev.map(t=>t.id===ts.id?{...t,status:"pending",disputeReason:null}:t))}>Resubmit</Btn>
                         <Btn small variant="secondary" onClick={()=>alert(`Dispute reason: "${ts.disputeReason}"`)}>Reason</Btn>
                       </div>
-                    ):<Btn small variant="secondary" onClick={()=>alert(`Timesheet ${ts.id}\nWorker: ${ts.worker}\nDate: ${ts.date}\nHours: ${ts.hoursWorked}h @ £${ts.rate}/hr = £${ts.total}\nStatus: ${ts.status}`)}>View</Btn>}
+                    ):<Btn small variant="secondary" onClick={()=>alert(`Timesheet ${ts.id}\nWorker: ${ts.worker}\nDate: ${ts.date}\nHours: ${ts.hoursWorked}h @ £${ts.rate}{"/hr"} = £${ts.total}\nStatus: ${ts.status}`)}>View</Btn>}
                   </Td>
                 </tr>
               ))}
@@ -5433,7 +5433,7 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
                 <span style={{fontFamily:"monospace",fontSize:11,color:T.muted,background:"#eef2f7",padding:"3px 8px",borderRadius:5}}>{ts.id}</span>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-                {[["Hours Worked",`${ts.hoursWorked}hrs`],["Break",`${ts.breakMins} mins`],["Rate",`£${ts.rate}/hr`],["Total Payable",`£${ts.total.toLocaleString()}`]].map(([k,v],i)=>(
+                {[["Hours Worked",`${ts.hoursWorked}hrs`],["Break",`${ts.breakMins} mins`],["Rate",`£${ts.rate}{"/hr"}`],["Total Payable",`£${ts.total.toLocaleString()}`]].map(([k,v],i)=>(
                   <div key={i} style={{background:T.white,borderRadius:7,padding:"10px 12px",border:`1px solid ${T.border}`,textAlign:"center"}}>
                     <div style={{fontSize:10,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{k}</div>
                     <div style={{fontSize:i===3?16:14,fontWeight:800,color:i===3?T.green:T.text}}>{v}</div>
@@ -5470,7 +5470,7 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
                     <Btn small onClick={()=>approve(ts.id)}>Approve</Btn>
                     <Btn small variant="secondary" onClick={()=>setDisputeModal(ts)}>Dispute</Btn>
                   </div>
-                ):<Btn small variant="secondary" onClick={()=>alert(`Timesheet ${ts.id}\n${ts.worker} — ${ts.carehome}\n${ts.date} · ${ts.hoursWorked}h @ £${ts.rate}/hr = £${ts.total}\nStatus: ${ts.status}${ts.approvedBy?'\nApproved by: '+ts.approvedBy:''}`)}>View</Btn>}
+                ):<Btn small variant="secondary" onClick={()=>alert(`Timesheet ${ts.id}\n${ts.worker} — ${ts.carehome}\n${ts.date} · ${ts.hoursWorked}h @ £${ts.rate}{"/hr"} = £${ts.total}\nStatus: ${ts.status}${ts.approvedBy?'\nApproved by: '+ts.approvedBy:''}`)}>View</Btn>}
               </Td>
             </tr>
           ))}
@@ -5638,7 +5638,7 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
                               <Td>{ts.carehome}</Td>
                               <Td>{ts.date}</Td>
                               <Td>{ts.hoursWorked}h</Td>
-                              <Td>£{ts.rate}/hr</Td>
+                              <Td>£{ts.rate}{"/hr"}</Td>
                               <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
                               <Td><span style={{fontSize:11,color:T.green}}>✓ {ts.approvedBy}</span></Td>
                             </tr>
@@ -5697,7 +5697,7 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
               <Td>{ts.carehome}</Td>
               <Td>{ts.date}</Td>
               <Td>{ts.hoursWorked}h</Td>
-              <Td>£{ts.rate}/hr</Td>
+              <Td>£{ts.rate}{"/hr"}</Td>
               <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
               <Td><TsBadge s={ts.status}/></Td>
               <Td><span style={{fontSize:11,color:ts.approvedBy?T.green:T.muted}}>{ts.approvedBy||"Pending"}</span></Td>
@@ -6528,12 +6528,12 @@ const MarginManager = ({marginCfg, setMarginCfg}) => {
                     return (
                       <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`}}>
                         <td style={{padding:"11px 12px"}}><Badge label={r.role} color={T.purple} bg={T.purpleBg}/></td>
-                        <td style={{padding:"11px 12px",fontSize:13,fontWeight:600,color:T.muted}}>£{r.weekday}/hr</td>
+                        <td style={{padding:"11px 12px",fontSize:13,fontWeight:600,color:T.muted}}>£{r.weekday}{"/hr"}</td>
                         <td style={{padding:"11px 12px"}}>
                           <span style={{fontWeight:700,fontSize:13,color:T.green}}>+£{margin.toFixed(2)}</span>
                         </td>
                         <td style={{padding:"11px 12px"}}>
-                          <span style={{fontWeight:800,fontSize:14,color:T.navy}}>£{clientRate}/hr</span>
+                          <span style={{fontWeight:800,fontSize:14,color:T.navy}}>£{clientRate}{"/hr"}</span>
                         </td>
                         <td style={{padding:"11px 12px"}}>
                           <span style={{fontSize:12,color:T.muted}}>{marginPct}%</span>
@@ -6743,7 +6743,7 @@ const ClientManager = () => {
                       ["📞 Phone", group.phone||"—"],
                       ["🌐 Website", group.website||"—"],
                       ["📍 Address", group.address||"—"],
-                      ["📅 Contract", group.contractStart ? `${group.contractStart} → ${group.contractEnd||"Open"}` : "—"],
+                      ["📅 Contract", group.contractStart ? `${group.contractStart} {"→"} ${group.contractEnd||"Open"}` : "—"],
                     ].map(([k,v])=>(
                       <div key={k} style={{minWidth:160}}>
                         <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}}>{k}</div>
@@ -8929,8 +8929,8 @@ const RateUpliftManager = ({user,rateUplifts,setRateUplifts}) => {
             <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="pending"?"#fffbeb":"transparent"}}>
               {isAdmin&&<Td bold>{u.agency}</Td>}
               <Td><Badge label={u.role} color={T.purple} bg={T.purpleBg}/></Td>
-              <Td>£{u.current}/hr</Td>
-              <Td bold>£{u.requested}/hr</Td>
+              <Td>£{u.current}{"/hr"}</Td>
+              <Td bold>£{u.requested}{"/hr"}</Td>
               <Td><span style={{fontWeight:700,color:T.green}}>+£{(u.requested-u.current).toFixed(2)}</span></Td>
               <Td style={{maxWidth:200,whiteSpace:"normal",fontSize:11,color:T.muted}}>{u.reason}</Td>
               <Td style={{fontSize:11,color:T.muted}}>{u.submittedDate}</Td>
@@ -9122,7 +9122,7 @@ const RecurringShifts = ({user}) => {
             <Td><Badge label={p.role} color={T.purple} bg={T.purpleBg}/></Td>
             <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{p.days.map(d=><span key={d} style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,background:T.amberBg,color:T.amberText}}>{d}</span>)}</div></Td>
             <Td style={{fontSize:12,color:T.muted}}>{p.time}</Td>
-            <Td bold>£{p.rate}/hr</Td>
+            <Td bold>£{p.rate}{"/hr"}</Td>
             <Td>{p.active?<Badge label="Active" color={T.green} bg={T.greenBg} dot/>:<Badge label="Paused" color={T.muted} bg="#f1f5f9"/>}</Td>
             <Td style={{fontSize:11,color:T.muted}}>{p.createdBy}</Td>
             <Td><div style={{display:"flex",gap:4}}>
