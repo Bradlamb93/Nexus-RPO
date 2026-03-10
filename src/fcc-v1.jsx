@@ -3350,14 +3350,14 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                 <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Estimated Cost</div>
                 <div style={{fontSize:26,fontWeight:800,color:T.amberText}}>£{singleCost}</div>
                 <div style={{fontSize:11,color:T.amberText,marginTop:4,display:"flex",gap:12}}>
-                  <span>{singleRateLabel}: £{singleRate}/hr</span>
+                  <span>{singleRateLabel}: £{singleRate}{"/hr"}</span>
                   <span>·</span>
                   <span>{singleHrs}h shift</span>
                 </div>
               </div>
               {form.broadcastTo==="bank_first"&&(
                 <div style={{padding:"10px 12px",borderRadius:8,background:T.tealBg,border:`1px solid #5eead4`,marginBottom:14,fontSize:11,color:T.teal,lineHeight:1.5}}>
-                  🏦 <strong>Bank rate shown.</strong> If unclaimed after 2hrs, agency rate of £{getAgencyRate(form.role)}/hr applies.
+                  🏦 <strong>Bank rate shown.</strong> If unclaimed after 2hrs, agency rate of £{getAgencyRate(form.role)}{"/hr"} applies.
                 </div>
               )}
               <Btn full onClick={()=>form.date?setSubmitted(true):alert("Please select a date")}>
@@ -3528,11 +3528,11 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
               </div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:13}}>
                 <span style={{color:T.muted}}>{rateLabel}</span>
-                <span style={{fontWeight:700}}>£{bRate}/hr</span>
+                <span style={{fontWeight:700}}>£{bRate}{"/hr"}</span>
               </div>
               {bBroadcast==="bank_first" && (
                 <div style={{fontSize:11,color:T.teal,background:T.tealBg,padding:"6px 10px",borderRadius:7,marginBottom:6,lineHeight:1.5}}>
-                  🏦 If escalated to agency: £{getAgencyRate(bRole)}/hr applies
+                  🏦 If escalated to agency: £{getAgencyRate(bRole)}{"/hr"} applies
                 </div>
               )}
               <div style={{borderTop:`1px solid ${T.border}`,marginTop:10,paddingTop:12}}>
