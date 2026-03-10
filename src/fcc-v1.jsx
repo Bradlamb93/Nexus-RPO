@@ -3560,56 +3560,64 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
 /* ─── CARE HOME: MY SHIFTS (with Tier Push) ──────────────────────────────────── */
 const CareHomeMyShifts = ({user}) => {
-  const [shifts, setShifts]     = useState(SHIFTS.filter(s=>s.carehome==="Sunrise Care"));
-  const [tierModal, setTierModal] = useState(null);   // shift being escalated
-  const [newTier,  setNewTier]  = useState("Tier 2");
-  const [pushed,   setPushed]   = useState({});       // shiftId -> tier pushed to
+  const today = "2026-03-10";
+  const allShifts = SHIFTS.filter(s=>s.carehome==="Sunrise Care");
+  const [tab,       setTab]       = useState("unfilled");
+  const [tierModal, setTierModal] = useState(null);
+  const [newTier,   setNewTier]   = useState("Tier 2");
+  const [pushed,    setPushed]    = useState({});
 
-  const canPush = s => s.status === "open" || s.status === "pending";
+  const canPush = s => s.status==="open"||s.status==="pending";
+
+  const tabDefs = [
+    {k:"unfilled", l:"Unfilled", count: allShifts.filter(s=>(s.status==="open"||s.status==="pending")&&s.date>=today).length, color:T.red},
+    {k:"filled",   l:"Filled",   count: allShifts.filter(s=>s.status==="filled").length, color:T.green},
+    {k:"expired",  l:"Expired",  count: allShifts.filter(s=>s.date<today&&s.status!=="filled").length, color:T.muted},
+  ];
+
+  const visibleShifts = allShifts.filter(s=>{
+    if(tab==="unfilled") return (s.status==="open"||s.status==="pending") && s.date>=today;
+    if(tab==="filled")   return s.status==="filled";
+    if(tab==="expired")  return s.date<today && s.status!=="filled";
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
 
   const doPush = () => {
-    const note = newTier === "Tier 1"
-      ? "Pushed to Tier 1 — Priority agencies notified immediately."
-      : newTier === "Tier 2"
-      ? "Pushed to Tier 2 — Secondary agencies notified. Tier 1 window bypassed."
+    const note = newTier==="Tier 1" ? "Pushed to Tier 1 — Priority agencies notified immediately."
+      : newTier==="Tier 2" ? "Pushed to Tier 2 — Secondary agencies notified. Tier 1 window bypassed."
       : "Pushed to Tier 3 — All agency tiers now notified.";
-    setPushed(p=>({...p,[tierModal.id]:{tier:newTier, note}}));
+    setPushed(p=>({...p,[tierModal.id]:{tier:newTier,note}}));
     setTierModal(null);
   };
 
   const TIERS = [
-    {v:"Tier 1", desc:"Priority agencies — notified immediately. Use if you already have a Tier 1 relationship you want to prioritise.", delay:"Immediate"},
-    {v:"Tier 2", desc:"Secondary agencies — bypasses the Tier 1 window and notifies Tier 2 now.", delay:"Now (bypass Tier 1 wait)"},
-    {v:"Tier 3", desc:"All agencies — opens the shift to every tier simultaneously.", delay:"Now (all tiers)"},
+    {v:"Tier 1",desc:"Priority agencies — notified immediately.",delay:"Immediate"},
+    {v:"Tier 2",desc:"Secondary agencies — bypasses the Tier 1 window and notifies Tier 2 now.",delay:"Now (bypass Tier 1 wait)"},
+    {v:"Tier 3",desc:"All agencies — opens the shift to every tier simultaneously.",delay:"Now (all tiers)"},
   ];
 
   return (
-    <Page title="My Shifts" sub="Sunrise Care — all shifts this month" icon="📋">
+    <Page title="My Shifts" sub="Sunrise Care" icon="📋">
       {tierModal && (
-        <Modal title={`Push Shift to Different Tier`} onClose={()=>setTierModal(null)}>
+        <Modal title="Push Shift to Different Tier" onClose={()=>setTierModal(null)}>
           <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
             <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:4}}>SHIFT</div>
             <div style={{fontWeight:800,fontSize:15}}>{tierModal.role} — {tierModal.date}</div>
             <div style={{fontSize:12,color:T.muted}}>{tierModal.time} · {tierModal.carehome}</div>
             <div style={{marginTop:8,display:"flex",gap:8,alignItems:"center"}}>
               <span style={{fontSize:12,color:T.muted}}>Currently broadcasting to:</span>
-              <Badge label={pushed[tierModal.id]?.tier || "Tier 1"} color={tierColor(pushed[tierModal.id]?.tier||"Tier 1")} bg={tierBg(pushed[tierModal.id]?.tier||"Tier 1")}/>
+              <Badge label={pushed[tierModal.id]?.tier||"Tier 1"} color={tierColor(pushed[tierModal.id]?.tier||"Tier 1")} bg={tierBg(pushed[tierModal.id]?.tier||"Tier 1")}/>
             </div>
           </div>
-
           <Alert type="warning">Pushing to a different tier will notify those agencies immediately. This cannot be undone.</Alert>
-
           <div style={{marginBottom:16}}>
             <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Push to which tier?</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {TIERS.map(opt=>{
-                const isActive = newTier===opt.v;
-                const col = tierColor(opt.v);
-                const bg  = tierBg(opt.v);
+                const isActive=newTier===opt.v; const col=tierColor(opt.v); const bg=tierBg(opt.v);
                 return (
                   <label key={opt.v} onClick={()=>setNewTier(opt.v)}
-                    style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:9,
-                      border:`1.5px solid ${isActive?col:T.border}`,background:isActive?bg:"#fafafa",cursor:"pointer"}}>
+                    style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:9,border:`1.5px solid ${isActive?col:T.border}`,background:isActive?bg:"#fafafa",cursor:"pointer"}}>
                     <input type="radio" checked={isActive} onChange={()=>setNewTier(opt.v)} style={{marginTop:3,accentColor:col}}/>
                     <div style={{flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
@@ -3623,7 +3631,6 @@ const CareHomeMyShifts = ({user}) => {
               })}
             </div>
           </div>
-
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={doPush}>Push to {newTier}</Btn>
             <Btn variant="secondary" onClick={()=>setTierModal(null)}>Cancel</Btn>
@@ -3631,48 +3638,75 @@ const CareHomeMyShifts = ({user}) => {
         </Modal>
       )}
 
-      {/* Summary stats */}
+      {/* Stats */}
       <Grid cols={4}>
-        <Stat label="Total Shifts" value={shifts.length}/>
-        <Stat label="Filled" value={shifts.filter(s=>s.status==="filled").length} accent/>
-        <Stat label="Open / Pending" value={shifts.filter(s=>canPush(s)).length} sub="Eligible to push"/>
+        <Stat label="Total Shifts" value={allShifts.length}/>
+        <Stat label="Filled" value={allShifts.filter(s=>s.status==="filled").length} accent/>
+        <Stat label="Unfilled" value={allShifts.filter(s=>canPush(s)&&s.date>=today).length} sub="Needs cover"/>
         <Stat label="Tier Pushes" value={Object.keys(pushed).length} sub="This session"/>
       </Grid>
 
+      {/* Tabs */}
+      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
+        {tabDefs.map(t=>{
+          const active = tab===t.k;
+          return (
+            <button key={t.k} onClick={()=>setTab(t.k)}
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:7}}>
+              {t.l}
+              <span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,
+                background:active?t.color+"18":"transparent",color:active?t.color:T.muted}}>
+                {t.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <Card>
-        <CardHead title="All Shifts" sub="Open shifts can be pushed to a different agency tier"/>
-        <Table
-          headers={["Role","Date","Time","Urgency","Status","Agency","Worker","Tier Broadcast","Actions"]}
-          rows={shifts.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>{
-            const pushInfo = pushed[s.id];
-            return (
-              <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&canPush(s)?"#fffbeb":"transparent"}}>
-                <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
-                <Td bold>{s.date}</Td>
-                <Td style={{color:T.muted,fontSize:12}}>{s.time}</Td>
-                <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
-                <Td><SBadge s={s.status}/></Td>
-                <Td>{s.agency||<span style={{color:T.muted,fontSize:12}}>Awaiting</span>}</Td>
-                <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>TBC</span>}</Td>
-                <Td>
-                  {pushInfo
-                    ? <div>
-                        <Badge label={pushInfo.tier} color={tierColor(pushInfo.tier)} bg={tierBg(pushInfo.tier)}/>
-                        <div style={{fontSize:10,color:T.muted,marginTop:3}}>Pushed ✓</div>
-                      </div>
-                    : <Badge label="Tier 1" color={tierColor("Tier 1")} bg={tierBg("Tier 1")}/>
-                  }
-                </Td>
-                <Td>
-                  {canPush(s)
-                    ? <Btn small onClick={()=>{setTierModal(s);setNewTier("Tier 2");}}>Push Tier ↑</Btn>
-                    : <span style={{fontSize:11,color:T.muted}}>—</span>
-                  }
-                </Td>
-              </tr>
-            );
-          })}
+        <CardHead
+          title={tabDefs.find(t=>t.k===tab)?.l + " Shifts"}
+          sub={tab==="unfilled"?"Open shifts can be pushed to a different agency tier":tab==="filled"?"Shifts with confirmed workers":"Shifts that passed without being filled"}
         />
+        {visibleShifts.length===0
+          ? <div style={{padding:40,textAlign:"center",color:T.muted,fontSize:13}}>No {tab} shifts found.</div>
+          : <Table
+              headers={tab==="expired"
+                ? ["Role","Date","Time","Urgency","Status","Notes"]
+                : ["Role","Date","Time","Urgency","Status","Agency","Worker","Tier Broadcast","Actions"]}
+              rows={visibleShifts.map(s=>{
+                const pushInfo=pushed[s.id];
+                return (
+                  <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&tab==="unfilled"?"#fffbeb":"transparent"}}>
+                    <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
+                    <Td bold>{s.date}</Td>
+                    <Td style={{color:T.muted,fontSize:12}}>{s.time}</Td>
+                    <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                    <Td><SBadge s={s.status}/></Td>
+                    {tab==="expired"
+                      ? <Td style={{fontSize:12,color:T.muted}}>{s.notes||"—"}</Td>
+                      : <>
+                          <Td>{s.agency||<span style={{color:T.muted,fontSize:12}}>Awaiting</span>}</Td>
+                          <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>TBC</span>}</Td>
+                          <Td>
+                            {pushInfo
+                              ? <div><Badge label={pushInfo.tier} color={tierColor(pushInfo.tier)} bg={tierBg(pushInfo.tier)}/><div style={{fontSize:10,color:T.muted,marginTop:3}}>Pushed ✓</div></div>
+                              : <Badge label="Tier 1" color={tierColor("Tier 1")} bg={tierBg("Tier 1")}/>}
+                          </Td>
+                          <Td>
+                            {canPush(s)
+                              ? <Btn small onClick={()=>{setTierModal(s);setNewTier("Tier 2");}}>Push Tier ↑</Btn>
+                              : <span style={{fontSize:11,color:T.muted}}>—</span>}
+                          </Td>
+                        </>
+                    }
+                  </tr>
+                );
+              })}
+            />
+        }
       </Card>
     </Page>
   );
@@ -9281,23 +9315,43 @@ const EscalationTimeline = ({shift}) => {
 };
 
 const ClientAdminShifts = ({user}) => {
-  const [pubModal,setPubModal]=useState(null);
-  const [publishedToBank,setPublishedToBank]=useState([]);
-  const [selectedBroadcast,setSelectedBroadcast]=useState("bank_first");
-  return(
-    <Page title="All Shifts" icon="📋">
-      {pubModal&&(
+  const today = "2026-03-10";
+  const allSites = [...new Set(SHIFTS.map(s=>s.carehome))].sort();
+  const [site,    setSite]    = useState("all");
+  const [tab,     setTab]     = useState("unfilled");
+  const [pubModal,setPubModal] = useState(null);
+  const [publishedToBank,setPublishedToBank] = useState([]);
+  const [selectedBroadcast,setSelectedBroadcast] = useState("bank_first");
+
+  const siteShifts = site==="all" ? SHIFTS : SHIFTS.filter(s=>s.carehome===site);
+
+  const tabDefs = [
+    {k:"unfilled", l:"Unfilled", count: siteShifts.filter(s=>(s.status==="open"||s.status==="pending")&&s.date>=today).length, color:T.red},
+    {k:"filled",   l:"Filled",   count: siteShifts.filter(s=>s.status==="filled").length, color:T.green},
+    {k:"expired",  l:"Expired",  count: siteShifts.filter(s=>s.date<today&&s.status!=="filled").length, color:T.muted},
+  ];
+
+  const visible = siteShifts.filter(s=>{
+    if(tab==="unfilled") return (s.status==="open"||s.status==="pending") && s.date>=today;
+    if(tab==="filled")   return s.status==="filled";
+    if(tab==="expired")  return s.date<today && s.status!=="filled";
+    return true;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  return (
+    <Page title="All Shifts" sub="Group-wide shift overview" icon="📋">
+      {pubModal && (
         <Modal title={`Publish Shift — ${pubModal.carehome} (${pubModal.role})`} onClose={()=>{setPubModal(null);setSelectedBroadcast("bank_first");}}>
           <p style={{fontSize:13,color:T.muted,marginBottom:14}}>{pubModal.date} · {pubModal.time}</p>
           <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
             {BROADCAST_OPTIONS.map(opt=>{
               const sel=selectedBroadcast===opt.key;
-              return(
+              return (
                 <button key={opt.key} onClick={()=>setSelectedBroadcast(opt.key)}
-                  style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",width:"100%",transition:"all 0.15s"}}>
+                  style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",width:"100%"}}>
                   <span style={{fontSize:20}}>{opt.icon}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:12,color:sel?opt.color:T.text,marginBottom:2}}>{opt.label} <span style={{fontSize:10,fontWeight:600,color:sel?opt.tagColor:T.muted,background:sel?opt.bg:"#f1f5f9",padding:"1px 6px",borderRadius:20}}>{opt.tag}</span></div>
+                    <div style={{fontWeight:700,fontSize:12,color:sel?opt.color:T.text,marginBottom:2}}>{opt.label}</div>
                     <div style={{fontSize:11,color:T.muted,lineHeight:1.4}}>{opt.desc}</div>
                   </div>
                   <div style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.color:"transparent",flexShrink:0,marginTop:2}}/>
@@ -9306,32 +9360,95 @@ const ClientAdminShifts = ({user}) => {
             })}
           </div>
           <div style={{display:"flex",gap:8}}>
-            <Btn onClick={()=>{setPublishedToBank(b=>[...b,pubModal.id]);setPubModal(null);setSelectedBroadcast("bank_first");}}>Publish Shift →</Btn>
+            <Btn onClick={()=>{setPublishedToBank(b=>[...b,pubModal.id]);setPubModal(null);setSelectedBroadcast("bank_first");}}>Publish Shift {"→"}</Btn>
             <Btn variant="secondary" onClick={()=>{setPubModal(null);setSelectedBroadcast("bank_first");}}>Cancel</Btn>
           </div>
         </Modal>
       )}
+
+      {/* Stats row */}
+      <Grid cols={4}>
+        <Stat label="Total Shifts" value={siteShifts.length}/>
+        <Stat label="Filled" value={siteShifts.filter(s=>s.status==="filled").length} accent/>
+        <Stat label="Unfilled" value={siteShifts.filter(s=>(s.status==="open"||s.status==="pending")&&s.date>=today).length} sub="Needs cover"/>
+        <Stat label="Expired Unfilled" value={siteShifts.filter(s=>s.date<today&&s.status!=="filled").length} sub="No cover found"/>
+      </Grid>
+
+      {/* Site filter + tabs row */}
+      <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:4}}>
+        {/* Site filter pills */}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["all",...allSites].map(s=>{
+            const active=site===s;
+            return (
+              <button key={s} onClick={()=>setSite(s)}
+                style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${active?CA_PURPLE:T.border}`,
+                  background:active?`${CA_PURPLE}18`:T.white,fontWeight:700,fontSize:12,cursor:"pointer",
+                  color:active?CA_PURPLE:T.muted,fontFamily:"Syne,sans-serif"}}>
+                {s==="all"?"All Sites":s}
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{width:1,height:24,background:T.border}}/>
+
+        {/* Status tabs */}
+        <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4}}>
+          {tabDefs.map(t=>{
+            const active=tab===t.k;
+            return (
+              <button key={t.k} onClick={()=>setTab(t.k)}
+                style={{padding:"6px 16px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                  background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                  boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:6}}>
+                {t.l}
+                <span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,
+                  background:active?t.color+"18":"transparent",color:active?t.color:T.muted}}>
+                  {t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <Card>
-        <Table headers={["Location","Role","Date","Time","Status","Agency","Worker","Publish"]}
-          rows={SHIFTS.filter(s=>user?.sites?.includes(s.carehome)||true).map(s=>(
-            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`}}>
-              <Td style={{fontSize:12,fontWeight:700,color:SITE_COLORS[s.carehome]||"#7c3aed"}}>{s.carehome}</Td>
-              <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
-              <Td>{s.date}</Td>
-              <Td style={{fontSize:12,color:T.muted}}>{s.time}</Td>
-              <Td><SBadge s={s.status}/></Td>
-              <Td style={{fontSize:12}}>{s.agency||"—"}</Td>
-              <Td style={{fontSize:12}}>{s.worker||<span style={{color:"#94a3b8"}}>Awaiting</span>}</Td>
-              <Td>
-                {publishedToBank.includes(s.id)
-                  ? <Badge label="📢 Published" color={T.teal} bg={T.tealBg}/>
-                  : s.status==="open"
-                  ? <Btn small onClick={()=>setPubModal(s)}>Publish →</Btn>
-                  : <span style={{fontSize:11,color:T.muted}}>—</span>}
-              </Td>
-            </tr>
-          ))}
+        <CardHead
+          title={(site==="all"?"All Sites":site) + " — " + tabDefs.find(t=>t.k===tab)?.l}
+          sub={`${visible.length} shift${visible.length!==1?"s":""} shown`}
         />
+        {visible.length===0
+          ? <div style={{padding:40,textAlign:"center",color:T.muted,fontSize:13}}>No {tab} shifts{site!=="all"?` for ${site}`:""} found.</div>
+          : <Table
+              headers={tab==="expired"
+                ? ["Location","Role","Date","Time","Urgency","Status"]
+                : ["Location","Role","Date","Time","Urgency","Status","Agency","Worker","Action"]}
+              rows={visible.map(s=>(
+                <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <Td>
+                    <span style={{fontSize:12,fontWeight:700,color:SITE_COLORS[s.carehome]||CA_PURPLE}}>{s.carehome}</span>
+                  </Td>
+                  <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
+                  <Td bold>{s.date}</Td>
+                  <Td style={{fontSize:12,color:T.muted}}>{s.time}</Td>
+                  <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                  <Td><SBadge s={s.status}/></Td>
+                  {tab!=="expired" && <>
+                    <Td style={{fontSize:12}}>{s.agency||"—"}</Td>
+                    <Td style={{fontSize:12}}>{s.worker||<span style={{color:"#94a3b8"}}>Awaiting</span>}</Td>
+                    <Td>
+                      {publishedToBank.includes(s.id)
+                        ? <Badge label="Published" color={T.teal} bg={T.tealBg}/>
+                        : s.status==="open"
+                        ? <Btn small onClick={()=>setPubModal(s)}>Publish {"→"}</Btn>
+                        : <span style={{fontSize:11,color:T.muted}}>—</span>}
+                    </Td>
+                  </>}
+                </tr>
+              ))}
+            />
+        }
       </Card>
     </Page>
   );
