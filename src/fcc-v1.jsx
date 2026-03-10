@@ -757,7 +757,7 @@ const INIT_BANK_RATES = {
   },
 };
 
-const ROLES = ["RGN","RMN","HCA","Senior Carer"];
+const ROLES = ["RGN","RMN","HCA","Senior Carer","Deputy Manager"];
 const SHIFT_DAYS = [
   {k:"weekday",     l:"Weekday",    sub:"Mon–Fri"},
   {k:"saturday",    l:"Saturday",   sub:""},
@@ -2220,7 +2220,6 @@ const DocumentVault = () => {
 };
 
 /* ─── ADMIN: RATE CARDS ──────────────────────────────────────────────────────── */
-const ROLES = ["RGN","RMN","HCA","Senior Carer","Deputy Manager"];
 const BANDS = ["Standard","Senior","Specialist"];
 const RATE_DAY_KEYS = ["weekday","saturday","sunday","bankHoliday"];
 const RATE_DAY_LABELS = {weekday:"Weekday",saturday:"Saturday",sunday:"Sunday",bankHoliday:"Bank Hol"};
