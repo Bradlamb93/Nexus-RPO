@@ -3539,7 +3539,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                 <div style={{background:T.amberBg,borderRadius:8,padding:"12px 14px"}}>
                   <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Est. Total</div>
                   <div style={{fontSize:26,fontWeight:800,color:T.amberText}}>£{bTotalCost.toLocaleString()}</div>
-                  <div style={{fontSize:10,color:T.amberText,marginTop:3}}>{validBRows.length} × {bHrs}h × £{bRate}/hr</div>
+                  <div style={{fontSize:10,color:T.amberText,marginTop:3}}>{validBRows.length} × {bHrs}h × £{bRate}{"/hr"}</div>
                 </div>
               </div>
             </Card>
