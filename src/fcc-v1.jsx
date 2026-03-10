@@ -3249,7 +3249,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
         <div style={{background:T.amberBg,borderRadius:10,padding:"14px 20px",marginBottom:20}}>
           {validBRows.map(r=>(
             <div key={r.id} style={{fontSize:12,color:T.amberText,display:"flex",justifyContent:"space-between",marginBottom:3}}>
-              <span>{bRole}</span><span>{r.date} · {bStart}–{bEnd}</span>
+              <span>{bRole}</span><span>{r.date} · {bStart}{"–"}{bEnd}</span>
             </div>
           ))}
           <div style={{borderTop:"1px solid #fcd34d",marginTop:10,paddingTop:10,fontWeight:800,fontSize:14,color:T.amberText}}>Total est. £{bTotalCost.toLocaleString()}</div>
@@ -3410,7 +3410,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                         <button onClick={()=>setBPattern(p.id)}
                           style={{padding:"5px 12px",background:"transparent",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:sel?T.white:T.text,fontFamily:"Syne,sans-serif"}}>
                           {p.l}
-                          <span style={{fontSize:10,fontWeight:400,marginLeft:5,color:sel?"rgba(255,255,255,0.7)":T.muted}}>{p.s}–{p.e}</span>
+                          <span style={{fontSize:10,fontWeight:400,marginLeft:5,color:sel?"rgba(255,255,255,0.7)":T.muted}}>{p.s}{"–"}{p.e}</span>
                         </button>
                         <button onClick={()=>openEditPat(p)}
                           style={{padding:"5px 7px",background:"transparent",border:"none",borderLeft:`1px solid ${sel?"rgba(255,255,255,0.2)":T.border}`,cursor:"pointer",fontSize:11,color:sel?"rgba(255,255,255,0.7)":T.muted,fontFamily:"Syne,sans-serif"}}>
