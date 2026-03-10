@@ -3552,7 +3552,6 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
             {validBRows.length===0 && <div style={{fontSize:11,color:T.muted,textAlign:"center",marginTop:-8}}>Add at least one date to continue</div>}
           </div>
         </div>
-      </div>
       )}
     </Page>
   );
