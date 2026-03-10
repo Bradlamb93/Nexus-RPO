@@ -3539,7 +3539,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                 <div style={{background:T.amberBg,borderRadius:8,padding:"12px 14px"}}>
                   <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Est. Total</div>
                   <div style={{fontSize:26,fontWeight:800,color:T.amberText}}>£{bTotalCost.toLocaleString()}</div>
-                  <div style={{fontSize:10,color:T.amberText,marginTop:3}}>{validBRows.length} × {bHrs}h × £{bRate}{"/hr"}</div>
+                  <div style={{fontSize:10,color:T.amberText,marginTop:3}}>{validBRows.length} &times; {bHrs}h &times; £{bRate}{"/hr"}</div>
                 </div>
               </div>
             </Card>
@@ -7658,7 +7658,7 @@ const AgencyRightToWork = () => {
       action={<div style={{display:"flex",gap:8,alignItems:"center"}}>
         {expired.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.redBg,color:T.red,fontSize:12,fontWeight:700}}>{expired.length} Expired</span>}
         {expiring.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.yellowBg,color:"#92400e",fontSize:12,fontWeight:700}}>{expiring.length} Expiring Soon</span>}
-        {restricted.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:"#ede9fe",color:"#6d28d9",fontSize:12,fontWeight:700}}>{restricted.length} × 20hr Restricted</span>}
+        {restricted.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:"#ede9fe",color:"#6d28d9",fontSize:12,fontWeight:700}}>{restricted.length} &times; 20hr Restricted</span>}
         <ExportMenu exports={rtwAgencyExports}/>
       </div>}>
 
