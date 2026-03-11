@@ -1970,146 +1970,192 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
 
 /* ─── CARE HOME: COMPLIANCE ──────────────────────────────────────────────────── */
 const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
-  const [tab,setTab]       = useState("overview");
+  const [tab,setTab]           = useState("requirements");
   const [showForm,setShowForm] = useState(false);
   const [editing,setEditing]   = useState(null);
   const mySite = user?.org || "Sunrise Care";
 
-  const globalReqs   = complianceReqs.filter(r=>r.scope==="global"&&r.active);
-  const myReqs       = complianceReqs.filter(r=>r.scope==="site"&&r.careHome===mySite);
-  const allActive    = [...globalReqs,...myReqs.filter(r=>r.active)];
+  const globalReqs = complianceReqs.filter(r=>r.scope==="global"&&r.active);
+  const myReqs     = complianceReqs.filter(r=>r.scope==="site"&&r.careHome===mySite);
+  const allActive  = [...globalReqs,...myReqs.filter(r=>r.active)];
+
+  // Worker compliance for this site
+  const myWorkers   = WORKERS.filter(w=>SHIFTS.some(s=>s.carehome===mySite&&s.worker===w.name));
+  const compliant   = myWorkers.filter(w=>w.compliance>=80);
+  const needsAction = myWorkers.filter(w=>w.compliance<80);
 
   const catColors = {safeguarding:{c:T.red,bg:T.redBg},training:{c:T.blue,bg:T.blueBg},specialist:{c:T.purple,bg:T.purpleBg},health:{c:T.green,bg:T.greenBg},safety:{c:T.yellow,bg:T.yellowBg},legal:{c:T.navy,bg:"#e8ecf4"},registration:{c:T.teal,bg:T.tealBg}};
+  const typeIcon = {document:"📄",training:"📚",registration:"🏅",vaccination:"💉"};
 
-  const addReq = (form) => {
-    const newReq = {...form, id:`cr${complianceReqs.length+1}`, scope:"site", careHome:mySite, createdAt:new Date().toISOString().split("T")[0]};
-    setComplianceReqs(p=>[...p,newReq]);
-    setShowForm(false);
-  };
-  const saveEdit = (form) => {
-    setComplianceReqs(p=>p.map(r=>r.id===editing.id?{...r,...form}:r));
-    setEditing(null);
-  };
+  const addReq  = (form) => { setComplianceReqs(p=>[...p,{...form,id:`cr${p.length+1}`,scope:"site",careHome:mySite,createdAt:new Date().toISOString().split("T")[0]}]); setShowForm(false); };
+  const saveEdit = (form) => { setComplianceReqs(p=>p.map(r=>r.id===editing.id?{...r,...form}:r)); setEditing(null); };
   const toggleActive = (id) => setComplianceReqs(p=>p.map(r=>r.id===id?{...r,active:!r.active}:r));
   const deleteReq    = (id) => setComplianceReqs(p=>p.filter(r=>r.id!==id));
 
+  const tabs = [
+    {k:"requirements", l:"Requirements", count:allActive.length},
+    {k:"workers",      l:"Worker Status", count:myWorkers.length},
+    {k:"mine",         l:"My Requirements", count:myReqs.filter(r=>r.active).length},
+  ];
+
+  const ReqCard = ({r, showEdit=false, borderColor=T.border}) => {
+    const cc = catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
+    return (
+      <div style={{background:T.white,border:`1.5px solid ${borderColor}`,borderRadius:10,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:12}}>
+        <div style={{width:38,height:38,borderRadius:9,background:cc.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+          {typeIcon[r.type]||"📋"}
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,flexWrap:"wrap"}}>
+            <span style={{fontWeight:700,fontSize:13}}>{r.name}</span>
+            {r.mandatory
+              ? <Badge label="Required" color={T.red} bg={T.redBg}/>
+              : <Badge label="Optional" color={T.muted} bg="#f1f5f9"/>}
+            <Badge label={r.category} color={cc.c} bg={cc.bg}/>
+            {r.expiryMonths&&<span style={{fontSize:10,color:T.muted,background:"#f8fafc",padding:"2px 7px",borderRadius:6,border:`1px solid ${T.border}`}}>Renews every {r.expiryMonths}m</span>}
+          </div>
+          {r.notes&&<div style={{fontSize:12,color:T.muted,marginBottom:5,lineHeight:1.5}}>{r.notes}</div>}
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{role}</span>)}
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
+          <span style={{fontSize:10,color:T.muted,fontWeight:600}}>{r.scope==="global"?"Platform":"Your site"}</span>
+          {showEdit&&<Btn small variant="secondary" onClick={()=>setEditing(r)}>Edit</Btn>}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Page title="Compliance Requirements" sub={`Managing compliance for ${mySite}`} icon="🛡"
+    <Page title="Compliance" sub={`${mySite} — compliance requirements and worker status`} icon="🛡"
       action={tab==="mine"?<Btn onClick={()=>setShowForm(true)}>+ Add Requirement</Btn>:null}>
 
       {showForm&&<RequirementFormModal onSave={addReq} onClose={()=>setShowForm(false)} addedBy={user?.name||"Care Home Manager"} careHome={mySite}/>}
       {editing&&<RequirementFormModal initial={editing} onSave={saveEdit} onClose={()=>setEditing(null)} addedBy={user?.name||"Care Home Manager"} careHome={mySite}/>}
 
-      {/* Summary */}
-      <Grid cols={3}>
-        <Stat label="Platform Requirements" value={globalReqs.length} sub="Set by Nexus RPO — apply to all sites" accent/>
+      <Grid cols={4}>
+        <Stat label="Platform Requirements" value={globalReqs.length} sub="Nexus RPO — all sites" accent/>
         <Stat label="Your Site Requirements" value={myReqs.filter(r=>r.active).length} sub="Added by your team"/>
-        <Stat label="Total Active" value={allActive.length} sub="Workers must meet all of these"/>
+        <Stat label="Compliant Workers" value={compliant.length} sub="Placed at your site"/>
+        <Stat label="Needs Attention" value={needsAction.length} sub="Below 80% compliance"/>
       </Grid>
 
-      <div style={{display:"flex",gap:8,marginBottom:18}}>
-        {[["overview","All Active Requirements"],["mine","My Site Requirements"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setTab(v)} style={{padding:"9px 18px",borderRadius:8,border:"none",background:tab===v?T.navy:"#eef1f6",color:tab===v?T.white:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
-            {l}
-          </button>
-        ))}
+      {needsAction.length>0&&(
+        <Alert type="warn">⚠️ {needsAction.length} worker{needsAction.length>1?"s":""} placed at {mySite} {needsAction.length>1?"are":"is"} below 80% compliance — contact the relevant agency to resolve.</Alert>
+      )}
+
+      {/* Tabs */}
+      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
+        {tabs.map(t=>{
+          const active=tab===t.k;
+          return (
+            <button key={t.k} onClick={()=>setTab(t.k)}
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:7}}>
+              {t.l}
+              <span style={{fontSize:11,padding:"1px 6px",borderRadius:10,background:active?"#e8ecf4":"transparent",color:active?T.navy:T.muted,fontWeight:700}}>
+                {t.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {tab==="overview"&&(
+      {/* ── Requirements tab ── */}
+      {tab==="requirements"&&(
         <>
-          <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}44`,borderRadius:12,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
-            <strong style={{color:T.blue}}>ℹ️ How this works:</strong> All workers placed at {mySite} must meet both the platform-wide requirements (set by Nexus RPO) and any requirements you've added for your site. Contact your Nexus RPO account manager to query platform requirements.
+          <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}33`,borderRadius:10,padding:"11px 15px",marginBottom:14,fontSize:12,color:T.muted,lineHeight:1.6}}>
+            <strong style={{color:T.blue}}>ℹ️ How this works:</strong> All workers placed at {mySite} must meet both the platform-wide requirements below and any additional requirements your site has added.
           </div>
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>🌐 Platform-Wide Requirements</div>
-            {globalReqs.map(r=>{
-              const cc=catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
-              return (
-                <div key={r.id} style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:10,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:12}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:cc.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>
-                    {{document:"📄",training:"📚",registration:"🏅",vaccination:"💉"}[r.type]||"📋"}
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                      <span style={{fontWeight:700,fontSize:13}}>{r.name}</span>
-                      {r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg="#f1f5f9}"/>}
-                      <Badge label={r.category} color={cc.c} bg={cc.bg}/>
-                    </div>
-                    <div style={{fontSize:12,color:T.muted,marginBottom:4}}>{r.notes}</div>
-                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                      {r.appliesToRoles.map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}
-                      {r.expiryMonths&&<span style={{fontSize:10,color:T.muted}}>· Renews every {r.expiryMonths} months</span>}
-                    </div>
-                  </div>
-                  <span style={{fontSize:10,color:T.muted,flexShrink:0}}>Platform</span>
-                </div>
-              );
-            })}
-          </div>
-
+          {globalReqs.length>0&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>🌐 Platform-Wide ({globalReqs.length})</div>
+              {globalReqs.map(r=><ReqCard key={r.id} r={r}/>)}
+            </div>
+          )}
           {myReqs.filter(r=>r.active).length>0&&(
             <div>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>📍 {mySite} Requirements</div>
-              {myReqs.filter(r=>r.active).map(r=>{
-                const cc=catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
-                return (
-                  <div key={r.id} style={{background:T.white,border:`1.5px solid ${T.teal}44`,borderRadius:10,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:12}}>
-                    <div style={{width:36,height:36,borderRadius:8,background:cc.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>
-                      {{document:"📄",training:"📚",registration:"🏅",vaccination:"💉"}[r.type]||"📋"}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                        <span style={{fontWeight:700,fontSize:13}}>{r.name}</span>
-                        {r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg="#f1f5f9}"/>}
-                        <Badge label={r.category} color={cc.c} bg={cc.bg}/>
-                      </div>
-                      <div style={{fontSize:12,color:T.muted,marginBottom:4}}>{r.notes}</div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {r.appliesToRoles.map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}
-                        {r.expiryMonths&&<span style={{fontSize:10,color:T.muted}}>· Renews every {r.expiryMonths} months</span>}
-                      </div>
-                    </div>
-                    <div style={{display:"flex",gap:5,flexShrink:0}}>
-                      <Btn small variant="secondary" onClick={()=>setEditing(r)}>Edit</Btn>
-                    </div>
-                  </div>
-                );
-              })}
+              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>📍 {mySite} Specific ({myReqs.filter(r=>r.active).length})</div>
+              {myReqs.filter(r=>r.active).map(r=><ReqCard key={r.id} r={r} showEdit borderColor={`${T.teal}66`}/>)}
             </div>
+          )}
+          {allActive.length===0&&(
+            <Card style={{padding:40,textAlign:"center"}}><div style={{fontSize:32,marginBottom:8}}>🛡</div><div style={{color:T.muted}}>No active requirements found.</div></Card>
           )}
         </>
       )}
 
+      {/* ── Worker Status tab ── */}
+      {tab==="workers"&&(
+        <>
+          {myWorkers.length===0?(
+            <Card style={{padding:40,textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:10}}>👥</div>
+              <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>No workers placed yet</div>
+              <p style={{color:T.muted,fontSize:13}}>Workers will appear here once they have been placed at {mySite}.</p>
+            </Card>
+          ):(
+            <Card>
+              <Table
+                headers={["Worker","Role","Agency","DBS","Training","NMC/PIN","Compliance","RTW"]}
+                rows={myWorkers.sort((a,b)=>a.compliance-b.compliance).map(w=>(
+                  <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:w.compliance<80?"#fffbeb":"transparent"}}>
+                    <Td bold>{w.name}</Td>
+                    <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
+                    <Td style={{fontSize:12,color:T.muted}}>{w.agency}</Td>
+                    <Td><SBadge s={w.dbs}/></Td>
+                    <Td><SBadge s={w.training}/></Td>
+                    <Td>{w.pin?<Badge label="✓ Verified" color={T.green} bg={T.greenBg}/>:<Badge label="N/A" color={T.muted} bg="#f1f5f9"/>}</Td>
+                    <Td>
+                      <div style={{display:"flex",alignItems:"center",gap:8,minWidth:90}}>
+                        <div style={{flex:1}}><ProgressBar value={w.compliance} color={w.compliance>=80?T.green:w.compliance>=60?T.amber:T.red}/></div>
+                        <span style={{fontSize:11,fontWeight:700,color:w.compliance>=80?T.green:w.compliance>=60?T.amber:T.red,minWidth:32}}>{w.compliance}%</span>
+                      </div>
+                    </Td>
+                    <Td>
+                      {w.rtwExpiry
+                        ? <span style={{fontSize:11,fontWeight:600,color:w.rtwExpiry<"2026-06-10"?T.red:T.green}}>{w.rtwExpiry}</span>
+                        : <Badge label="Permanent" color={T.green} bg={T.greenBg}/>}
+                    </Td>
+                  </tr>
+                ))}
+              />
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* ── My Requirements tab ── */}
       {tab==="mine"&&(
         <>
-          <div style={{background:T.tealBg,border:`1px solid ${T.teal}44`,borderRadius:12,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.teal,fontWeight:600}}>
-            📍 These requirements are specific to {mySite}. All agency and bank workers placed at your site must also hold these in addition to platform requirements.
+          <div style={{background:T.tealBg,border:`1px solid ${T.teal}44`,borderRadius:10,padding:"11px 15px",marginBottom:14,fontSize:12,color:T.teal,fontWeight:600,lineHeight:1.6}}>
+            📍 Site-specific requirements you manage. Workers placed at {mySite} must meet these in addition to all platform requirements.
           </div>
           {myReqs.length===0?(
             <Card style={{padding:40,textAlign:"center"}}>
               <div style={{fontSize:32,marginBottom:10}}>📋</div>
               <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>No site-specific requirements yet</div>
-              <p style={{color:T.muted,fontSize:13,marginBottom:16}}>Add requirements specific to your home — such as specialist training, site-specific health checks, or additional certifications.</p>
+              <p style={{color:T.muted,fontSize:13,marginBottom:16}}>Add requirements specific to your home — specialist training, site health checks, or additional certifications.</p>
               <Btn onClick={()=>setShowForm(true)}>+ Add Your First Requirement</Btn>
             </Card>
           ):(
             <Card>
               <Table
-                headers={["Requirement","Type","Category","Applies To","Expiry","Status","Actions"]}
+                headers={["Requirement","Category","Applies To","Renews","Status","Actions"]}
                 rows={myReqs.map(r=>{
                   const cc=catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
                   return (
-                    <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`,background:r.active?"transparent":"#f8fafc",opacity:r.active?1:0.65}}>
+                    <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`,opacity:r.active?1:0.55}}>
                       <Td>
-                        <div>
-                          <div style={{fontWeight:700,fontSize:13}}>{r.name}</div>
-                          {r.notes&&<div style={{fontSize:10,color:T.muted,marginTop:1}}>{r.notes}</div>}
-                        </div>
+                        <div style={{fontWeight:700,fontSize:13}}>{r.name}</div>
+                        {r.notes&&<div style={{fontSize:10,color:T.muted,marginTop:1}}>{r.notes}</div>}
+                        <div style={{marginTop:3}}>{r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg="#f1f5f9"/>}</div>
                       </Td>
-                      <Td><span style={{fontSize:11,fontWeight:600,textTransform:"capitalize"}}>{r.type}</span></Td>
                       <Td><Badge label={r.category} color={cc.c} bg={cc.bg}/></Td>
-                      <Td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{r.appliesToRoles.map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}</div></Td>
-                      <Td><span style={{fontSize:12,color:T.muted}}>{r.expiryMonths?`${r.expiryMonths}m`:"None"}</span></Td>
+                      <Td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}</div></Td>
+                      <Td><span style={{fontSize:12,color:T.muted}}>{r.expiryMonths?`${r.expiryMonths} months`:"None"}</span></Td>
                       <Td>
                         <button onClick={()=>toggleActive(r.id)} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${r.active?T.green:T.border}`,background:r.active?T.greenBg:"#f1f5f9",color:r.active?T.green:T.muted,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
                           {r.active?"Active":"Inactive"}
@@ -7785,24 +7831,23 @@ const RtwMonitoringReport = ({user}) => {
     ? ["Sunrise Care","Sunrise Dementia Unit","Oakwood Nursing"]
     : ["Sunrise Care"];
 
-  const [filterSite, setFilterSite] = useState("all");
+  const [filterSite,   setFilterSite]   = useState("all");
   const [filterAgency, setFilterAgency] = useState("all");
+  const [tab, setTab] = useState("hours");
   const LIMIT = 20;
 
   const displayWorkers = RESTRICTED_HOURS.filter(w=>{
-    const siteMatch = filterSite==="all" || w.sites.includes(filterSite);
+    const siteMatch   = filterSite==="all"   || w.sites.includes(filterSite);
     const agencyMatch = filterAgency==="all" || w.agency===filterAgency;
     return siteMatch && agencyMatch;
   });
 
-  const agencies = [...new Set(RESTRICTED_HOURS.map(w=>w.agency))];
-  const today = "2026-03-10";
-  const currentWeekHours = (w) => w.weekHours[w.weekHours.length-1]||0;
-  const totalHours = (w) => w.weekHours.reduce((a,b)=>a+b,0);
-  const breaches = RESTRICTED_HOURS.filter(w=>w.weekHours.some(h=>h>LIMIT));
-
-  // Expiry urgency
-  const expiringWorkers = RESTRICTED_HOURS.filter(w=>{
+  const agencies           = [...new Set(RESTRICTED_HOURS.map(w=>w.agency))];
+  const today              = "2026-03-10";
+  const currentWeekHours   = (w) => w.weekHours[w.weekHours.length-1]||0;
+  const totalHours         = (w) => w.weekHours.reduce((a,b)=>a+b,0);
+  const breaches           = RESTRICTED_HOURS.filter(w=>w.weekHours.some(h=>h>LIMIT));
+  const expiringWorkers    = RESTRICTED_HOURS.filter(w=>{
     const wx = WORKERS.find(x=>x.id===w.workerId);
     return wx?.rtwExpiry && wx.rtwExpiry<="2026-06-10";
   });
@@ -7823,12 +7868,12 @@ const RtwMonitoringReport = ({user}) => {
       buildTable(["Worker","Agency","Role","Visa Expiry","This Week (hrs)","Status"],
         RESTRICTED_HOURS.map(w=>{
           const cur=w.weekHours[w.weekHours.length-1];
-          return [w.workerName,w.agency,w.role,WORKERS.find(x=>x.id===w.workerId)?.rtwExpiry||"—",`${cur}/20`,cur>20?"BREACH":cur===20?"AT LIMIT":"OK"];
+          return[w.workerName,w.agency,w.role,WORKERS.find(x=>x.id===w.workerId)?.rtwExpiry||"—",`${cur}/20`,cur>20?"BREACH":cur===20?"AT LIMIT":"OK"];
         })))},
   ];
 
   return (
-    <Page title="RTW Monitoring Report" sub="20-hour restricted workers across your locations" icon="🪪" action={<ExportMenu exports={rtwExports}/>}>
+    <Page title="RTW Monitoring" sub="20-hour restricted workers — hours tracking and visa status" icon="🪪" action={<ExportMenu exports={rtwExports}/>}>
 
       {breaches.length>0&&(
         <Alert type="error">⛔ {breaches.length} worker{breaches.length>1?"s have":" has"} exceeded 20 hours in at least one week. Review immediately and contact the relevant agency.</Alert>
@@ -7862,108 +7907,138 @@ const RtwMonitoringReport = ({user}) => {
         </div>
       )}
 
-      {/* Weekly hours table */}
-      <Card>
-        <CardHead title="Weekly Hours — Last 6 Weeks" sub="20hr limit applies during term time"/>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead>
-              <tr style={{background:"#f8fafc",borderBottom:`2px solid ${T.border}`}}>
-                <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Worker</th>
-                <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Agency</th>
-                <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Visa Expiry</th>
-                {RTW_WEEKS.map((wk,i)=>(
-                  <th key={wk} style={{padding:"10px 10px",textAlign:"center",fontSize:10,fontWeight:700,color:i===RTW_WEEKS.length-1?T.navy:T.muted,textTransform:"uppercase",letterSpacing:"0.04em",background:i===RTW_WEEKS.length-1?"#f0f4ff":"transparent",whiteSpace:"nowrap"}}>{wk}</th>
-                ))}
-                <th style={{padding:"10px 14px",textAlign:"center",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayWorkers.map(w=>{
-                const wx = WORKERS.find(x=>x.id===w.workerId);
-                const isExpiringSoon = wx?.rtwExpiry&&wx.rtwExpiry<="2026-06-10";
-                return (
-                  <tr key={w.workerId} style={{borderBottom:`1px solid ${T.border}`}}>
-                    <td style={{padding:"12px 14px"}}>
-                      <div style={{fontWeight:700,fontSize:13}}>{w.workerName}</div>
-                      <div style={{display:"flex",gap:6,marginTop:3}}>
-                        <Badge label={w.role} color={T.purple} bg={T.purpleBg}/>
-                        <span style={{fontSize:10,fontWeight:700,color:"#6d28d9",background:"#ede9fe",padding:"2px 7px",borderRadius:8}}>20hr limit</span>
-                      </div>
-                    </td>
-                    <td style={{padding:"12px 14px",fontSize:12,color:T.muted}}>{w.agency}</td>
-                    <td style={{padding:"12px 14px"}}>
-                      {wx?.rtwExpiry
-                        ? <span style={{fontSize:12,fontWeight:isExpiringSoon?700:400,color:isExpiringSoon?T.red:T.text}}>{wx.rtwExpiry}{isExpiringSoon&&" ⚠️"}</span>
-                        : <span style={{fontSize:12,color:T.muted}}>—</span>}
-                    </td>
-                    {w.weekHours.map((h,i)=>{
-                      const over = h>LIMIT;
-                      const atLimit = h===LIMIT;
-                      const bg = over?"#fee2e2":atLimit?"#fef3c7":i===w.weekHours.length-1?"#eef2ff":"transparent";
-                      const col = over?T.red:atLimit?"#b45309":i===w.weekHours.length-1?T.navy:T.text;
-                      return (
-                        <td key={i} style={{padding:"12px 10px",textAlign:"center",background:bg}}>
-                          <span style={{fontSize:13,fontWeight:over||atLimit?800:500,color:col}}>{h}</span>
-                          {over&&<div style={{fontSize:9,color:T.red,fontWeight:700}}>OVER</div>}
-                          {atLimit&&<div style={{fontSize:9,color:"#b45309",fontWeight:700}}>AT LIMIT</div>}
-                        </td>
-                      );
-                    })}
-                    <td style={{padding:"12px 14px",textAlign:"center"}}>
-                      <span style={{fontSize:13,fontWeight:700,color:T.text}}>{totalHours(w)}</span>
-                      <div style={{fontSize:10,color:T.muted}}>hrs</div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {displayWorkers.length===0&&(
-                <tr><td colSpan={10} style={{padding:"28px",textAlign:"center",color:T.muted,fontSize:13}}>No restricted workers match the current filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Worker detail cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:16}}>
-        {displayWorkers.map(w=>{
-          const wx = WORKERS.find(x=>x.id===w.workerId);
-          const curHrs = currentWeekHours(w);
-          const remaining = Math.max(0, LIMIT-curHrs);
-          const over = curHrs>LIMIT;
-          const isExpiring = wx?.rtwExpiry&&wx.rtwExpiry<="2026-06-10";
+      {/* View toggle */}
+      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content"}}>
+        {[{k:"hours",l:"Weekly Hours Table"},{k:"cards",l:"Worker Cards"}].map(t=>{
+          const active=tab===t.k;
           return (
-            <Card key={w.workerId} style={{borderTop:`3px solid ${over?T.red:curHrs===LIMIT?"#f59e0b":CA_PURPLE}`}}>
-              <div style={{padding:"14px 16px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                  <div>
-                    <div style={{fontWeight:800,fontSize:14}}>{w.workerName}</div>
-                    <div style={{fontSize:11,color:T.muted,marginTop:2}}>{w.agency} · {w.role}</div>
-                  </div>
-                  {over&&<span style={{fontSize:11,fontWeight:700,color:T.red,background:T.redBg,padding:"3px 8px",borderRadius:8}}>BREACH</span>}
-                  {!over&&curHrs===LIMIT&&<span style={{fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:8}}>AT LIMIT</span>}
-                </div>
-                <div style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
-                    <span style={{color:T.muted}}>This week (w/c 3 Mar)</span>
-                    <span style={{fontWeight:700,color:over?T.red:T.text}}>{curHrs} / {LIMIT} hrs</span>
-                  </div>
-                  <ProgressBar value={curHrs} max={LIMIT} color={over?T.red:curHrs>=18?T.amber:CA_PURPLE}/>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:T.muted}}>
-                  <div>Remaining this week: <strong style={{color:over?T.red:T.green}}>{over?`${curHrs-LIMIT} hrs over`:`${remaining} hrs`}</strong></div>
-                  <div>Visa expiry: <strong style={{color:isExpiring?T.red:T.text}}>{wx?.rtwExpiry||"—"}</strong></div>
-                </div>
-                {wx?.rtwNotes&&<div style={{marginTop:8,padding:"7px 10px",background:"#f8fafc",borderRadius:6,fontSize:11,color:T.muted,borderLeft:`3px solid ${CA_PURPLE}`}}>{wx.rtwNotes}</div>}
-                <div style={{marginTop:10,paddingTop:8,borderTop:`1px solid ${T.border}`,display:"flex",flexWrap:"wrap",gap:4}}>
-                  {w.sites.map(s=><span key={s} style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:8,background:`${SITE_COLORS[s]||CA_PURPLE}18`,color:SITE_COLORS[s]||CA_PURPLE}}>{s}</span>)}
-                </div>
-              </div>
-            </Card>
+            <button key={t.k} onClick={()=>setTab(t.k)}
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none"}}>
+              {t.l}
+            </button>
           );
         })}
       </div>
+
+      {/* Weekly hours table */}
+      {tab==="hours"&&(
+        <Card>
+          <CardHead title="Weekly Hours — Last 6 Weeks" sub="20hr limit applies during term time"/>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#f8fafc",borderBottom:`2px solid ${T.border}`}}>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Worker</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Agency</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Visa Expiry</th>
+                  {RTW_WEEKS.map((wk,i)=>(
+                    <th key={wk} style={{padding:"10px 10px",textAlign:"center",fontSize:10,fontWeight:700,color:i===RTW_WEEKS.length-1?T.navy:T.muted,textTransform:"uppercase",letterSpacing:"0.04em",background:i===RTW_WEEKS.length-1?"#f0f4ff":"transparent",whiteSpace:"nowrap"}}>{wk}</th>
+                  ))}
+                  <th style={{padding:"10px 14px",textAlign:"center",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayWorkers.map(w=>{
+                  const wx=WORKERS.find(x=>x.id===w.workerId);
+                  const isExpiringSoon=wx?.rtwExpiry&&wx.rtwExpiry<="2026-06-10";
+                  return (
+                    <tr key={w.workerId} style={{borderBottom:`1px solid ${T.border}`}}>
+                      <td style={{padding:"12px 14px"}}>
+                        <div style={{fontWeight:700,fontSize:13}}>{w.workerName}</div>
+                        <div style={{display:"flex",gap:6,marginTop:3}}>
+                          <Badge label={w.role} color={T.purple} bg={T.purpleBg}/>
+                          <span style={{fontSize:10,fontWeight:700,color:"#6d28d9",background:"#ede9fe",padding:"2px 7px",borderRadius:8}}>20hr limit</span>
+                        </div>
+                      </td>
+                      <td style={{padding:"12px 14px",fontSize:12,color:T.muted}}>{w.agency}</td>
+                      <td style={{padding:"12px 14px"}}>
+                        {wx?.rtwExpiry
+                          ? <span style={{fontSize:12,fontWeight:isExpiringSoon?700:400,color:isExpiringSoon?T.red:T.text}}>{wx.rtwExpiry}{isExpiringSoon&&" ⚠️"}</span>
+                          : <span style={{fontSize:12,color:T.muted}}>—</span>}
+                      </td>
+                      {w.weekHours.map((h,i)=>{
+                        const over=h>LIMIT; const atLimit=h===LIMIT;
+                        const bg=over?"#fee2e2":atLimit?"#fef3c7":i===w.weekHours.length-1?"#eef2ff":"transparent";
+                        const col=over?T.red:atLimit?"#b45309":i===w.weekHours.length-1?T.navy:T.text;
+                        return (
+                          <td key={i} style={{padding:"12px 10px",textAlign:"center",background:bg}}>
+                            <span style={{fontSize:13,fontWeight:over||atLimit?800:500,color:col}}>{h}</span>
+                            {over&&<div style={{fontSize:9,color:T.red,fontWeight:700}}>OVER</div>}
+                            {atLimit&&<div style={{fontSize:9,color:"#b45309",fontWeight:700}}>AT LIMIT</div>}
+                          </td>
+                        );
+                      })}
+                      <td style={{padding:"12px 14px",textAlign:"center"}}>
+                        <span style={{fontSize:13,fontWeight:700}}>{totalHours(w)}</span>
+                        <div style={{fontSize:10,color:T.muted}}>hrs</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {displayWorkers.length===0&&(
+                  <tr><td colSpan={10} style={{padding:"28px",textAlign:"center",color:T.muted,fontSize:13}}>No restricted workers match the current filters.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Worker cards view */}
+      {tab==="cards"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:14}}>
+          {displayWorkers.map(w=>{
+            const wx=WORKERS.find(x=>x.id===w.workerId);
+            const curHrs=currentWeekHours(w);
+            const remaining=Math.max(0,LIMIT-curHrs);
+            const over=curHrs>LIMIT;
+            const atLimit=curHrs===LIMIT;
+            const isExpiring=wx?.rtwExpiry&&wx.rtwExpiry<="2026-06-10";
+            const barColor=over?T.red:curHrs>=18?T.amber:CA_PURPLE;
+            return (
+              <Card key={w.workerId} style={{borderTop:`3px solid ${over?T.red:atLimit?"#f59e0b":CA_PURPLE}`,padding:0}}>
+                <div style={{padding:"14px 16px"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                    <div>
+                      <div style={{fontWeight:800,fontSize:14}}>{w.workerName}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{w.agency} · {w.role}</div>
+                    </div>
+                    <div>
+                      {over&&<span style={{fontSize:11,fontWeight:700,color:T.red,background:T.redBg,padding:"3px 8px",borderRadius:8}}>BREACH</span>}
+                      {!over&&atLimit&&<span style={{fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:8}}>AT LIMIT</span>}
+                      {!over&&!atLimit&&<span style={{fontSize:11,fontWeight:700,color:T.green,background:T.greenBg,padding:"3px 8px",borderRadius:8}}>OK</span>}
+                    </div>
+                  </div>
+
+                  <div style={{marginBottom:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
+                      <span style={{color:T.muted}}>This week (w/c 3 Mar)</span>
+                      <span style={{fontWeight:700,color:over?T.red:T.text}}>{curHrs} / {LIMIT} hrs</span>
+                    </div>
+                    <ProgressBar value={Math.min(curHrs,LIMIT+2)} max={LIMIT} color={barColor}/>
+                  </div>
+
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11,color:T.muted,marginBottom:8}}>
+                    <div>Remaining: <strong style={{color:over?T.red:T.green}}>{over?`${curHrs-LIMIT}h over`:`${remaining}h left`}</strong></div>
+                    <div>Visa expiry: <strong style={{color:isExpiring?T.red:T.text}}>{wx?.rtwExpiry||"—"}</strong></div>
+                  </div>
+
+                  {wx?.rtwNotes&&<div style={{padding:"7px 10px",background:"#f8fafc",borderRadius:6,fontSize:11,color:T.muted,borderLeft:`3px solid ${CA_PURPLE}`,marginBottom:8}}>{wx.rtwNotes}</div>}
+
+                  <div style={{paddingTop:8,borderTop:`1px solid ${T.border}`,display:"flex",flexWrap:"wrap",gap:4}}>
+                    {w.sites.map(s=><span key={s} style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:8,background:`${SITE_COLORS[s]||CA_PURPLE}18`,color:SITE_COLORS[s]||CA_PURPLE}}>{s}</span>)}
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+          {displayWorkers.length===0&&(
+            <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:T.muted,fontSize:13}}>No restricted workers match the current filters.</div>
+          )}
+        </div>
+      )}
 
       {/* Compliance reminder */}
       <Card style={{background:"#faf5ff",border:`1.5px solid #ddd6fe`}}>
