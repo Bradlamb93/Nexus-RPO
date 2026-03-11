@@ -72,6 +72,22 @@ const AGENCIES = [
   {id:4,name:"CareForce",tier:"Tier 3",contact:"Mike Turner",email:"mike@careforce.co.uk",phone:"07700 900321",shifts:14,fillRate:71,avgResponse:"52m",compliance:82,status:"active",spend:8750,joined:"2024-06-01"},
 ];
 
+// Agency panels per client — which agencies are approved to fill shifts for each client group
+const INIT_CLIENT_PANELS = {
+  cg1: [1, 2, 3],    // Sunrise Healthcare: First Choice, ProCare, MedStaff
+  cg2: [1, 2],       // Lakeside Care: First Choice, ProCare only (negotiated)
+  cg3: [1, 4],       // Riverside Care: First Choice, CareForce
+};
+
+// Maps care home name → client group ID (for panel lookups)
+const HOME_TO_GROUP = {
+  "Sunrise Care":          "cg1",
+  "Sunrise Dementia Unit": "cg1",
+  "Meadowbrook Lodge":     "cg2",
+  "Oakwood Nursing":       "cg2",
+  "Riverside Manor":       "cg3",
+};
+
 const WORKERS = [
   {id:1,name:"Sarah Johnson",role:"RGN",agency:"ProCare",dbs:"valid",dbsExpiry:"2027-03-01",training:"valid",trainingExpiry:"2026-09-15",pin:"12A3456",pinStatus:true,compliance:100,phone:"07711 111111",email:"sarah.j@email.com",available:true,
    rtwType:"british_passport",rtwRef:"PASS-001",rtwExpiry:null,rtwVerified:"2024-01-10",rtwVerifiedBy:"Rachel Obi",hoursRestriction:null,visaType:null,rtwNotes:""},
@@ -118,32 +134,54 @@ const INIT_RATE_CARDS = [
 ];
 
 // Neutral vendor margin — what Nexus RPO charges care homes on top of agency rates
-const INIT_MARGIN_CONFIG = {
-  type: "fixed",        // "fixed" (£/hr) | "percentage" (%)
-  usePerRole: true,     // true = per-role margins, false = one global margin
-  globalValue: 2.50,
-  perRole: {
-    "RGN":          3.00,
-    "RMN":          3.50,
-    "HCA":          2.00,
-    "Senior Carer": 2.50,
+// Per-client pricing: platformFee (% of total spend) + hourlyMargin (£/hr or % per hour)
+const blankClientPricing = () => ({
+  platformFee:   { enabled: false, value: 2.5 },
+  hourlyMargin:  { enabled: true, type: "fixed", usePerRole: true, globalValue: 2.50,
+                   perRole: { RGN: 3.00, RMN: 3.50, HCA: 2.00, "Senior Carer": 2.50 } },
+  notes: "",
+});
+const INIT_CLIENT_PRICING = {
+  cg1: {
+    platformFee:  { enabled: true, value: 2.5 },
+    hourlyMargin: { enabled: true, type: "fixed", usePerRole: true, globalValue: 2.50,
+                    perRole: { RGN: 3.00, RMN: 3.50, HCA: 2.00, "Senior Carer": 2.50 } },
+    notes: "Preferred client — 3yr framework. Standard hourly margin + portal fee.",
   },
-  notes: "Applied to all hours billed through the platform. Agencies see their base rate; care homes see the client rate inclusive of the Nexus RPO margin.",
+  cg2: {
+    platformFee:  { enabled: true, value: 3.0 },
+    hourlyMargin: { enabled: false, type: "fixed", usePerRole: false, globalValue: 2.00,
+                    perRole: { RGN: 2.00, RMN: 2.50, HCA: 1.50, "Senior Carer": 2.00 } },
+    notes: "Platform fee only — hourly margin waived as part of contract negotiation.",
+  },
+  cg3: {
+    platformFee:  { enabled: false, value: 2.0 },
+    hourlyMargin: { enabled: true, type: "percentage", usePerRole: false, globalValue: 8,
+                    perRole: { RGN: 8, RMN: 9, HCA: 6, "Senior Carer": 7 } },
+    notes: "Percentage margin model — no platform fee.",
+  },
 };
 
+// cfg here = a client's hourlyMargin object (or legacy full cfg)
 const calcClientRate = (agencyRate, role, cfg) => {
-  if (!cfg) return agencyRate;
+  if (!cfg || !cfg.enabled) return agencyRate;
   if (cfg.type === "percentage") {
-    const pct = cfg.usePerRole ? (cfg.perRole[role] ?? cfg.globalValue) : cfg.globalValue;
+    const pct = cfg.usePerRole ? (cfg.perRole?.[role] ?? cfg.globalValue) : cfg.globalValue;
     return +(agencyRate * (1 + pct / 100)).toFixed(2);
   }
-  const margin = cfg.usePerRole ? (cfg.perRole[role] ?? cfg.globalValue) : cfg.globalValue;
+  const margin = cfg.usePerRole ? (cfg.perRole?.[role] ?? cfg.globalValue) : cfg.globalValue;
   return +(agencyRate + margin).toFixed(2);
 };
 
 const getMargin = (agencyRate, role, cfg) => {
-  if (!cfg) return 0;
+  if (!cfg || !cfg.enabled) return 0;
   return +(calcClientRate(agencyRate, role, cfg) - agencyRate).toFixed(2);
+};
+
+// Calculate platform fee revenue from a spend amount
+const calcPlatformFee = (totalSpend, feeCfg) => {
+  if (!feeCfg || !feeCfg.enabled) return 0;
+  return +(totalSpend * feeCfg.value / 100).toFixed(2);
 };
 
 const INVOICES = [
@@ -200,8 +238,7 @@ const PERM_DEFS = {
     {k:"budgets",     l:"Budgets",         desc:"Set and monitor agency spend budgets per care home"},
     {k:"analytics",   l:"Analytics",       desc:"View reports and analytics"},
     {k:"reports",     l:"Custom Reports",  desc:"Build, save and export custom data reports"},
-    {k:"siteallocation",l:"Site Allocation",desc:"Assign care home staff to specific sites"},
-    {k:"margins",     l:"Margins & Pricing", desc:"Set platform margin charged to care homes"},
+    {k:"clients",     l:"Clients & Pricing",desc:"Manage clients, panels, rates and pricing"},
     {k:"users",       l:"Users & Perms",   desc:"Manage platform users (super-admin only)"},
   ],
   clientadmin: [
@@ -326,6 +363,7 @@ const INIT_CLIENT_GROUPS = [
     contractEnd:"2026-12-31",
     status:"active",
     notes:"Preferred client — 3 year framework agreement",
+    panelAgencies:[1,2,3],
     locations:[
       {id:"l1",name:"Sunrise Care",type:"Residential",address:"14 Park Lane, Didsbury, Manchester, M20 2GH",beds:42,contact:"Karen Hughes",email:"k.hughes@sunrise.co.uk",phone:"0161 400 1101",cqcRating:"Good",cqcDate:"2025-04-12",status:"active",notes:""},
       {id:"l2",name:"Sunrise Dementia Unit",type:"Dementia",address:"22 Oak Street, Chorlton, Manchester, M21 9WQ",beds:28,contact:"Donna Clarke",email:"d.clarke@sunrise.co.uk",phone:"0161 400 1102",cqcRating:"Outstanding",cqcDate:"2025-01-08",status:"active",notes:"Specialist dementia unit — mandatory dementia care training required"},
@@ -344,6 +382,7 @@ const INIT_CLIENT_GROUPS = [
     contractEnd:"2025-12-31",
     status:"active",
     notes:"Contract renewal due Dec 2025",
+    panelAgencies:[1,3,4],
     locations:[
       {id:"l3",name:"Meadowbrook Lodge",type:"Nursing",address:"8 Meadow Road, Headingley, Leeds, LS6 3AB",beds:58,contact:"Paul Osei",email:"p.osei@meadowbrook.co.uk",phone:"0113 500 2201",cqcRating:"Good",cqcDate:"2024-11-20",status:"active",notes:"High-dependency nursing unit — RGN minimum required"},
       {id:"l4",name:"Oakwood Nursing",type:"Dementia",address:"55 Oakwood Drive, Chapel Allerton, Leeds, LS7 4PJ",beds:36,contact:"Janet Mills",email:"j.mills@oakwood.co.uk",phone:"0113 500 2202",cqcRating:"Requires Improvement",cqcDate:"2024-06-15",status:"active",notes:"CQC improvement plan in progress"},
@@ -362,8 +401,7 @@ const INIT_CLIENT_GROUPS = [
     contractEnd:"2027-05-31",
     status:"active",
     notes:"",
-    locations:[
-      {id:"l5",name:"Riverside Manor",type:"Nursing",address:"1 River View, Edgbaston, Birmingham, B15 3TE",beds:64,contact:"Steve Walters",email:"s.walters@riverside.co.uk",phone:"0121 600 3301",cqcRating:"Good",cqcDate:"2025-02-28",status:"inactive",notes:"Currently inactive — Steve Walters on leave"},
+    panelAgencies:[2,4],type:"Nursing",address:"1 River View, Edgbaston, Birmingham, B15 3TE",beds:64,contact:"Steve Walters",email:"s.walters@riverside.co.uk",phone:"0121 600 3301",cqcRating:"Good",cqcDate:"2025-02-28",status:"inactive",notes:"Currently inactive — Steve Walters on leave"},
     ]
   },
 ];
@@ -1034,20 +1072,7 @@ const INIT_CREDIT_NOTES = [
 ];
 
 /* ─── MESSAGES ────────────────────────────────────────────────────────────────── */
-const INIT_MESSAGES = [
-  {id:"m1", threadId:"t1", shiftId:1,  from:"Karen Hughes",   fromRole:"carehome",  to:"Laura Bennett",  toRole:"agency",      text:"Hi Laura — can you confirm the RGN for tomorrow morning? We need confirmation by 8pm tonight.",                                   timestamp:"2026-03-11T17:32:00",read:false},
-  {id:"m2", threadId:"t1", shiftId:1,  from:"Laura Bennett",  fromRole:"agency",    to:"Karen Hughes",   toRole:"carehome",    text:"Hi Karen — yes, putting Emma Clarke forward now. She's fully compliant and has worked with you before.",                          timestamp:"2026-03-11T17:45:00",read:false},
-  {id:"m3", threadId:"t2", shiftId:7,  from:"Rachel Obi",     fromRole:"admin",     to:"Priya Shah",     toRole:"agency",      text:"Priya — Oakwood shift on the 15th is still open. Any RGNs available? This is now high priority.",                              timestamp:"2026-03-11T10:00:00",read:false},
-  {id:"m4", threadId:"t2", shiftId:7,  from:"Priya Shah",     fromRole:"agency",    to:"Rachel Obi",     toRole:"admin",       text:"We have one RGN available but she needs a rate of £36. Let me know if that's acceptable.",                                       timestamp:"2026-03-11T10:22:00",read:true},
-  {id:"m5", threadId:"t3", workerId:4, from:"James Wilson",   fromRole:"worker",    to:"Laura Bennett",  toRole:"agency",      text:"Hi Laura, just wanted to confirm I'm OK for the Oakwood shift on Monday. Should I bring my own scrubs?",                        timestamp:"2026-03-10T14:10:00",read:true},
-  {id:"m6", threadId:"t3", workerId:4, from:"Laura Bennett",  fromRole:"agency",    to:"James Wilson",   toRole:"worker",      text:"Hi James — yes, please bring your own. The site code for the car park is 4821.",                                                  timestamp:"2026-03-10T14:35:00",read:true},
-];
 
-const INIT_THREADS = [
-  {id:"t1", subject:"Shift #1 — Sunrise Care RGN 12 Mar", shiftId:1,  participants:["Karen Hughes","Laura Bennett"], lastMessage:"2026-03-11T17:45:00", unread:1, type:"shift"},
-  {id:"t2", subject:"Shift #7 — Oakwood RGN 15 Mar",      shiftId:7,  participants:["Rachel Obi","Priya Shah"],      lastMessage:"2026-03-11T10:22:00", unread:0, type:"shift"},
-  {id:"t3", subject:"Worker — James Wilson",               workerId:4, participants:["James Wilson","Laura Bennett"], lastMessage:"2026-03-10T14:35:00", unread:0, type:"worker"},
-];
 
 /* ─── NOTIFICATIONS ───────────────────────────────────────────────────────────── */
 const INIT_NOTIFICATIONS = {
@@ -1057,25 +1082,21 @@ const INIT_NOTIFICATIONS = {
     {id:"n3", type:"invoice_overdue", title:"Invoice Overdue",               body:"INV-0010 (MedStaff UK) is 10 days overdue. £13,200 outstanding.",          time:"1d ago",   read:true,  action:"invoices"},
     {id:"n4", type:"compliance",      title:"Worker Compliance Lapsed",      body:"Priya Patel — mandatory training expired Dec 2025. Cannot be placed.",     time:"3d ago",   read:true,  action:"compliance"},
     {id:"n5", type:"contract",        title:"Contract Renewal Due",          body:"Lakeside Care Ltd contract expires Dec 2025. Renewal workflow triggered.",  time:"5d ago",   read:true,  action:"clients"},
-    {id:"n6", type:"message",         title:"New Message",                   body:"Priya Shah (MedStaff UK): We have one RGN available but she needs £36/hr…",time:"1h ago",   read:false, action:"messages"},
   ],
   clientadmin:[
     {id:"n7", type:"budget_alert",    title:"Budget Alert — Meadowbrook Lodge", body:"Meadowbrook Lodge has reached 78% of monthly budget with 3 weeks remaining.", time:"4h ago",  read:false, action:"analytics"},
     {id:"n8", type:"urgent_shift",    title:"Urgent Shift Unfilled",            body:"Sunrise Care RGN 12 Mar still open — no agency has responded.",             time:"17m ago", read:false, action:"shifts"},
     {id:"n9", type:"compliance",      title:"RTW Expiring Soon",                body:"Priya Patel (MedStaff UK) BRP expires 31 Mar. Speak to agency.",            time:"1d ago",  read:true,  action:"rtw"},
-    {id:"n10",type:"message",         title:"New Message",                      body:"Karen Hughes: Can you confirm the weekend RGN cover has been arranged?",    time:"3h ago",  read:false, action:"messages"},
   ],
   carehome:[
     {id:"n11",type:"urgent_shift",    title:"Your Shift Needs Filling",      body:"RGN 12 Mar — submitted to Tier 1 agencies. Awaiting response.",              time:"17m ago", read:false, action:"myshifts"},
     {id:"n12",type:"timesheet",       title:"Timesheet Awaiting Approval",   body:"2 timesheets from First Choice Nursing need your sign-off.",                  time:"6h ago",  read:false, action:"timesheets"},
     {id:"n13",type:"budget_alert",    title:"Budget Alert — 90% Reached",    body:"You have spent 90% of this month's agency budget. £1,580 remaining.",        time:"1d ago",  read:true,  action:"dashboard"},
-    {id:"n14",type:"message",         title:"New Message",                   body:"Laura Bennett: Yes, putting Emma Clarke forward now. She's fully compliant…", time:"13m ago", read:false, action:"messages"},
   ],
   agency:[
     {id:"n15",type:"urgent_shift",    title:"Urgent Shift — Act Now",        body:"Sunrise Care RGN 12 Mar — 2h 15m left in your Tier 1 window.",               time:"17m ago", read:false, action:"available"},
     {id:"n16",type:"compliance",      title:"Worker Document Expiring",      body:"James Wilson DBS expires 15 Apr. Upload renewal to avoid suspension.",        time:"2h ago",  read:false, action:"rtw"},
     {id:"n17",type:"rate_uplift",     title:"Rate Request Approved",         body:"Your HCA rate uplift request (£1/hr) was approved by Nexus RPO. Effective Mar 2026.",time:"5d ago", read:true,  action:"ratecards"},
-    {id:"n18",type:"message",         title:"New Message",                   body:"Karen Hughes: Hi Laura — can you confirm the RGN for tomorrow morning?",      time:"13m ago", read:false, action:"messages"},
   ],
   bank:[
     {id:"n19",type:"urgent_shift",    title:"New Shift in Your Window",      body:"Sunrise Care RGN — 12 Mar, 07:00–19:00. Claim within 2 hours.",              time:"5m ago",  read:false, action:"available"},
@@ -1126,28 +1147,22 @@ const NAV = {
   admin:[
     {k:"dashboard",     i:"◈", l:"Dashboard"},
     {k:"shifts",        i:"📋",l:"Shift Board"},
-    {k:"schedule",      i:"📅",l:"Scheduler"},
+    {k:"schedule",      i:"📅",l:"Create Shift"},
     {k:"agencies",      i:"🤝",l:"Agencies"},
-    {k:"clients",       i:"🏥",l:"Clients"},
+    {k:"clients",       i:"🏥",l:"Clients & Pricing"},
     {k:"bankstaff",     i:"🏦",l:"Bank Staff"},
     {k:"workers",       i:"👥",l:"Workers"},
     {k:"compliance",    i:"🛡", l:"Compliance"},
     {k:"expirycal",     i:"📆",l:"Expiry Calendar"},
     {k:"cqcreport",     i:"🏅",l:"CQC Readiness"},
     {k:"documents",     i:"📁",l:"Documents"},
-    {k:"ratecards",     i:"💷",l:"Rate Cards"},
-    {k:"bankrates",     i:"🏦",l:"Bank Rates"},
-    {k:"rateuplifts",   i:"📈",l:"Rate Uplifts"},
+    {k:"timesheets",    i:"🕐",l:"Timesheets"},
     {k:"invoices",      i:"📄",l:"Invoices"},
     {k:"creditnotes",   i:"🧾",l:"Credit Notes"},
-    {k:"timesheets",    i:"🕐",l:"Timesheets"},
     {k:"budgets",       i:"💰",l:"Budgets"},
     {k:"analytics",     i:"📊",l:"Analytics"},
     {k:"forecast",      i:"🔮",l:"Demand Forecast"},
-    {k:"reports",       i:"🗂", l:"Custom Reports"},
-    {k:"messages",      i:"💬",l:"Messages"},
-    {k:"siteallocation",i:"📍",l:"Site Allocation"},
-    {k:"margins",       i:"📐",l:"Margins & Pricing"},
+    {k:"reports",       i:"🗂", l:"Reports"},
     {k:"users",         i:"🔐",l:"Users & Permissions"},
   ],
   clientadmin:[
@@ -1159,13 +1174,11 @@ const NAV = {
     {k:"timesheets", i:"🕐",l:"Timesheets"},
     {k:"invoices",   i:"📄",l:"Invoices"},
     {k:"budgets",    i:"💰",l:"Budgets"},
-    {k:"bankrates",  i:"🏦",l:"Bank Rates"},
     {k:"compliance", i:"🛡", l:"Compliance"},
     {k:"expirycal",  i:"📆",l:"Expiry Calendar"},
     {k:"rtw",        i:"🪪",l:"RTW Monitoring"},
     {k:"cqcreport",  i:"🏅",l:"CQC Readiness"},
     {k:"reports",    i:"🗂", l:"Custom Reports"},
-    {k:"messages",   i:"💬",l:"Messages"},
     {k:"workers",    i:"👥",l:"Worker Profiles"},
     {k:"users",      i:"🔐",l:"Users & Permissions"},
   ],
@@ -1181,7 +1194,6 @@ const NAV = {
     {k:"invoices",   i:"📄",l:"Invoices"},
     {k:"timesheets", i:"🕐",l:"Timesheets"},
     {k:"workers",    i:"👥",l:"Worker Profiles"},
-    {k:"messages",   i:"💬",l:"Messages"},
   ],
   agency:[
     {k:"dashboard",  i:"◈", l:"Dashboard"},
@@ -1193,7 +1205,6 @@ const NAV = {
     {k:"rateuplifts",i:"📈",l:"Rate Requests"},
     {k:"documents",  i:"📁",l:"Documents"},
     {k:"invoices",   i:"📄",l:"Invoices"},
-    {k:"messages",   i:"💬",l:"Messages"},
     {k:"users",      i:"🔐",l:"Users & Permissions"},
   ],
   bank:[
@@ -1202,7 +1213,6 @@ const NAV = {
     {k:"myshifts",     i:"✅",l:"My Shifts"},
     {k:"availability", i:"📅",l:"Set Availability"},
     {k:"earnings",     i:"💷",l:"Earnings"},
-    {k:"messages",     i:"💬",l:"Messages"},
     {k:"profile",      i:"👤",l:"My Profile"},
   ],
 };
@@ -1355,10 +1365,12 @@ const AdminDashboard = ({user, navigate}) => {
 };
 
 /* ─── ADMIN: SHIFT BOARD ─────────────────────────────────────────────────────── */
-const ShiftBoard = ({navigate}) => {
+const ShiftBoard = ({navigate, clientPanels}) => {
   const [filter,setFilter] = useState("all");
   const [search,setSearch] = useState("");
-  const [modal,setModal] = useState(null);
+  const [modal,setModal] = useState(null);         // "assign" modal
+  const [actionModal,setActionModal] = useState(null); // {shift, type: "cancel"|"withdraw"}
+  const [actionReason,setActionReason] = useState("");
   const [shifts,setShifts] = useState(SHIFTS);
   const filtered = useMemo(()=>shifts.filter(s=>{
     const matchStatus = filter==="all"||s.status===filter;
@@ -1372,25 +1384,77 @@ const ShiftBoard = ({navigate}) => {
     setModal(null);
   };
 
+  const doCancel = () => {
+    setShifts(prev=>prev.map(s=>s.id===actionModal.shift.id?{...s,status:"open",agency:null,worker:null}:s));
+    setActionModal(null); setActionReason("");
+  };
+  const doWithdraw = () => {
+    setShifts(prev=>prev.map(s=>s.id===actionModal.shift.id?{...s,status:"open",agency:null,worker:null}:s));
+    setActionModal(null); setActionReason("");
+  };
+
   return (
     <Page title="Shift Board" sub="Manage and distribute all shifts across agencies" icon="📋" action={<Btn onClick={()=>navigate&&navigate("schedule")}>+ Create Shift</Btn>}>
-      {modal && (
+
+      {/* Assign modal */}
+      {modal && modal.status==="open" && (
         <Modal title={`Assign Shift — ${modal.carehome} (${modal.role})`} onClose={()=>setModal(null)}>
-          <p style={{fontSize:13,color:T.muted,marginBottom:16}}>Select an agency to receive this shift request. They will be notified immediately.</p>
-          <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
-            {AGENCIES.map(a=>(
-              <button key={a.id} onClick={()=>doAssign(modal.id,a.name)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderRadius:9,border:`1.5px solid ${TIER_CFG[a.tier]?.border||T.border}`,background:T.white,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
-                <div style={{textAlign:"left"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:T.text}}>{a.name}</div>
-                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>Fill rate: {a.fillRate}% · Avg response: {a.avgResponse}</div>
-                </div>
-                <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
-              </button>
-            ))}
-          </div>
+          <p style={{fontSize:13,color:T.muted,marginBottom:16}}>Select an agency to receive this shift request. Only agencies on this client{"'"}s approved panel are shown.</p>
+          {(() => {
+            const groupId = HOME_TO_GROUP[modal.carehome];
+            const panelIds = (clientPanels && groupId) ? (clientPanels[groupId] || []) : AGENCIES.map(a=>a.id);
+            const available = AGENCIES.filter(a => panelIds.includes(a.id));
+            if(available.length === 0) return (
+              <Alert type="warn" style={{marginBottom:16}}>No agencies are on this client{"'"}s panel. Add agencies in Clients {"→"} Agency Panels.</Alert>
+            );
+            return (
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+                {available.map(a=>(
+                  <button key={a.id} onClick={()=>doAssign(modal.id,a.name)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderRadius:9,border:`1.5px solid ${TIER_CFG[a.tier]?.border||T.border}`,background:T.white,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+                    <div style={{textAlign:"left"}}>
+                      <div style={{fontWeight:700,fontSize:13,color:T.text}}>{a.name}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>Fill rate: {a.fillRate}% · Avg response: {a.avgResponse}</div>
+                    </div>
+                    <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
           <Btn variant="secondary" onClick={()=>setModal(null)}>Cancel</Btn>
         </Modal>
       )}
+
+      {/* Cancel agency / Withdraw worker modal */}
+      {actionModal && (
+        <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
+          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
+            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
+            <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.date} · {actionModal.shift.time}</div>
+            {actionModal.type==="cancel" && <div style={{marginTop:6,fontSize:12,color:T.text}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
+            {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12,color:T.text}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
+          </div>
+          <Alert type="warn">
+            {actionModal.type==="cancel"
+              ? "Cancelling this agency will revert the shift to Open and they will no longer be notified."
+              : "Withdrawing this worker will revert the shift to Open. The site manager and agency will be notified."}
+          </Alert>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
+              placeholder={actionModal.type==="cancel" ? "e.g. Agency unable to fill, reassigning to another…" : "e.g. Worker cancelled, personal reasons…"}
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn variant="danger" onClick={actionModal.type==="cancel" ? doCancel : doWithdraw}>
+              {actionModal.type==="cancel" ? "Cancel Agency" : "Withdraw Worker"}
+            </Btn>
+            <Btn variant="secondary" onClick={()=>{setActionModal(null);setActionReason("");}}>Back</Btn>
+          </div>
+        </Modal>
+      )}
+
       <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:18,flexWrap:"wrap"}}>
         <div style={{position:"relative",flex:1,minWidth:200}}>
           <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
@@ -1418,9 +1482,10 @@ const ShiftBoard = ({navigate}) => {
               <Td>{s.agency||<span style={{color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Unassigned</span>}</Td>
               <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>—</span>}</Td>
               <Td>
-                <div style={{display:"flex",gap:5}}>
-                  {s.status==="open" && <Btn small onClick={()=>assign(s)}>Assign</Btn>}
-                  <Btn small variant="secondary" onClick={()=>setModal(s)}>Details</Btn>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {s.status==="open"    && <Btn small onClick={()=>assign(s)}>Assign</Btn>}
+                  {s.status==="pending" && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"cancel"})}>Cancel Agency</Btn>}
+                  {s.status==="filled"  && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"withdraw"})}>Withdraw</Btn>}
                 </div>
               </Td>
             </tr>
@@ -3606,11 +3671,14 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 /* ─── CARE HOME: MY SHIFTS (with Tier Push) ──────────────────────────────────── */
 const CareHomeMyShifts = ({user}) => {
   const today = "2026-03-10";
-  const allShifts = SHIFTS.filter(s=>s.carehome==="Sunrise Care");
+  const [shifts, setShifts] = useState(SHIFTS.filter(s=>s.carehome==="Sunrise Care"));
+  const allShifts = shifts;
   const [tab,       setTab]       = useState("unfilled");
   const [tierModal, setTierModal] = useState(null);
   const [newTier,   setNewTier]   = useState("Tier 2");
   const [pushed,    setPushed]    = useState({});
+  const [actionModal, setActionModal] = useState(null);
+  const [actionReason, setActionReason] = useState("");
 
   const canPush = s => s.status==="open"||s.status==="pending";
 
@@ -3635,6 +3703,11 @@ const CareHomeMyShifts = ({user}) => {
     setTierModal(null);
   };
 
+  const doAction = () => {
+    setShifts(prev=>prev.map(s=>s.id===actionModal.shift.id?{...s,status:"open",agency:null,worker:null}:s));
+    setActionModal(null); setActionReason("");
+  };
+
   const TIERS = [
     {v:"Tier 1",desc:"Priority agencies — notified immediately.",delay:"Immediate"},
     {v:"Tier 2",desc:"Secondary agencies — bypasses the Tier 1 window and notifies Tier 2 now.",delay:"Now (bypass Tier 1 wait)"},
@@ -3643,6 +3716,8 @@ const CareHomeMyShifts = ({user}) => {
 
   return (
     <Page title="My Shifts" sub="Sunrise Care" icon="📋">
+
+      {/* Tier push modal */}
       {tierModal && (
         <Modal title="Push Shift to Different Tier" onClose={()=>setTierModal(null)}>
           <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
@@ -3679,6 +3754,36 @@ const CareHomeMyShifts = ({user}) => {
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={doPush}>Push to {newTier}</Btn>
             <Btn variant="secondary" onClick={()=>setTierModal(null)}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* Cancel/Withdraw modal */}
+      {actionModal && (
+        <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
+          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
+            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.date}</div>
+            <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.time}</div>
+            {actionModal.type==="cancel" && <div style={{marginTop:6,fontSize:12}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
+            {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
+          </div>
+          <Alert type="warn">
+            {actionModal.type==="cancel"
+              ? "This will remove the agency from the shift and reopen it. Nexus RPO will be notified."
+              : "This will withdraw the worker and reopen the shift. The agency and Nexus RPO will be notified."}
+          </Alert>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
+              placeholder="e.g. Worker called in sick, agency can no longer fill…"
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn variant="danger" onClick={doAction}>
+              {actionModal.type==="cancel" ? "Cancel Agency" : "Withdraw Worker"}
+            </Btn>
+            <Btn variant="secondary" onClick={()=>{setActionModal(null);setActionReason("");}}>Back</Btn>
           </div>
         </Modal>
       )}
@@ -3741,9 +3846,11 @@ const CareHomeMyShifts = ({user}) => {
                               : <Badge label="Tier 1" color={tierColor("Tier 1")} bg={tierBg("Tier 1")}/>}
                           </Td>
                           <Td>
-                            {canPush(s)
-                              ? <Btn small onClick={()=>{setTierModal(s);setNewTier("Tier 2");}}>Push Tier ↑</Btn>
-                              : <span style={{fontSize:11,color:T.muted}}>—</span>}
+                            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                              {canPush(s) && <Btn small onClick={()=>{setTierModal(s);setNewTier("Tier 2");}}>Push Tier</Btn>}
+                              {s.status==="pending" && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"cancel"})}>Cancel</Btn>}
+                              {s.status==="filled"  && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"withdraw"})}>Withdraw</Btn>}
+                            </div>
                           </Td>
                         </>
                     }
@@ -6483,171 +6590,316 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
 };
 
 /* ─── ADMIN: MARGINS & PRICING ───────────────────────────────────────────────── */
-const MarginManager = ({marginCfg, setMarginCfg}) => {
-  const [cfg, setCfg] = useState({...marginCfg, perRole:{...marginCfg.perRole}});
-  const [saved, setSaved] = useState(false);
-  const roles = ["RGN","RMN","HCA","Senior Carer"];
+const MarginManager = ({clientPricing, setClientPricing}) => {
+  const clients = INIT_CLIENT_GROUPS.map(g => ({ id: g.id, name: g.name, contact: g.contact }));
+  const [selId, setSelId]   = useState(clients[0].id);
+  const [saved, setSaved]   = useState(false);
+  const ROLES = ["RGN","RMN","HCA","Senior Carer"];
 
-  const save = () => { setMarginCfg({...cfg}); setSaved(true); setTimeout(()=>setSaved(false),2500); };
-  const setField = (k,v) => setCfg(p=>({...p,[k]:v}));
-  const setRoleMargin = (role,v) => setCfg(p=>({...p,perRole:{...p.perRole,[role]:parseFloat(v)||0}}));
+  // per-client monthly spend estimates (illustrative)
+  const EST_SPEND = { cg1: 32000, cg2: 28000, cg3: 15000 };
 
-  // Sample calc: show what care homes get billed vs agency receives
-  const sampleRates = INIT_RATE_CARDS.filter(r=>r.type==="agency"&&r.agency==="First Choice Nursing");
-  const totalMTDHours = 412; // illustrative
-  const totalMTDMargin = sampleRates.reduce((acc,r)=>{
-    const hrsForRole = {RGN:120,RMN:80,HCA:160,"Senior Carer":52}[r.role]||0;
-    return acc + getMargin(r.weekday, r.role, cfg) * hrsForRole;
-  },0);
+  // local draft for selected client
+  const basePricing = clientPricing[selId] || blankClientPricing();
+  const [draft, setDraft] = useState({ ...basePricing,
+    platformFee:  { ...basePricing.platformFee },
+    hourlyMargin: { ...basePricing.hourlyMargin, perRole: { ...basePricing.hourlyMargin.perRole } },
+  });
+
+  // reset draft when switching clients
+  const selectClient = (id) => {
+    setSelId(id);
+    const p = clientPricing[id] || blankClientPricing();
+    setDraft({ ...p, platformFee: { ...p.platformFee }, hourlyMargin: { ...p.hourlyMargin, perRole: { ...p.hourlyMargin.perRole } } });
+    setSaved(false);
+  };
+
+  const setFee  = (k, v) => setDraft(d => ({ ...d, platformFee:  { ...d.platformFee,  [k]: v } }));
+  const setHrly = (k, v) => setDraft(d => ({ ...d, hourlyMargin: { ...d.hourlyMargin, [k]: v } }));
+  const setRole = (role, v) => setDraft(d => ({ ...d, hourlyMargin: { ...d.hourlyMargin, perRole: { ...d.hourlyMargin.perRole, [role]: parseFloat(v)||0 } } }));
+
+  const save = () => {
+    setClientPricing(p => ({ ...p, [selId]: { ...draft } }));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  // preview calcs for selected client
+  const sampleRates = INIT_RATE_CARDS.filter(r => r.type === "agency" && r.agency === "First Choice Nursing");
+  const estSpend    = EST_SPEND[selId] || 20000;
+  const feeRevenue  = calcPlatformFee(estSpend, draft.platformFee);
+  const hrsPerRole  = { RGN: 120, RMN: 80, HCA: 160, "Senior Carer": 52 };
+  const hrlyRevenue = draft.hourlyMargin.enabled
+    ? sampleRates.reduce((acc, r) => acc + getMargin(r.weekday, r.role, draft.hourlyMargin) * (hrsPerRole[r.role] || 0), 0)
+    : 0;
+  const totalRevenue = feeRevenue + hrlyRevenue;
+
+  // summary across all clients
+  const allClientsRevenue = clients.reduce((sum, c) => {
+    const p = clientPricing[c.id] || blankClientPricing();
+    const sp = EST_SPEND[c.id] || 20000;
+    const fee = calcPlatformFee(sp, p.platformFee);
+    const hrly = p.hourlyMargin.enabled
+      ? sampleRates.reduce((a, r) => a + getMargin(r.weekday, r.role, p.hourlyMargin) * (hrsPerRole[r.role]||0), 0) : 0;
+    return sum + fee + hrly;
+  }, 0);
+
+  const Toggle = ({ on, onToggle, label }) => (
+    <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+      <button onClick={onToggle} style={{ width:42, height:24, borderRadius:12, background:on?T.green:T.border, border:"none", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+        <div style={{ position:"absolute", top:3, left:on?20:3, width:18, height:18, borderRadius:"50%", background:T.white, transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}/>
+      </button>
+      <span style={{ fontSize:13, fontWeight:600, color:T.text }}>{label}</span>
+    </label>
+  );
 
   return (
-    <Page title="Margins & Pricing" sub="Set the platform fee charged to care homes on top of agency rates" icon="💰">
+    <Page title="Margins & Pricing" sub="Configure platform fees and hourly margins per client" icon="💰">
 
-      {saved && <Alert type="success">✓ Margin configuration saved. Changes apply to all new timesheets and invoices.</Alert>}
+      {saved && <Alert type="success">✓ Pricing saved for {clients.find(c=>c.id===selId)?.name}. Applies to all new timesheets and invoices.</Alert>}
 
-      {/* Revenue summary */}
+      {/* Platform summary */}
       <Grid cols={3}>
-        <Stat label="Estimated MTD Revenue" value={`£${totalMTDMargin.toFixed(0)}`} sub="From platform margin (illustrative)" accent/>
-        <Stat label="Margin Type" value={cfg.type==="fixed"?"Fixed £/hr":"Percentage %"} sub={cfg.usePerRole?"Per role":"Global rate"}/>
-        <Stat label="Avg Margin/hr" value={cfg.type==="fixed"
-          ? `£${cfg.usePerRole ? (Object.values(cfg.perRole).reduce((a,v)=>a+v,0)/Object.values(cfg.perRole).length).toFixed(2) : cfg.globalValue.toFixed(2)}`
-          : `${cfg.usePerRole ? (Object.values(cfg.perRole).reduce((a,v)=>a+v,0)/Object.values(cfg.perRole).length).toFixed(1) : cfg.globalValue}%`}
-          sub="Across standard roles"/>
+        <Stat label="Est. Total Monthly Revenue" value={`£${allClientsRevenue.toFixed(0)}`} sub="Across all active clients (illustrative)" accent/>
+        <Stat label="Active Clients" value={`${clients.length}`} sub="With configured pricing"/>
+        <Stat label="Fee Structures in Use" value={
+          `${Object.values(clientPricing).filter(p=>p?.platformFee?.enabled).length} platform fee · ${Object.values(clientPricing).filter(p=>p?.hourlyMargin?.enabled).length} hourly margin`
+        } sub="Across all clients"/>
       </Grid>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:18}}>
+      {/* Client selector */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+        {clients.map(c => {
+          const p = clientPricing[c.id];
+          const hasFee  = p?.platformFee?.enabled;
+          const hasHrly = p?.hourlyMargin?.enabled;
+          const active  = selId === c.id;
+          return (
+            <button key={c.id} onClick={() => selectClient(c.id)} style={{
+              padding:"10px 18px", borderRadius:10, border:`2px solid ${active?T.navy:T.border}`,
+              background: active ? T.navy : T.white, color: active ? T.white : T.text,
+              fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"Syne,sans-serif",
+              display:"flex", alignItems:"center", gap:8, transition:"all 0.15s"
+            }}>
+              {c.name}
+              <div style={{ display:"flex", gap:3 }}>
+                {hasFee  && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":"#e0f2fe", color:active?T.white:"#0369a1", fontWeight:700 }}>% fee</span>}
+                {hasHrly && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":T.amberBg, color:active?T.white:T.amberText, fontWeight:700 }}>£/hr</span>}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Config panel */}
-        <Card style={{padding:24}}>
-          <h3 style={{fontWeight:700,fontSize:14,marginBottom:18,color:T.text}}>Margin Configuration</h3>
+      {/* Two fee type cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18 }}>
 
-          {/* Type toggle */}
-          <div style={{marginBottom:18}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Charge Type</label>
-            <div style={{display:"flex",gap:8}}>
-              {[["fixed","Fixed £ per hour"],["percentage","Percentage (%)"]].map(([v,l])=>(
-                <button key={v} onClick={()=>setField("type",v)} style={{flex:1,padding:"10px",borderRadius:8,border:`1.5px solid ${cfg.type===v?T.navy:T.border}`,background:cfg.type===v?T.navy:"#f8fafc",color:cfg.type===v?T.white:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s"}}>
-                  {l}
-                </button>
-              ))}
+        {/* Platform fee card */}
+        <Card style={{ padding:24, border:`2px solid ${draft.platformFee.enabled ? "#0369a1" : T.border}`, transition:"border-color 0.2s" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:T.text, marginBottom:3 }}>Platform Fee</div>
+              <div style={{ fontSize:11, color:T.muted }}>Charged as a % of total monthly spend put through the system</div>
             </div>
+            <Toggle on={draft.platformFee.enabled} onToggle={() => setFee("enabled", !draft.platformFee.enabled)} label=""/>
           </div>
 
-          {/* Per-role toggle */}
-          <div style={{marginBottom:18}}>
-            <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontSize:13,fontWeight:600,color:T.text}}>
-              <button onClick={()=>setField("usePerRole",!cfg.usePerRole)}
-                style={{width:42,height:24,borderRadius:12,background:cfg.usePerRole?T.green:T.border,border:"none",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-                <div style={{position:"absolute",top:3,left:cfg.usePerRole?20:3,width:18,height:18,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
-              </button>
-              Use different margins per role
+          <div style={{ opacity: draft.platformFee.enabled ? 1 : 0.4, pointerEvents: draft.platformFee.enabled ? "auto" : "none", transition:"opacity 0.2s" }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
+              Fee Rate (% of total spend)
             </label>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+              <input type="number" step="0.1" min="0" max="20" value={draft.platformFee.value}
+                onChange={e => setFee("value", parseFloat(e.target.value)||0)}
+                style={{ width:100, padding:"10px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:20, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
+              <span style={{ fontSize:18, fontWeight:700, color:T.muted }}>%</span>
+              <span style={{ fontSize:12, color:T.muted }}>of total spend</span>
+            </div>
+
+            {/* Preview */}
+            <div style={{ background:"#f0f9ff", borderRadius:10, padding:"14px 16px" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"#0369a1", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>Revenue Preview</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <span style={{ fontSize:12, color:T.muted }}>Est. monthly spend (this client)</span>
+                <span style={{ fontSize:13, fontWeight:600, color:T.text }}>£{estSpend.toLocaleString()}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                <span style={{ fontSize:12, color:T.muted }}>Platform fee ({draft.platformFee.value}%)</span>
+                <span style={{ fontSize:14, fontWeight:800, color:"#0369a1" }}>£{feeRevenue.toFixed(0)}{"/mo"}</span>
+              </div>
+              <div style={{ fontSize:11, color:"#64748b", marginTop:4 }}>
+                Invoiced separately to client — not passed to agencies
+              </div>
+            </div>
           </div>
 
-          {/* Global value (shown when not per-role) */}
-          {!cfg.usePerRole && (
-            <div style={{marginBottom:16}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>
-                Global Margin ({cfg.type==="fixed"?"£/hr":"%"})
-              </label>
-              <input type="number" step="0.25" min="0" max="50" value={cfg.globalValue}
-                onChange={e=>setField("globalValue",parseFloat(e.target.value)||0)}
-                style={{width:"100%",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:16,fontWeight:700,fontFamily:"Syne,sans-serif",outline:"none"}}/>
+          {!draft.platformFee.enabled && (
+            <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
+              Platform fee disabled for this client
             </div>
           )}
-
-          {/* Per-role values */}
-          {cfg.usePerRole && (
-            <div style={{marginBottom:16}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>
-                Per-Role Margins ({cfg.type==="fixed"?"£/hr":"%"})
-              </label>
-              {roles.map(role=>(
-                <div key={role} style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-                  <Badge label={role} color={T.purple} bg={T.purpleBg}/>
-                  <div style={{flex:1}}>
-                    <input type="number" step="0.25" min="0" max="50"
-                      value={cfg.perRole[role]??cfg.globalValue}
-                      onChange={e=>setRoleMargin(role,e.target.value)}
-                      style={{width:"100%",padding:"8px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:14,fontWeight:700,fontFamily:"Syne,sans-serif",outline:"none",textAlign:"center"}}/>
-                  </div>
-                  <span style={{fontSize:12,color:T.muted,minWidth:30}}>{cfg.type==="fixed"?"£/hr":"%"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Internal Notes</label>
-            <textarea value={cfg.notes} onChange={e=>setField("notes",e.target.value)} rows={2}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",color:T.muted}}/>
-          </div>
-
-          <Btn full onClick={save}>Save Margin Configuration →</Btn>
         </Card>
 
-        {/* Live rate preview */}
-        <div style={{display:"flex",flexDirection:"column",gap:14}}>
-          <Card>
-            <CardHead title="Live Rate Preview" sub="How each role's rate breaks down" icon="🔍"/>
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse"}}>
-                <thead>
-                  <tr style={{background:"#f8fafc"}}>
-                    {["Role","Agency Rate","Nexus Margin","Client Rate","Margin %"].map(h=>(
-                      <th key={h} style={{padding:"9px 12px",fontSize:10,fontWeight:700,color:T.muted,textAlign:"left",textTransform:"uppercase",letterSpacing:"0.07em",borderBottom:`1px solid ${T.border}`}}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sampleRates.map(r=>{
-                    const clientRate = calcClientRate(r.weekday, r.role, cfg);
-                    const margin = getMargin(r.weekday, r.role, cfg);
-                    const marginPct = ((margin/r.weekday)*100).toFixed(1);
-                    return (
-                      <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`}}>
-                        <td style={{padding:"11px 12px"}}><Badge label={r.role} color={T.purple} bg={T.purpleBg}/></td>
-                        <td style={{padding:"11px 12px",fontSize:13,fontWeight:600,color:T.muted}}>£{r.weekday}{"/hr"}</td>
-                        <td style={{padding:"11px 12px"}}>
-                          <span style={{fontWeight:700,fontSize:13,color:T.green}}>+£{margin.toFixed(2)}</span>
-                        </td>
-                        <td style={{padding:"11px 12px"}}>
-                          <span style={{fontWeight:800,fontSize:14,color:T.navy}}>£{clientRate}{"/hr"}</span>
-                        </td>
-                        <td style={{padding:"11px 12px"}}>
-                          <span style={{fontSize:12,color:T.muted}}>{marginPct}%</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        {/* Hourly margin card */}
+        <Card style={{ padding:24, border:`2px solid ${draft.hourlyMargin.enabled ? T.amber : T.border}`, transition:"border-color 0.2s" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:14, color:T.text, marginBottom:3 }}>Hourly Margin</div>
+              <div style={{ fontSize:11, color:T.muted }}>Added to agency rate on every hour billed through the platform</div>
             </div>
-          </Card>
+            <Toggle on={draft.hourlyMargin.enabled} onToggle={() => setHrly("enabled", !draft.hourlyMargin.enabled)} label=""/>
+          </div>
 
-          <Card style={{padding:20}}>
-            <h3 style={{fontWeight:700,fontSize:13,marginBottom:14,color:T.text}}>Estimated Margin on a 12hr Shift</h3>
-            {sampleRates.map(r=>{
-              const margin = getMargin(r.weekday, r.role, cfg);
-              const shiftMargin = +(margin*12).toFixed(2);
-              return (
-                <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
-                  <div style={{fontSize:13,color:T.text,fontWeight:500}}>{r.role} (12hr weekday)</div>
-                  <span style={{fontWeight:800,fontSize:14,color:T.green}}>£{shiftMargin}</span>
+          <div style={{ opacity: draft.hourlyMargin.enabled ? 1 : 0.4, pointerEvents: draft.hourlyMargin.enabled ? "auto" : "none", transition:"opacity 0.2s" }}>
+
+            {/* Type toggle */}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:7 }}>Charge Type</label>
+              <div style={{ display:"flex", gap:8 }}>
+                {[["fixed","Fixed £/hr"],["percentage","Percentage (%)"]].map(([v,l]) => (
+                  <button key={v} onClick={() => setHrly("type", v)} style={{
+                    flex:1, padding:"9px", borderRadius:8, border:`1.5px solid ${draft.hourlyMargin.type===v?T.navy:T.border}`,
+                    background: draft.hourlyMargin.type===v ? T.navy : "#f8fafc",
+                    color: draft.hourlyMargin.type===v ? T.white : T.muted,
+                    fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"Syne,sans-serif", transition:"all 0.15s"
+                  }}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Per-role toggle */}
+            <div style={{ marginBottom:14 }}>
+              <Toggle on={draft.hourlyMargin.usePerRole} onToggle={() => setHrly("usePerRole", !draft.hourlyMargin.usePerRole)} label="Different margin per role"/>
+            </div>
+
+            {/* Global value */}
+            {!draft.hourlyMargin.usePerRole && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>
+                  Global Margin ({draft.hourlyMargin.type==="fixed" ? "£/hr" : "%"})
+                </label>
+                <input type="number" step="0.25" min="0" max="50" value={draft.hourlyMargin.globalValue}
+                  onChange={e => setHrly("globalValue", parseFloat(e.target.value)||0)}
+                  style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:18, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
+              </div>
+            )}
+
+            {/* Per-role values */}
+            {draft.hourlyMargin.usePerRole && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
+                  Per-Role ({draft.hourlyMargin.type==="fixed" ? "£/hr" : "%"})
+                </label>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                  {ROLES.map(role => (
+                    <div key={role} style={{ display:"flex", alignItems:"center", gap:8, background:"#f8fafc", borderRadius:8, padding:"8px 10px" }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:T.muted, flex:1, minWidth:0, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{role}</span>
+                      <input type="number" step="0.25" min="0" max="50"
+                        value={draft.hourlyMargin.perRole[role] ?? draft.hourlyMargin.globalValue}
+                        onChange={e => setRole(role, e.target.value)}
+                        style={{ width:56, padding:"5px 7px", borderRadius:6, border:`1.5px solid ${T.border}`, fontSize:13, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
+                      <span style={{ fontSize:11, color:T.muted, minWidth:24 }}>{draft.hourlyMargin.type==="fixed"?"£/hr":"%"}</span>
+                    </div>
+                  ))}
                 </div>
-              );
-            })}
-            <div style={{marginTop:12,padding:"10px 14px",background:T.amberBg,borderRadius:8}}>
-              <div style={{fontSize:11,color:T.amberText,fontWeight:700,marginBottom:2}}>ILLUSTRATION</div>
-              <div style={{fontSize:12,color:T.amberText}}>If 100 shifts/month are filled (12hrs avg), at these margins Nexus RPO earns approx. <strong>£{(sampleRates.reduce((a,r)=>a+getMargin(r.weekday,r.role,cfg)*12,0)/sampleRates.length*100).toFixed(0)}</strong>/month in platform margin.</div>
-            </div>
-          </Card>
+              </div>
+            )}
 
-          <Alert type="info">
-            <strong>How it works:</strong> Agencies always see and receive their base rate. Care homes are billed the client rate (base + Nexus margin). The margin is Nexus RPO's platform revenue per hour billed. Changes apply immediately to all new timesheet calculations and invoice generation.
-          </Alert>
-        </div>
+            {/* Hourly preview */}
+            <div style={{ background:T.amberBg, borderRadius:10, padding:"12px 14px" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:T.amberText, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>Est. Monthly Margin Revenue</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                <span style={{ fontSize:12, color:T.amberText }}>~412 hrs/mo (illustrative)</span>
+                <span style={{ fontSize:16, fontWeight:800, color:T.amberText }}>£{hrlyRevenue.toFixed(0)}{"/mo"}</span>
+              </div>
+            </div>
+          </div>
+
+          {!draft.hourlyMargin.enabled && (
+            <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
+              Hourly margin disabled for this client
+            </div>
+          )}
+        </Card>
       </div>
+
+      {/* Notes + save */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, marginBottom:18, alignItems:"flex-end" }}>
+        <div>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:5 }}>Internal Notes (this client)</label>
+          <textarea value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} rows={2}
+            placeholder="e.g. pricing agreed in contract review March 2026…"
+            style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:12, fontFamily:"Syne,sans-serif", resize:"vertical", outline:"none", color:T.muted, boxSizing:"border-box" }}/>
+        </div>
+        <Btn onClick={save} style={{ whiteSpace:"nowrap", alignSelf:"flex-end" }}>Save Pricing →</Btn>
+      </div>
+
+      {/* Rate preview table */}
+      <Card>
+        <CardHead title="Live Rate Preview" sub={`How rates break down for ${clients.find(c=>c.id===selId)?.name}`} icon="🔍"/>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse" }}>
+            <thead>
+              <tr style={{ background:"#f8fafc" }}>
+                {["Role","Agency Rate","Hourly Margin","Client Rate","Platform Fee*","Total Nexus Revenue/hr"].map(h => (
+                  <th key={h} style={{ padding:"9px 12px", fontSize:10, fontWeight:700, color:T.muted, textAlign:"left", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:`1px solid ${T.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sampleRates.map(r => {
+                const clientRate  = calcClientRate(r.weekday, r.role, draft.hourlyMargin);
+                const hrlyMargin  = getMargin(r.weekday, r.role, draft.hourlyMargin);
+                const feePerHour  = draft.platformFee.enabled ? +(r.weekday * draft.platformFee.value / 100).toFixed(2) : 0;
+                const totalPerHr  = +(hrlyMargin + feePerHour).toFixed(2);
+                return (
+                  <tr key={r.id} style={{ borderBottom:`1px solid ${T.border}` }}>
+                    <td style={{ padding:"11px 12px" }}><Badge label={r.role} color={T.purple} bg={T.purpleBg}/></td>
+                    <td style={{ padding:"11px 12px", fontSize:13, fontWeight:600, color:T.muted }}>£{r.weekday}{"/hr"}</td>
+                    <td style={{ padding:"11px 12px" }}>
+                      {draft.hourlyMargin.enabled
+                        ? <span style={{ fontWeight:700, fontSize:13, color:T.green }}>+£{hrlyMargin.toFixed(2)}</span>
+                        : <span style={{ fontSize:12, color:T.muted }}>—</span>}
+                    </td>
+                    <td style={{ padding:"11px 12px" }}>
+                      <span style={{ fontWeight:800, fontSize:14, color:T.navy }}>£{clientRate}{"/hr"}</span>
+                    </td>
+                    <td style={{ padding:"11px 12px" }}>
+                      {draft.platformFee.enabled
+                        ? <span style={{ fontSize:13, fontWeight:600, color:"#0369a1" }}>+£{feePerHour.toFixed(2)}</span>
+                        : <span style={{ fontSize:12, color:T.muted }}>—</span>}
+                    </td>
+                    <td style={{ padding:"11px 12px" }}>
+                      <span style={{ fontWeight:800, fontSize:14, color: totalPerHr > 0 ? T.green : T.muted }}>
+                        {totalPerHr > 0 ? `£${totalPerHr.toFixed(2)}` : "—"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:11, color:T.muted }}>
+          * Platform fee per hour shown as indicative only — it is charged as a single monthly invoice calculated on total spend, not per-shift.
+        </div>
+      </Card>
+
+      {/* Combined revenue summary */}
+      <div style={{ marginTop:18, padding:"20px 24px", background:T.navy, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", fontWeight:600, marginBottom:4 }}>
+            {clients.find(c=>c.id===selId)?.name} — Est. Combined Monthly Revenue
+          </div>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>
+            {draft.platformFee.enabled ? `Platform fee: £${feeRevenue.toFixed(0)}` : "No platform fee"}
+            {draft.platformFee.enabled && draft.hourlyMargin.enabled ? "  +  " : ""}
+            {draft.hourlyMargin.enabled ? `Hourly margin: £${hrlyRevenue.toFixed(0)}` : ""}
+          </div>
+        </div>
+        <div style={{ fontSize:32, fontWeight:900, color:T.amber }}>£{totalRevenue.toFixed(0)}<span style={{ fontSize:14, fontWeight:600, color:"rgba(255,255,255,0.5)" }}>/mo</span></div>
+      </div>
+
     </Page>
   );
 };
@@ -6714,8 +6966,7 @@ const GroupModal = ({group, onSave, onClose, isNew}) => {
   );
 };
 
-const ClientManager = () => {
-  const [groups, setGroups]           = useState(INIT_CLIENT_GROUPS);
+const ClientManager = ({groups, setGroups}) => {
   const [expanded, setExpanded]       = useState("cg1");
   const [editGroup, setEditGroup]     = useState(null);
   const [isNewGroup, setIsNewGroup]   = useState(false);
@@ -6723,9 +6974,13 @@ const ClientManager = () => {
   const [editLocGroup, setEditLocGroup] = useState(null);
   const [isNewLoc, setIsNewLoc]       = useState(false);
   const [search, setSearch]           = useState("");
+  const [innerTab, setInnerTab]       = useState({});  // groupId -> "locations"|"panel"
+
+  const getTab = (id) => innerTab[id] || "locations";
+  const setTab = (id, t) => setInnerTab(p => ({ ...p, [id]: t }));
 
   const saveGroup = (g) => {
-    if (isNewGroup) setGroups(p=>[...p, g]);
+    if (isNewGroup) setGroups(p=>[...p, { ...g, panelAgencies: [] }]);
     else setGroups(p=>p.map(x=>x.id===g.id?g:x));
   };
   const deleteGroup = (id) => setGroups(p=>p.filter(x=>x.id!==id));
@@ -6738,6 +6993,14 @@ const ClientManager = () => {
   };
   const deleteLoc = (groupId, locId) => setGroups(p=>p.map(g=>g.id!==groupId?g:{...g,locations:g.locations.filter(l=>l.id!==locId)}));
 
+  const togglePanel = (groupId, agencyId) => {
+    setGroups(p=>p.map(g=>{
+      if(g.id!==groupId) return g;
+      const panel = g.panelAgencies || [];
+      return { ...g, panelAgencies: panel.includes(agencyId) ? panel.filter(id=>id!==agencyId) : [...panel, agencyId] };
+    }));
+  };
+
   const filtered = groups.filter(g=>!search||g.name.toLowerCase().includes(search.toLowerCase())||g.locations.some(l=>l.name.toLowerCase().includes(search.toLowerCase())));
 
   const totalLocations = groups.reduce((a,g)=>a+g.locations.length,0);
@@ -6748,9 +7011,7 @@ const ClientManager = () => {
   const statusColor = {active:{c:T.green,bg:T.greenBg},pending:{c:T.yellow,bg:T.yellowBg},expired:{c:T.red,bg:T.redBg},terminated:{c:T.muted,bg:"#f1f5f9"},inactive:{c:T.muted,bg:"#f1f5f9"},suspended:{c:T.red,bg:T.redBg}};
 
   return (
-    <Page title="Clients" sub="Manage client groups and their care home locations" icon="🏥"
-      action={<Btn onClick={()=>{setEditGroup(blankGroup());setIsNewGroup(true);}}>+ Onboard Client</Btn>}>
-
+    <div>
       {editGroup && <GroupModal group={editGroup} isNew={isNewGroup} onSave={saveGroup} onClose={()=>setEditGroup(null)}/>}
       {editLoc && <LocationModal loc={editLoc} isNew={isNewLoc} onSave={(l)=>saveLoc(editLocGroup,l)} onClose={()=>setEditLoc(null)}/>}
 
@@ -6765,39 +7026,36 @@ const ClientManager = () => {
         <Alert type="warn">⚠️ {cqcWarnings} location{cqcWarnings>1?"s are":" is"} rated "Requires Improvement" or below. Review and ensure compliance plans are in place.</Alert>
       )}
 
-      {/* Search */}
-      <div style={{position:"relative",marginBottom:16,maxWidth:340}}>
-        <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search groups or locations…"
-          style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
+      <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{position:"relative",flex:1,minWidth:200,maxWidth:340}}>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search groups or locations…"
+            style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
+        </div>
+        <Btn onClick={()=>{setEditGroup(blankGroup());setIsNewGroup(true);}}>+ Onboard Client</Btn>
       </div>
 
-      {/* Group list */}
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         {filtered.map(group=>{
           const isOpen = expanded===group.id;
           const sc = statusColor[group.status]||statusColor.active;
           const contractExpiring = group.contractEnd && new Date(group.contractEnd)<new Date("2026-06-01");
+          const tab = getTab(group.id);
+          const panel = group.panelAgencies || [];
           return (
             <Card key={group.id} style={{overflow:"hidden",border:contractExpiring?`1.5px solid ${T.yellow}66`:"1.5px solid transparent"}}>
-              {/* Group header — clickable to expand */}
-              <div
-                onClick={()=>setExpanded(isOpen?null:group.id)}
+              {/* Header */}
+              <div onClick={()=>setExpanded(isOpen?null:group.id)}
                 style={{padding:"18px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,background:isOpen?"#f8fafc":T.white,borderBottom:isOpen?`1px solid ${T.border}`:"none",transition:"background 0.15s",flexWrap:"wrap"}}>
-                {/* Icon */}
                 <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${T.navy}22,${T.navy}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🏢</div>
-                {/* Info */}
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
                     <span style={{fontWeight:800,fontSize:15,color:T.navy}}>{group.name}</span>
                     <Badge label={group.status.charAt(0).toUpperCase()+group.status.slice(1)} color={sc.c} bg={sc.bg} dot/>
                     {contractExpiring && <Badge label="Contract expiring soon" color={T.yellow} bg={T.yellowBg}/>}
                   </div>
-                  <div style={{fontSize:12,color:T.muted}}>
-                    {group.type} · {group.contact} · {group.email}
-                  </div>
+                  <div style={{fontSize:12,color:T.muted}}>{group.type} · {group.contact} · {group.email}</div>
                 </div>
-                {/* Meta pills */}
                 <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap"}}>
                   <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
                     📍 {group.locations.length} location{group.locations.length!==1?"s":""}
@@ -6805,24 +7063,26 @@ const ClientManager = () => {
                   <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
                     🛏 {group.locations.reduce((a,l)=>a+(parseInt(l.beds)||0),0)} beds
                   </span>
+                  <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
+                    🤝 {panel.length} agenc{panel.length===1?"y":"ies"} on panel
+                  </span>
                   <div style={{display:"flex",gap:6}} onClick={e=>e.stopPropagation()}>
                     <Btn small variant="secondary" onClick={()=>{setEditGroup({...group});setIsNewGroup(false);}}>Edit</Btn>
-                    <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Location</Btn>
                   </div>
                   <span style={{fontSize:18,color:T.muted,marginLeft:4}}>{isOpen?"▲":"▼"}</span>
                 </div>
               </div>
 
-              {/* Expanded: group details + locations */}
+              {/* Expanded */}
               {isOpen && (
-                <div style={{padding:"16px 20px"}}>
-                  {/* Group detail strip */}
-                  <div style={{display:"flex",gap:24,marginBottom:18,padding:"12px 16px",background:"#f8fafc",borderRadius:10,flexWrap:"wrap"}}>
+                <div style={{padding:"0 20px 20px"}}>
+                  {/* Detail strip */}
+                  <div style={{display:"flex",gap:24,padding:"14px 16px",background:"#f8fafc",borderRadius:10,flexWrap:"wrap",marginTop:16,marginBottom:16}}>
                     {[
                       ["📞 Phone", group.phone||"—"],
                       ["🌐 Website", group.website||"—"],
                       ["📍 Address", group.address||"—"],
-                      ["📅 Contract", group.contractStart ? `${group.contractStart} {"→"} ${group.contractEnd||"Open"}` : "—"],
+                      ["📅 Contract", group.contractStart ? `${group.contractStart} – ${group.contractEnd||"Open"}` : "—"],
                     ].map(([k,v])=>(
                       <div key={k} style={{minWidth:160}}>
                         <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}}>{k}</div>
@@ -6837,57 +7097,109 @@ const ClientManager = () => {
                     )}
                   </div>
 
-                  {/* Locations */}
-                  <div style={{marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <h4 style={{fontWeight:800,fontSize:13,color:T.text}}>📍 Locations ({group.locations.length})</h4>
-                    <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add Location</Btn>
+                  {/* Inner tabs */}
+                  <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:16}}>
+                    {[["locations","📍 Locations"],["panel","🤝 Agency Panel"]].map(([k,l])=>{
+                      const active=tab===k;
+                      return (
+                        <button key={k} onClick={()=>setTab(group.id,k)}
+                          style={{padding:"6px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",
+                            background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                            boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",transition:"all 0.15s"}}>
+                          {l}
+                          {k==="panel" && <span style={{marginLeft:6,fontSize:10,padding:"2px 6px",borderRadius:20,background:active?T.amberBg:"transparent",color:active?T.amberText:T.muted,fontWeight:700}}>{panel.length}</span>}
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {group.locations.length===0
-                    ? <div style={{padding:"24px",textAlign:"center",background:"#fafbfd",borderRadius:10,border:`1.5px dashed ${T.border}`}}>
-                        <div style={{fontSize:24,marginBottom:6}}>🏥</div>
-                        <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>No locations yet</div>
-                        <p style={{color:T.muted,fontSize:12,marginBottom:12}}>Add care home locations that belong to this group.</p>
-                        <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add First Location</Btn>
+                  {/* Locations tab */}
+                  {tab==="locations" && (
+                    <div>
+                      <div style={{marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <h4 style={{fontWeight:800,fontSize:13,color:T.text}}>📍 Locations ({group.locations.length})</h4>
+                        <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add Location</Btn>
                       </div>
-                    : <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                        {group.locations.map(loc=>{
-                          const cqc = CQC_COLORS[loc.cqcRating]||CQC_COLORS["Not rated"];
-                          const lsc = statusColor[loc.status]||statusColor.active;
+                      {group.locations.length===0
+                        ? <div style={{padding:"24px",textAlign:"center",background:"#fafbfd",borderRadius:10,border:`1.5px dashed ${T.border}`}}>
+                            <div style={{fontSize:24,marginBottom:6}}>🏥</div>
+                            <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>No locations yet</div>
+                            <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add First Location</Btn>
+                          </div>
+                        : <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                            {group.locations.map(loc=>{
+                              const cqc = CQC_COLORS[loc.cqcRating]||CQC_COLORS["Not rated"];
+                              const lsc = statusColor[loc.status]||statusColor.active;
+                              return (
+                                <div key={loc.id} style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${T.border}`,background:loc.status!=="active"?"#fafafa":T.white,flexWrap:"wrap"}}>
+                                  <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.blue}22,${T.blue}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🏥</div>
+                                  <div style={{flex:1,minWidth:180}}>
+                                    <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                                      <span style={{fontWeight:700,fontSize:14}}>{loc.name}</span>
+                                      <Badge label={loc.type} color={T.blue} bg={T.blueBg}/>
+                                      <Badge label={loc.status.charAt(0).toUpperCase()+loc.status.slice(1)} color={lsc.c} bg={lsc.bg} dot/>
+                                    </div>
+                                    <div style={{fontSize:11,color:T.muted,marginBottom:4}}>📍 {loc.address}</div>
+                                    <div style={{fontSize:11,color:T.muted}}>👤 {loc.contact||"—"} · ✉️ {loc.email||"—"} · 📞 {loc.phone||"—"}</div>
+                                    {loc.notes && <div style={{fontSize:11,color:T.muted,fontStyle:"italic",marginTop:4}}>📝 {loc.notes}</div>}
+                                  </div>
+                                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
+                                    <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+                                      <span style={{background:"#f0f4f8",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:T.navy}}>🛏 {loc.beds||"?"} beds</span>
+                                      <span style={{background:cqc.bg,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:cqc.c}}>CQC: {loc.cqcRating}</span>
+                                    </div>
+                                    {loc.cqcDate && <div style={{fontSize:10,color:T.muted}}>Last inspected {loc.cqcDate}</div>}
+                                    <div style={{display:"flex",gap:6,marginTop:4}}>
+                                      <Btn small variant="secondary" onClick={()=>{setEditLoc({...loc});setEditLocGroup(group.id);setIsNewLoc(false);}}>Edit</Btn>
+                                      <Btn small variant="danger" onClick={()=>deleteLoc(group.id,loc.id)}>Remove</Btn>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                      }
+                    </div>
+                  )}
+
+                  {/* Agency Panel tab */}
+                  {tab==="panel" && (
+                    <div>
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontWeight:800,fontSize:13,color:T.text,marginBottom:4}}>🤝 Agency Panel — {group.name}</div>
+                        <div style={{fontSize:12,color:T.muted}}>Only agencies on this client's panel will receive shift notifications for their locations. Add or remove agencies below.</div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                        {AGENCIES.map(a=>{
+                          const onPanel = panel.includes(a.id);
                           return (
-                            <div key={loc.id} style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${T.border}`,background:loc.status!=="active"?"#fafafa":T.white,flexWrap:"wrap"}}>
-                              {/* Location icon */}
-                              <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.blue}22,${T.blue}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🏥</div>
-                              {/* Main info */}
-                              <div style={{flex:1,minWidth:180}}>
-                                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
-                                  <span style={{fontWeight:700,fontSize:14}}>{loc.name}</span>
-                                  <Badge label={loc.type} color={T.blue} bg={T.blueBg}/>
-                                  <Badge label={loc.status.charAt(0).toUpperCase()+loc.status.slice(1)} color={lsc.c} bg={lsc.bg} dot/>
+                            <div key={a.id} style={{display:"flex",gap:14,alignItems:"center",padding:"14px 16px",borderRadius:10,
+                              border:`1.5px solid ${onPanel?T.green+"88":T.border}`,
+                              background:onPanel?T.greenBg:T.white,transition:"all 0.2s"}}>
+                              <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.amber}33,${T.amber}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🤝</div>
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3,flexWrap:"wrap"}}>
+                                  <span style={{fontWeight:700,fontSize:14,color:T.text}}>{a.name}</span>
+                                  <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
+                                  {onPanel && <Badge label="On Panel" color={T.green} bg={T.greenBg} dot/>}
                                 </div>
-                                <div style={{fontSize:11,color:T.muted,marginBottom:4}}>📍 {loc.address}</div>
                                 <div style={{fontSize:11,color:T.muted}}>
-                                  👤 {loc.contact||"—"} · ✉️ {loc.email||"—"} · 📞 {loc.phone||"—"}
-                                </div>
-                                {loc.notes && <div style={{fontSize:11,color:T.muted,fontStyle:"italic",marginTop:4}}>📝 {loc.notes}</div>}
-                              </div>
-                              {/* Right meta */}
-                              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
-                                <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-                                  <span style={{background:"#f0f4f8",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:T.navy}}>🛏 {loc.beds||"?"} beds</span>
-                                  <span style={{background:cqc.bg,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:cqc.c}}>CQC: {loc.cqcRating}</span>
-                                </div>
-                                {loc.cqcDate && <div style={{fontSize:10,color:T.muted}}>Last inspected {loc.cqcDate}</div>}
-                                <div style={{display:"flex",gap:6,marginTop:4}}>
-                                  <Btn small variant="secondary" onClick={()=>{setEditLoc({...loc});setEditLocGroup(group.id);setIsNewLoc(false);}}>Edit</Btn>
-                                  <Btn small variant="danger" onClick={()=>deleteLoc(group.id,loc.id)}>Remove</Btn>
+                                  {a.contact} · Fill rate: {a.fillRate}% · Compliance: {a.compliance}% · Response: {a.avgResponse}
                                 </div>
                               </div>
+                              <Btn small variant={onPanel?"danger":"secondary"}
+                                onClick={()=>togglePanel(group.id, a.id)}>
+                                {onPanel ? "Remove from Panel" : "+ Add to Panel"}
+                              </Btn>
                             </div>
                           );
                         })}
                       </div>
-                  }
+                      {panel.length===0 && (
+                        <Alert type="warn" style={{marginTop:12}}>⚠️ No agencies on this client's panel. Shifts for this client will not be sent to any agency until at least one is added.</Alert>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
@@ -6899,10 +7211,163 @@ const ClientManager = () => {
         <Card style={{padding:40,textAlign:"center"}}>
           <div style={{fontSize:36,marginBottom:12}}>🏥</div>
           <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>No clients found</div>
-          <p style={{color:T.muted,fontSize:13,marginBottom:18}}>Onboard your first client group to get started.</p>
           <Btn onClick={()=>{setEditGroup(blankGroup());setIsNewGroup(true);}}>+ Onboard First Client</Btn>
         </Card>
       )}
+    </div>
+  );
+};
+
+/* ─── ADMIN: AGENCY PANEL MANAGER ───────────────────────────────────────────── */
+const PanelManager = ({ clientPanels, setClientPanels }) => {
+  const clients = INIT_CLIENT_GROUPS.map(g => ({ id: g.id, name: g.name, locations: g.locations }));
+  const [selId, setSelId] = useState(clients[0].id);
+  const [saved, setSaved] = useState(false);
+
+  const panelIds = clientPanels[selId] || [];
+  const onPanel  = (agencyId) => panelIds.includes(agencyId);
+
+  const toggleAgency = (agencyId) => {
+    setClientPanels(p => {
+      const cur = p[selId] || [];
+      const next = cur.includes(agencyId) ? cur.filter(id => id !== agencyId) : [...cur, agencyId];
+      return { ...p, [selId]: next };
+    });
+    setSaved(false);
+  };
+
+  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
+
+  const selClient = clients.find(c => c.id === selId);
+
+  return (
+    <div>
+      {saved && <Alert type="success" style={{marginBottom:14}}>{"✓ Panel saved for "}{selClient?.name}{"."}</Alert>}
+
+      <Grid cols={3} style={{marginBottom:20}}>
+        {clients.map(c => {
+          const count = (clientPanels[c.id] || []).length;
+          const active = selId === c.id;
+          return (
+            <div key={c.id} onClick={() => { setSelId(c.id); setSaved(false); }}
+              style={{padding:"18px 20px",borderRadius:12,border:`2px solid ${active?T.navy:T.border}`,background:active?T.navy:T.white,cursor:"pointer",transition:"all 0.15s"}}>
+              <div style={{fontWeight:800,fontSize:14,color:active?T.white:T.text,marginBottom:4}}>{c.name}</div>
+              <div style={{fontSize:12,color:active?"rgba(255,255,255,0.6)":T.muted}}>{c.locations.length} location{c.locations.length!==1?"s":""}</div>
+              <div style={{marginTop:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,
+                  background:active?"rgba(255,255,255,0.15)":T.amberBg,
+                  color:active?T.white:T.amberText}}>
+                  {count} agenc{count!==1?"ies":"y"} on panel
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </Grid>
+
+      <Card style={{padding:0}}>
+        <div style={{padding:"16px 20px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:14,color:T.text}}>{selClient?.name} — Agency Panel</div>
+            <div style={{fontSize:12,color:T.muted,marginTop:2}}>Toggle agencies on or off this client{"'"}s approved panel. Only panel agencies will be offered shifts for this client.</div>
+          </div>
+          <Btn onClick={save}>Save Panel</Btn>
+        </div>
+
+        {AGENCIES.map(a => {
+          const active = onPanel(a.id);
+          return (
+            <div key={a.id} style={{
+              display:"flex", alignItems:"center", padding:"16px 20px",
+              borderBottom:`1px solid ${T.border}`,
+              background: active ? "#f0fdf4" : T.white,
+              transition:"background 0.15s"
+            }}>
+              {/* On/off toggle */}
+              <button onClick={() => toggleAgency(a.id)} style={{
+                width:44, height:26, borderRadius:13,
+                background: active ? T.green : T.border,
+                border:"none", cursor:"pointer", position:"relative",
+                transition:"background 0.2s", flexShrink:0, marginRight:16
+              }}>
+                <div style={{position:"absolute",top:3,left:active?20:3,width:20,height:20,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+              </button>
+
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                  <span style={{fontWeight:800,fontSize:14,color:T.text}}>{a.name}</span>
+                  <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
+                  {active
+                    ? <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#dcfce7",color:T.green}}>ON PANEL</span>
+                    : <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#f1f5f9",color:T.muted}}>OFF PANEL</span>}
+                </div>
+                <div style={{fontSize:12,color:T.muted}}>
+                  {a.contact} · {a.email} · Fill rate: <strong>{a.fillRate}%</strong> · Avg response: <strong>{a.avgResponse}</strong> · Compliance: <strong>{a.compliance}%</strong>
+                </div>
+              </div>
+
+              <div style={{textAlign:"right",flexShrink:0,marginLeft:16}}>
+                <div style={{fontSize:13,fontWeight:700,color:active?T.green:T.muted}}>
+                  {active ? "✓ Approved" : "Not approved"}
+                </div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{a.shifts} shifts this period</div>
+              </div>
+            </div>
+          );
+        })}
+
+        {panelIds.length === 0 && (
+          <div style={{padding:"30px 20px",textAlign:"center",color:T.muted,fontSize:13}}>
+            No agencies on panel for this client. Toggle agencies above to build their panel.
+          </div>
+        )}
+      </Card>
+
+      <Alert type="info" style={{marginTop:14}}>
+        <strong>How panels work:</strong> When a shift is assigned from the Shift Board, only agencies on that client{"'"}s panel will be shown. If an agency is removed from a panel, any pending shifts they hold for that client are not automatically cancelled — you{"'"}ll need to reassign those manually.
+      </Alert>
+    </div>
+  );
+};
+
+/* ─── ADMIN: CLIENTS & PRICING HUB ─────────────────────────────────────────── */
+const ClientsAndPricing = (props) => {
+  const [tab, setTab] = useState("clients");
+  const [groups, setGroups] = useState(INIT_CLIENT_GROUPS);
+
+  const TABS = [
+    { k:"clients",    l:"Clients",          i:"🏥" },
+    { k:"panels",     l:"Agency Panels",    i:"🤝" },
+    { k:"ratecards",  l:"Rate Cards",       i:"💷" },
+    { k:"bankrates",  l:"Bank Rates",       i:"🏦" },
+    { k:"rateuplifts",l:"Rate Uplifts",     i:"📈" },
+    { k:"margins",    l:"Margins & Pricing",i:"💰" },
+  ];
+
+  return (
+    <Page title="Clients & Pricing" sub="Client groups, agency panels, rates, and platform pricing" icon="🏥">
+      {/* Tab bar */}
+      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:12,padding:4,width:"fit-content",marginBottom:22,flexWrap:"wrap"}}>
+        {TABS.map(t=>{
+          const active=tab===t.k;
+          return (
+            <button key={t.k} onClick={()=>setTab(t.k)}
+              style={{padding:"8px 18px",borderRadius:9,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                background:active?T.white:"transparent",color:active?T.navy:T.muted,
+                boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",transition:"all 0.15s",
+                display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:14}}>{t.i}</span> {t.l}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab==="clients"    && <ClientManager groups={groups} setGroups={setGroups}/>}
+      {tab==="panels"     && <PanelManager clientPanels={props.clientPanels} setClientPanels={props.setClientPanels}/>}
+      {tab==="ratecards"  && <RateCards {...props}/>}
+      {tab==="bankrates"  && <BankRateCards {...props}/>}
+      {tab==="rateuplifts"&& <RateUpliftManager {...props}/>}
+      {tab==="margins"    && <MarginManager clientPricing={props.clientPricing} setClientPricing={props.setClientPricing}/>}
     </Page>
   );
 };
@@ -9106,87 +9571,6 @@ const CreditNoteManager = ({user}) => {
   );
 };
 
-/* ─── MESSAGING CENTRE ────────────────────────────────────────────────────────── */
-const MessagingCentre = ({user}) => {
-  const [threads,setThreads]=useState(INIT_THREADS);
-  const [messages,setMessages]=useState(INIT_MESSAGES);
-  const [activeThread,setActiveThread]=useState(null);
-  const [newMsg,setNewMsg]=useState("");
-  const accent=user?.role==="bank"?T.teal:user?.role==="clientadmin"?"#7c3aed":T.amber;
-  const threadMessages=activeThread?messages.filter(m=>m.threadId===activeThread.id):[];
-  const send=()=>{
-    if(!newMsg.trim()||!activeThread)return;
-    const m={id:`m${messages.length+1}`,threadId:activeThread.id,shiftId:activeThread.shiftId,from:user.name,fromRole:user.role,to:"",toRole:"",text:newMsg,timestamp:new Date().toISOString(),read:false};
-    setMessages(ms=>[...ms,m]);
-    setThreads(ts=>ts.map(t=>t.id===activeThread.id?{...t,lastMessage:m.timestamp,unread:0}:t));
-    setNewMsg("");
-  };
-  const totalUnread=threads.reduce((s,t)=>s+t.unread,0);
-  return (
-    <Page title="Messages" sub="Threaded conversations per shift and worker" icon="💬">
-      <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16,minHeight:500}}>
-        {/* Thread list */}
-        <Card style={{padding:0,overflow:"hidden"}}>
-          <div style={{padding:"14px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{fontWeight:700,fontSize:13}}>Conversations</span>
-            {totalUnread>0&&<span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:T.amberBg,color:T.amberText}}>{totalUnread} unread</span>}
-          </div>
-          {threads.map(t=>{
-            const lastMsg=messages.filter(m=>m.threadId===t.id).slice(-1)[0];
-            const active=activeThread?.id===t.id;
-            return(
-              <div key={t.id} onClick={()=>{setActiveThread(t);setThreads(ts=>ts.map(x=>x.id===t.id?{...x,unread:0}:x));}}
-                style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,cursor:"pointer",background:active?T.amberBg:"transparent",borderLeft:active?`3px solid ${accent}`:"3px solid transparent",transition:"all 0.15s"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
-                  <span style={{fontWeight:700,fontSize:12,color:T.text}}>{t.subject}</span>
-                  {t.unread>0&&<span style={{width:8,height:8,borderRadius:"50%",background:accent,flexShrink:0,marginTop:3}}/>}
-                </div>
-                {lastMsg&&<div style={{fontSize:11,color:T.muted,overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis"}}><strong>{lastMsg.from.split(" ")[0]}:</strong> {lastMsg.text}</div>}
-                <div style={{fontSize:10,color:"#94a3b8",marginTop:3}}>{t.type==="shift"?"📋 Shift":"👤 Worker"} · {new Date(t.lastMessage).toLocaleDateString("en-GB")}</div>
-              </div>
-            );
-          })}
-        </Card>
-        {/* Message pane */}
-        <Card style={{padding:0,display:"flex",flexDirection:"column",minHeight:500}}>
-          {activeThread?(
-            <>
-              <div style={{padding:"14px 18px",borderBottom:`1px solid ${T.border}`}}>
-                <div style={{fontWeight:700,fontSize:14,color:T.text}}>{activeThread.subject}</div>
-                <div style={{fontSize:11,color:T.muted,marginTop:2}}>Participants: {activeThread.participants.join(", ")}</div>
-              </div>
-              <div style={{flex:1,overflowY:"auto",padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
-                {threadMessages.map(m=>{
-                  const mine=m.from===user.name;
-                  return(
-                    <div key={m.id} style={{display:"flex",flexDirection:mine?"row-reverse":"row",gap:10,alignItems:"flex-end"}}>
-                      <div style={{width:30,height:30,borderRadius:"50%",background:mine?accent:T.navy,display:"flex",alignItems:"center",justifyContent:"center",color:T.white,fontSize:12,fontWeight:700,flexShrink:0}}>{m.from.charAt(0)}</div>
-                      <div style={{maxWidth:"70%"}}>
-                        <div style={{fontSize:10,color:T.muted,marginBottom:3,textAlign:mine?"right":"left"}}>{m.from} · {new Date(m.timestamp).toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"})}</div>
-                        <div style={{padding:"10px 14px",borderRadius:mine?"14px 14px 4px 14px":"14px 14px 14px 4px",background:mine?accent:T.navy,color:T.white,fontSize:13,lineHeight:1.5}}>{m.text}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{padding:"12px 18px",borderTop:`1px solid ${T.border}`,display:"flex",gap:10}}>
-                <input value={newMsg} onChange={e=>setNewMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Type a message…" style={{flex:1,padding:"10px 14px",border:`1.5px solid ${T.border}`,borderRadius:10,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none"}}/>
-                <Btn onClick={send} disabled={!newMsg.trim()}>Send</Btn>
-              </div>
-            </>
-          ):(
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:40,textAlign:"center"}}>
-              <div style={{fontSize:40,marginBottom:12}}>💬</div>
-              <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:6}}>Select a conversation</div>
-              <p style={{color:T.muted,fontSize:13}}>Choose a thread from the left to view messages.</p>
-            </div>
-          )}
-        </Card>
-      </div>
-    </Page>
-  );
-};
-
 /* ─── RECURRING SHIFT MANAGER (care home request page enhancement) ────────────── */
 const RecurringShifts = ({user}) => {
   const [patterns,setPatterns]=useState(INIT_RECURRING_PATTERNS);
@@ -9390,14 +9774,17 @@ const EscalationTimeline = ({shift}) => {
 
 const ClientAdminShifts = ({user}) => {
   const today = "2026-03-10";
-  const allSites = [...new Set(SHIFTS.map(s=>s.carehome))].sort();
+  const [shifts, setShifts] = useState(SHIFTS);
+  const allSites = [...new Set(shifts.map(s=>s.carehome))].sort();
   const [site,    setSite]    = useState("all");
   const [tab,     setTab]     = useState("unfilled");
   const [pubModal,setPubModal] = useState(null);
   const [publishedToBank,setPublishedToBank] = useState([]);
   const [selectedBroadcast,setSelectedBroadcast] = useState("bank_first");
+  const [actionModal, setActionModal] = useState(null);
+  const [actionReason, setActionReason] = useState("");
 
-  const siteShifts = site==="all" ? SHIFTS : SHIFTS.filter(s=>s.carehome===site);
+  const siteShifts = site==="all" ? shifts : shifts.filter(s=>s.carehome===site);
 
   const tabDefs = [
     {k:"unfilled", l:"Unfilled", count: siteShifts.filter(s=>(s.status==="open"||s.status==="pending")&&s.date>=today).length, color:T.red},
@@ -9411,6 +9798,11 @@ const ClientAdminShifts = ({user}) => {
     if(tab==="expired")  return s.date<today && s.status!=="filled";
     return true;
   }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  const doAction = () => {
+    setShifts(prev=>prev.map(s=>s.id===actionModal.shift.id?{...s,status:"open",agency:null,worker:null}:s));
+    setActionModal(null); setActionReason("");
+  };
 
   return (
     <Page title="All Shifts" sub="Group-wide shift overview" icon="📋">
@@ -9436,6 +9828,36 @@ const ClientAdminShifts = ({user}) => {
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={()=>{setPublishedToBank(b=>[...b,pubModal.id]);setPubModal(null);setSelectedBroadcast("bank_first");}}>Publish Shift {"→"}</Btn>
             <Btn variant="secondary" onClick={()=>{setPubModal(null);setSelectedBroadcast("bank_first");}}>Cancel</Btn>
+          </div>
+        </Modal>
+      )}
+
+      {/* Cancel/Withdraw modal */}
+      {actionModal && (
+        <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
+          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
+            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
+            <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.date} · {actionModal.shift.time}</div>
+            {actionModal.type==="cancel"   && <div style={{marginTop:6,fontSize:12}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
+            {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
+          </div>
+          <Alert type="warn">
+            {actionModal.type==="cancel"
+              ? "Removing this agency will reopen the shift. Nexus RPO will be notified to reassign."
+              : "Withdrawing this worker will reopen the shift. The agency and Nexus RPO will be notified."}
+          </Alert>
+          <div style={{marginBottom:16}}>
+            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
+              placeholder="e.g. Worker no longer available, agency withdrew candidate…"
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn variant="danger" onClick={doAction}>
+              {actionModal.type==="cancel" ? "Cancel Agency" : "Withdraw Worker"}
+            </Btn>
+            <Btn variant="secondary" onClick={()=>{setActionModal(null);setActionReason("");}}>Back</Btn>
           </div>
         </Modal>
       )}
@@ -9514,9 +9936,11 @@ const ClientAdminShifts = ({user}) => {
                     <Td>
                       {publishedToBank.includes(s.id)
                         ? <Badge label="Published" color={T.teal} bg={T.tealBg}/>
-                        : s.status==="open"
-                        ? <Btn small onClick={()=>setPubModal(s)}>Publish {"→"}</Btn>
-                        : <span style={{fontSize:11,color:T.muted}}>—</span>}
+                        : <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                            {s.status==="open"    && <Btn small onClick={()=>setPubModal(s)}>Publish {"→"}</Btn>}
+                            {s.status==="pending" && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"cancel"})}>Cancel Agency</Btn>}
+                            {s.status==="filled"  && <Btn small variant="danger" onClick={()=>setActionModal({shift:s,type:"withdraw"})}>Withdraw</Btn>}
+                          </div>}
                     </Td>
                   </>}
                 </tr>
@@ -9531,12 +9955,11 @@ const ClientAdminShifts = ({user}) => {
 const VIEWS = {
   admin:       {
     dashboard:AdminDashboard,shifts:ShiftBoard,schedule:Scheduler,agencies:AgencyManagement,
-    clients:ClientManager,bankstaff:BankStaffManagement,workers:WorkerDirectory,
+    clients:ClientsAndPricing,bankstaff:BankStaffManagement,workers:WorkerDirectory,
     compliance:ComplianceTracker,expirycal:ExpiryCalendar,cqcreport:CQCReadinessReport,
-    documents:DocumentVault,ratecards:RateCards,bankrates:BankRateCards,rateuplifts:RateUpliftManager,
+    documents:DocumentVault,
     invoices:InvoiceManager,creditnotes:CreditNoteManager,timesheets:AdminTimesheets,
     budgets:AdminBudgets,analytics:Analytics,forecast:DemandForecast,reports:CustomReports,
-    messages:MessagingCentre,siteallocation:SiteAllocation,margins:MarginManager,
     users:UsersAndPermissions,
   },
   clientadmin: {
@@ -9545,7 +9968,7 @@ const VIEWS = {
     shifts:ClientAdminShifts,
     timesheets:CareHomeTimesheets,invoices:CareHomeInvoices,budgets:ClientAdminBudgets,bankrates:BankRateCards,compliance:CareHomeCompliance,
     expirycal:ExpiryCalendar,rtw:RtwMonitoringReport,cqcreport:CQCReadinessReport,
-    reports:CustomReports,messages:MessagingCentre,workers:CareHomeWorkers,
+    reports:CustomReports,workers:CareHomeWorkers,
     users:CareHomeUsersAndPermissions,
   },
   carehome:    {
@@ -9553,18 +9976,18 @@ const VIEWS = {
     myshifts:CareHomeMyShifts,
     calendar:CareHomeCalendar,compliance:CareHomeCompliance,expirycal:ExpiryCalendar,
     rtw:RtwMonitoringReport,cqcreport:CQCReadinessReport,invoices:CareHomeInvoices,
-    timesheets:CareHomeTimesheets,workers:CareHomeWorkers,messages:MessagingCentre,
+    timesheets:CareHomeTimesheets,workers:CareHomeWorkers,
     recurring:RecurringShifts,workerprefs:WorkerPreferences,
   },
   agency:      {
     dashboard:AgencyDashboard,available:AvailableShifts,workers:AgencyWorkers,
     timesheets:AgencyTimesheets,onboard:WorkerOnboarding,rtw:AgencyRightToWork,
     rateuplifts:RateUpliftManager,documents:AgencyDocuments,invoices:AgencyInvoices,
-    messages:MessagingCentre,users:AgencyUsersAndPermissions,
+    users:AgencyUsersAndPermissions,
   },
   bank:        {
     dashboard:BankDashboard,available:BankAvailableShifts,myshifts:BankMyShifts,
-    availability:BankAvailability,earnings:BankEarnings,messages:MessagingCentre,
+    availability:BankAvailability,earnings:BankEarnings,
     profile:BankProfile,
   },
 };
@@ -9574,7 +9997,8 @@ const AppShell = ({user,onLogout}) => {
   const [timesheets,setTimesheets]             = useState(INIT_TIMESHEETS);
   const [users,setUsers]                       = useState(INIT_USERS);
   const [complianceReqs,setComplianceReqs]     = useState(INIT_COMPLIANCE_REQS);
-  const [marginCfg,setMarginCfg]               = useState(INIT_MARGIN_CONFIG);
+  const [clientPricing,setClientPricing]         = useState(INIT_CLIENT_PRICING);
+  const [clientPanels,setClientPanels]           = useState(INIT_CLIENT_PANELS);
   const [invoices,setInvoices]                 = useState(INVOICES);
   const [rateCards,setRateCards]               = useState(INIT_RATE_CARDS);
   const [rateUplifts,setRateUplifts]           = useState(INIT_RATE_UPLIFTS);
@@ -9618,7 +10042,7 @@ const AppShell = ({user,onLogout}) => {
         </div>
         <div style={{flex:1,overflowY:"auto"}}>
           {View
-            ? <View user={user} navigate={setTab} timesheets={timesheets} setTimesheets={setTimesheets} users={users} setUsers={setUsers} complianceReqs={complianceReqs} setComplianceReqs={setComplianceReqs} marginCfg={marginCfg} setMarginCfg={setMarginCfg} rateCards={rateCards} setRateCards={setRateCards} invoices={invoices} setInvoices={setInvoices} rateUplifts={rateUplifts} setRateUplifts={setRateUplifts} budgets={budgets} setBudgets={setBudgets} bankRates={bankRates} setBankRates={setBankRates} shiftPatterns={shiftPatterns} setShiftPatterns={setShiftPatterns}/>
+            ? <View user={user} navigate={setTab} timesheets={timesheets} setTimesheets={setTimesheets} users={users} setUsers={setUsers} complianceReqs={complianceReqs} setComplianceReqs={setComplianceReqs} clientPricing={clientPricing} setClientPricing={setClientPricing} clientPanels={clientPanels} setClientPanels={setClientPanels} rateCards={rateCards} setRateCards={setRateCards} invoices={invoices} setInvoices={setInvoices} rateUplifts={rateUplifts} setRateUplifts={setRateUplifts} budgets={budgets} setBudgets={setBudgets} bankRates={bankRates} setBankRates={setBankRates} shiftPatterns={shiftPatterns} setShiftPatterns={setShiftPatterns}/>
             : <Page title="Coming Soon"><p style={{color:T.muted}}>This section is under construction.</p></Page>}
         </div>
       </div>
