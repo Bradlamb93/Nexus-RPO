@@ -73,12 +73,6 @@ const AGENCIES = [
 ];
 
 // Agency panels per client — which agencies are approved to fill shifts for each client group
-const INIT_CLIENT_PANELS = {
-  cg1: [1, 2, 3],    // Sunrise Healthcare: First Choice, ProCare, MedStaff
-  cg2: [1, 2],       // Lakeside Care: First Choice, ProCare only (negotiated)
-  cg3: [1, 4],       // Riverside Care: First Choice, CareForce
-};
-
 // Maps care home name → client group ID (for panel lookups)
 const HOME_TO_GROUP = {
   "Sunrise Care":          "cg1",
@@ -401,7 +395,8 @@ const INIT_CLIENT_GROUPS = [
     contractEnd:"2027-05-31",
     status:"active",
     notes:"",
-    panelAgencies:[2,4],type:"Nursing",address:"1 River View, Edgbaston, Birmingham, B15 3TE",beds:64,contact:"Steve Walters",email:"s.walters@riverside.co.uk",phone:"0121 600 3301",cqcRating:"Good",cqcDate:"2025-02-28",status:"inactive",notes:"Currently inactive — Steve Walters on leave"},
+    locations:[
+      {id:"l5",name:"Riverside Manor",type:"Nursing",address:"1 River View, Edgbaston, Birmingham, B15 3TE",beds:64,contact:"Steve Walters",email:"s.walters@riverside.co.uk",phone:"0121 600 3301",cqcRating:"Good",cqcDate:"2025-02-28",status:"inactive",notes:"Currently inactive — Steve Walters on leave"},
     ]
   },
 ];
@@ -1365,7 +1360,7 @@ const AdminDashboard = ({user, navigate}) => {
 };
 
 /* ─── ADMIN: SHIFT BOARD ─────────────────────────────────────────────────────── */
-const ShiftBoard = ({navigate, clientPanels}) => {
+const ShiftBoard = ({navigate}) => {
   const [filter,setFilter] = useState("all");
   const [search,setSearch] = useState("");
   const [modal,setModal] = useState(null);         // "assign" modal
@@ -1402,7 +1397,8 @@ const ShiftBoard = ({navigate, clientPanels}) => {
           <p style={{fontSize:13,color:T.muted,marginBottom:16}}>Select an agency to receive this shift request. Only agencies on this client{"'"}s approved panel are shown.</p>
           {(() => {
             const groupId = HOME_TO_GROUP[modal.carehome];
-            const panelIds = (clientPanels && groupId) ? (clientPanels[groupId] || []) : AGENCIES.map(a=>a.id);
+            const group = INIT_CLIENT_GROUPS.find(g => g.id === groupId);
+            const panelIds = group?.panelAgencies || AGENCIES.map(a=>a.id);
             const available = AGENCIES.filter(a => panelIds.includes(a.id));
             if(available.length === 0) return (
               <Alert type="warn" style={{marginBottom:16}}>No agencies are on this client{"'"}s panel. Add agencies in Clients {"→"} Agency Panels.</Alert>
@@ -7218,130 +7214,17 @@ const ClientManager = ({groups, setGroups}) => {
   );
 };
 
-/* ─── ADMIN: AGENCY PANEL MANAGER ───────────────────────────────────────────── */
-const PanelManager = ({ clientPanels, setClientPanels }) => {
-  const clients = INIT_CLIENT_GROUPS.map(g => ({ id: g.id, name: g.name, locations: g.locations }));
-  const [selId, setSelId] = useState(clients[0].id);
-  const [saved, setSaved] = useState(false);
-
-  const panelIds = clientPanels[selId] || [];
-  const onPanel  = (agencyId) => panelIds.includes(agencyId);
-
-  const toggleAgency = (agencyId) => {
-    setClientPanels(p => {
-      const cur = p[selId] || [];
-      const next = cur.includes(agencyId) ? cur.filter(id => id !== agencyId) : [...cur, agencyId];
-      return { ...p, [selId]: next };
-    });
-    setSaved(false);
-  };
-
-  const save = () => { setSaved(true); setTimeout(() => setSaved(false), 2500); };
-
-  const selClient = clients.find(c => c.id === selId);
-
-  return (
-    <div>
-      {saved && <Alert type="success" style={{marginBottom:14}}>{"✓ Panel saved for "}{selClient?.name}{"."}</Alert>}
-
-      <Grid cols={3} style={{marginBottom:20}}>
-        {clients.map(c => {
-          const count = (clientPanels[c.id] || []).length;
-          const active = selId === c.id;
-          return (
-            <div key={c.id} onClick={() => { setSelId(c.id); setSaved(false); }}
-              style={{padding:"18px 20px",borderRadius:12,border:`2px solid ${active?T.navy:T.border}`,background:active?T.navy:T.white,cursor:"pointer",transition:"all 0.15s"}}>
-              <div style={{fontWeight:800,fontSize:14,color:active?T.white:T.text,marginBottom:4}}>{c.name}</div>
-              <div style={{fontSize:12,color:active?"rgba(255,255,255,0.6)":T.muted}}>{c.locations.length} location{c.locations.length!==1?"s":""}</div>
-              <div style={{marginTop:10,display:"flex",alignItems:"center",gap:6}}>
-                <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,
-                  background:active?"rgba(255,255,255,0.15)":T.amberBg,
-                  color:active?T.white:T.amberText}}>
-                  {count} agenc{count!==1?"ies":"y"} on panel
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </Grid>
-
-      <Card style={{padding:0}}>
-        <div style={{padding:"16px 20px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontWeight:800,fontSize:14,color:T.text}}>{selClient?.name} — Agency Panel</div>
-            <div style={{fontSize:12,color:T.muted,marginTop:2}}>Toggle agencies on or off this client{"'"}s approved panel. Only panel agencies will be offered shifts for this client.</div>
-          </div>
-          <Btn onClick={save}>Save Panel</Btn>
-        </div>
-
-        {AGENCIES.map(a => {
-          const active = onPanel(a.id);
-          return (
-            <div key={a.id} style={{
-              display:"flex", alignItems:"center", padding:"16px 20px",
-              borderBottom:`1px solid ${T.border}`,
-              background: active ? "#f0fdf4" : T.white,
-              transition:"background 0.15s"
-            }}>
-              {/* On/off toggle */}
-              <button onClick={() => toggleAgency(a.id)} style={{
-                width:44, height:26, borderRadius:13,
-                background: active ? T.green : T.border,
-                border:"none", cursor:"pointer", position:"relative",
-                transition:"background 0.2s", flexShrink:0, marginRight:16
-              }}>
-                <div style={{position:"absolute",top:3,left:active?20:3,width:20,height:20,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
-              </button>
-
-              <div style={{flex:1, minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                  <span style={{fontWeight:800,fontSize:14,color:T.text}}>{a.name}</span>
-                  <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
-                  {active
-                    ? <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#dcfce7",color:T.green}}>ON PANEL</span>
-                    : <span style={{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:20,background:"#f1f5f9",color:T.muted}}>OFF PANEL</span>}
-                </div>
-                <div style={{fontSize:12,color:T.muted}}>
-                  {a.contact} · {a.email} · Fill rate: <strong>{a.fillRate}%</strong> · Avg response: <strong>{a.avgResponse}</strong> · Compliance: <strong>{a.compliance}%</strong>
-                </div>
-              </div>
-
-              <div style={{textAlign:"right",flexShrink:0,marginLeft:16}}>
-                <div style={{fontSize:13,fontWeight:700,color:active?T.green:T.muted}}>
-                  {active ? "✓ Approved" : "Not approved"}
-                </div>
-                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{a.shifts} shifts this period</div>
-              </div>
-            </div>
-          );
-        })}
-
-        {panelIds.length === 0 && (
-          <div style={{padding:"30px 20px",textAlign:"center",color:T.muted,fontSize:13}}>
-            No agencies on panel for this client. Toggle agencies above to build their panel.
-          </div>
-        )}
-      </Card>
-
-      <Alert type="info" style={{marginTop:14}}>
-        <strong>How panels work:</strong> When a shift is assigned from the Shift Board, only agencies on that client{"'"}s panel will be shown. If an agency is removed from a panel, any pending shifts they hold for that client are not automatically cancelled — you{"'"}ll need to reassign those manually.
-      </Alert>
-    </div>
-  );
-};
-
 /* ─── ADMIN: CLIENTS & PRICING HUB ─────────────────────────────────────────── */
 const ClientsAndPricing = (props) => {
   const [tab, setTab] = useState("clients");
   const [groups, setGroups] = useState(INIT_CLIENT_GROUPS);
 
   const TABS = [
-    { k:"clients",    l:"Clients",          i:"🏥" },
-    { k:"panels",     l:"Agency Panels",    i:"🤝" },
-    { k:"ratecards",  l:"Rate Cards",       i:"💷" },
-    { k:"bankrates",  l:"Bank Rates",       i:"🏦" },
-    { k:"rateuplifts",l:"Rate Uplifts",     i:"📈" },
-    { k:"margins",    l:"Margins & Pricing",i:"💰" },
+    { k:"clients",    l:"Clients & Panels",  i:"🏥" },
+    { k:"ratecards",  l:"Rate Cards",        i:"💷" },
+    { k:"bankrates",  l:"Bank Rates",        i:"🏦" },
+    { k:"rateuplifts",l:"Rate Uplifts",      i:"📈" },
+    { k:"margins",    l:"Margins & Pricing", i:"💰" },
   ];
 
   return (
@@ -7363,7 +7246,6 @@ const ClientsAndPricing = (props) => {
       </div>
 
       {tab==="clients"    && <ClientManager groups={groups} setGroups={setGroups}/>}
-      {tab==="panels"     && <PanelManager clientPanels={props.clientPanels} setClientPanels={props.setClientPanels}/>}
       {tab==="ratecards"  && <RateCards {...props}/>}
       {tab==="bankrates"  && <BankRateCards {...props}/>}
       {tab==="rateuplifts"&& <RateUpliftManager {...props}/>}
@@ -9998,7 +9880,6 @@ const AppShell = ({user,onLogout}) => {
   const [users,setUsers]                       = useState(INIT_USERS);
   const [complianceReqs,setComplianceReqs]     = useState(INIT_COMPLIANCE_REQS);
   const [clientPricing,setClientPricing]         = useState(INIT_CLIENT_PRICING);
-  const [clientPanels,setClientPanels]           = useState(INIT_CLIENT_PANELS);
   const [invoices,setInvoices]                 = useState(INVOICES);
   const [rateCards,setRateCards]               = useState(INIT_RATE_CARDS);
   const [rateUplifts,setRateUplifts]           = useState(INIT_RATE_UPLIFTS);
@@ -10042,7 +9923,7 @@ const AppShell = ({user,onLogout}) => {
         </div>
         <div style={{flex:1,overflowY:"auto"}}>
           {View
-            ? <View user={user} navigate={setTab} timesheets={timesheets} setTimesheets={setTimesheets} users={users} setUsers={setUsers} complianceReqs={complianceReqs} setComplianceReqs={setComplianceReqs} clientPricing={clientPricing} setClientPricing={setClientPricing} clientPanels={clientPanels} setClientPanels={setClientPanels} rateCards={rateCards} setRateCards={setRateCards} invoices={invoices} setInvoices={setInvoices} rateUplifts={rateUplifts} setRateUplifts={setRateUplifts} budgets={budgets} setBudgets={setBudgets} bankRates={bankRates} setBankRates={setBankRates} shiftPatterns={shiftPatterns} setShiftPatterns={setShiftPatterns}/>
+            ? <View user={user} navigate={setTab} timesheets={timesheets} setTimesheets={setTimesheets} users={users} setUsers={setUsers} complianceReqs={complianceReqs} setComplianceReqs={setComplianceReqs} clientPricing={clientPricing} setClientPricing={setClientPricing} rateCards={rateCards} setRateCards={setRateCards} invoices={invoices} setInvoices={setInvoices} rateUplifts={rateUplifts} setRateUplifts={setRateUplifts} budgets={budgets} setBudgets={setBudgets} bankRates={bankRates} setBankRates={setBankRates} shiftPatterns={shiftPatterns} setShiftPatterns={setShiftPatterns}/>
             : <Page title="Coming Soon"><p style={{color:T.muted}}>This section is under construction.</p></Page>}
         </div>
       </div>
