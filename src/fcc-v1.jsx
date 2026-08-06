@@ -1,11 +1,44 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { LineChart, Line, BarChart, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area } from "recharts";
 
-/* ─── FONTS & RESET ─────────────────────────────────────────────────────────── */
-const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Syne',sans-serif}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#f1f5f9}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-input,select,textarea,button{font-family:'Syne',sans-serif}`;
+/* ─── TYPOGRAPHY ─────────────────────────────────────────────────────────────
+   San Francisco where it exists (Apple platforms), Inter as the metric-compatible
+   fallback everywhere else. Inter is only fetched by browsers that need it.      */
+const FONT = `-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif`;
+const FONT_MONO = `"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace`;
+
+/* ─── GLOBAL RESET & CHROME ──────────────────────────────────────────────────── */
+const FONTS = `@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+body{font-family:${FONT};background:#F5F5F7;color:#1D1D1F;letter-spacing:-0.011em;font-synthesis-weight:none}
+input,select,textarea,button{font-family:inherit;letter-spacing:inherit;color:inherit}
+button{-webkit-tap-highlight-color:transparent}
+h1,h2,h3,h4{font-weight:600;letter-spacing:-0.021em}
+
+/* Thin overlay scrollbars, Apple-style — invisible until there's something to scroll */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.16);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.30);background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-corner{background:transparent}
+
+::selection{background:rgba(0,113,227,0.20)}
+:focus{outline:none}
+:focus-visible{outline:3px solid rgba(0,113,227,0.36);outline-offset:2px;border-radius:7px}
+input:focus,select:focus,textarea:focus{border-color:#0071E3 !important;box-shadow:0 0 0 3.5px rgba(0,113,227,0.15)}
+input::placeholder,textarea::placeholder{color:#A1A1A6}
+
+/* Native select chevron replaced with a monoline glyph */
+select{appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236E6E73' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;padding-right:34px !important}
+
+@keyframes fcFade{from{opacity:0}to{opacity:1}}
+@keyframes fcRise{from{opacity:0;transform:translateY(10px) scale(0.99)}to{opacity:1;transform:none}}
+@keyframes fcScrim{from{opacity:0}to{opacity:1}}
+@keyframes fcPulse{0%,100%{opacity:1}50%{opacity:0.45}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:0.01ms !important;transition-duration:0.01ms !important}}`;
 
 /* ─── LOGO ───────────────────────────────────────────────────────────────────── */
 const FCCLogo = ({size=32,textColor="#ffffff",showText=false,textSize=17}) => (
@@ -24,25 +57,183 @@ const FCCLogo = ({size=32,textColor="#ffffff",showText=false,textSize=17}) => (
       <circle cx="50" cy="50" r="4" fill="#6BB8DC"/>
     </svg>
     {showText && (
-      <span style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:textSize,color:textColor,letterSpacing:"0.02em",lineHeight:1}}>
-        Nexus <span style={{fontWeight:400,opacity:0.85}}>RPO</span>
+      <span style={{fontFamily:FONT,fontWeight:600,fontSize:textSize,color:textColor,letterSpacing:"-0.02em",lineHeight:1}}>
+        Nexus <span style={{fontWeight:400,opacity:0.55}}>RPO</span>
       </span>
     )}
   </div>
 );
 
-/* ─── DESIGN TOKENS ──────────────────────────────────────────────────────────── */
+/* ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
+   Neutral greyscale base carrying one action colour. The accent is the logo's
+   outer ring (#6BB8DC) deepened to a hue that passes contrast on white, so the
+   brand mark and the primary button finally agree with each other.
+   Amber is a *status* colour only — it no longer competes for attention.       */
 const T = {
-  navy:'#08132A', navyMid:'#0f2040', navyBorder:'rgba(255,255,255,0.08)',
-  amber:'#F59E0B', amberDark:'#D97706', amberBg:'#FEF3C7', amberText:'#92400E',
-  white:'#FFFFFF', bg:'#F7F9FC', border:'#E4E9F0',
-  text:'#0D1829', muted:'#6B7A99',
-  green:'#059669', greenBg:'#D1FAE5',
-  red:'#DC2626', redBg:'#FEE2E2',
-  blue:'#2563EB', blueBg:'#DBEAFE',
-  yellow:'#D97706', yellowBg:'#FEF3C7',
-  purple:'#7C3AED', purpleBg:'#EDE9FE',
-  teal:'#0891B2', tealBg:'#CFFAFE',
+  /* dark chrome */
+  navy:'#1D1D1F', navyMid:'#2C2C2E', navyDeep:'#161617',
+  navyBorder:'rgba(255,255,255,0.10)',
+
+  /* action */
+  accent:'#0071E3', accentHover:'#0077ED', accentPress:'#0062C4',
+  accentBg:'#EBF4FE', accentText:'#0058B0', accentRing:'rgba(0,113,227,0.15)',
+  blue:'#0071E3', blueBg:'#EBF4FE',
+
+  /* status */
+  green:'#1E8E4A', greenBg:'#E6F6ED',
+  red:'#D70015',   redBg:'#FFEDEC',
+  amber:'#B25E00', amberDark:'#8A4A00', amberBg:'#FFF4E3', amberText:'#7A4100',
+  yellow:'#B25E00', yellowBg:'#FFF4E3',
+  purple:'#5A55E0', purpleBg:'#EFEEFD',
+  teal:'#0E7C8A',   tealBg:'#E2F4F7',
+
+  /* surfaces */
+  white:'#FFFFFF', bg:'#F5F5F7', raised:'#FBFBFD', sunken:'#F0F0F3',
+  border:'#E4E4E8', hairline:'rgba(0,0,0,0.07)', divider:'rgba(0,0,0,0.055)',
+
+  /* ink */
+  text:'#1D1D1F', muted:'#6E6E73', faint:'#8E8E93', ghost:'#A1A1A6',
+
+  /* elevation — diffuse and low-contrast, never a hard drop shadow */
+  sh1:'0 1px 2px rgba(0,0,0,0.04)',
+  sh2:'0 1px 3px rgba(0,0,0,0.05), 0 6px 16px -6px rgba(0,0,0,0.08)',
+  sh3:'0 2px 6px rgba(0,0,0,0.05), 0 16px 36px -12px rgba(0,0,0,0.14)',
+  sh4:'0 8px 24px rgba(0,0,0,0.10), 0 32px 72px -16px rgba(0,0,0,0.24)',
+
+  /* geometry */
+  r:14, rSm:10, rXs:7, rLg:20, rPill:980,
+
+  /* motion */
+  ease:'cubic-bezier(0.4,0,0.2,1)', t:'0.2s cubic-bezier(0.4,0,0.2,1)',
+};
+
+/* Role tinting — each portal keeps a quiet identity without four clashing hues */
+const ROLE_ACCENT = {
+  admin:T.accent, clientadmin:T.purple, carehome:T.accent,
+  agency:T.accent, bank:T.teal,
+};
+const roleAccent = r => ROLE_ACCENT[r] || T.accent;
+
+/* ─── ICONS ──────────────────────────────────────────────────────────────────
+   A monoline set in the spirit of SF Symbols: single 24×24 grid, 1.7 stroke,
+   round caps and joins, no fills except intentional dots. Everything inherits
+   currentColor so icons pick up the surrounding text colour for free.         */
+const ICON_PATHS = {
+  grid:        <><rect x="3.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2.2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2.2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2.2"/></>,
+  clipboard:   <><path d="M9 4.75H7.5a2 2 0 0 0-2 2v11.75a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V6.75a2 2 0 0 0-2-2H15"/><rect x="9" y="2.9" width="6" height="3.7" rx="1.3"/></>,
+  calendar:    <><rect x="3.75" y="5.5" width="16.5" height="15" rx="3"/><path d="M3.75 10.25h16.5M8.5 3.5v4M15.5 3.5v4"/></>,
+  briefcase:   <><rect x="3" y="7.5" width="18" height="13" rx="3"/><path d="M8.5 7.5V6a2.5 2.5 0 0 1 2.5-2.5h2A2.5 2.5 0 0 1 15.5 6v1.5M3 13.25h18"/></>,
+  hospital:    <><path d="M4 20.5V8.2a1.5 1.5 0 0 1 .79-1.32l6.5-3.5a1.5 1.5 0 0 1 1.42 0l6.5 3.5A1.5 1.5 0 0 1 20 8.2V20.5"/><path d="M2.75 20.5h18.5M12 9.75v5M9.5 12.25h5"/></>,
+  bank:        <><path d="M3 9.75 12 4.5l9 5.25M4.9 9.9v8.85M9.3 9.9v8.85M14.7 9.9v8.85M19.1 9.9v8.85M2.75 19.75h18.5"/></>,
+  building:    <><rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="M8.75 8h1.75M13.5 8h1.75M8.75 12h1.75M13.5 12h1.75M10 20.5v-4h4v4"/></>,
+  users:       <><circle cx="9.25" cy="8.5" r="3.4"/><path d="M2.9 20.25c0-3.35 2.85-5.6 6.35-5.6s6.35 2.25 6.35 5.6"/><path d="M16.4 5.6a3.4 3.4 0 0 1 0 6.6M17.9 15.1c1.98.78 3.2 2.5 3.2 4.6"/></>,
+  user:        <><circle cx="12" cy="8.25" r="3.85"/><path d="M4.9 20.4c0-3.7 3.2-6.15 7.1-6.15s7.1 2.45 7.1 6.15"/></>,
+  shield:      <><path d="M12 3.3 5.1 6.05v5.6c0 4.2 2.86 7.62 6.9 9.15 4.04-1.53 6.9-4.95 6.9-9.15v-5.6L12 3.3Z"/></>,
+  shieldCheck: <><path d="M12 3.3 5.1 6.05v5.6c0 4.2 2.86 7.62 6.9 9.15 4.04-1.53 6.9-4.95 6.9-9.15v-5.6L12 3.3Z"/><path d="m9.15 11.85 2.1 2.1 3.6-3.9"/></>,
+  document:    <><path d="M13.4 3.5H8A2.5 2.5 0 0 0 5.5 6v12A2.5 2.5 0 0 0 8 20.5h8a2.5 2.5 0 0 0 2.5-2.5V8.6L13.4 3.5Z"/><path d="M13.15 3.8v4.85h4.9"/></>,
+  folder:      <><path d="M3.5 7.4A2.5 2.5 0 0 1 6 4.9h3.1a2 2 0 0 1 1.55.74l1 1.22a2 2 0 0 0 1.55.74H18a2.5 2.5 0 0 1 2.5 2.5v7.4A2.5 2.5 0 0 1 18 20H6a2.5 2.5 0 0 1-2.5-2.5V7.4Z"/></>,
+  archive:     <><rect x="2.9" y="4" width="18.2" height="4.9" rx="2"/><path d="M4.75 9v9.05a2.5 2.5 0 0 0 2.5 2.5h9.5a2.5 2.5 0 0 0 2.5-2.5V9M10 13.15h4"/></>,
+  book:        <><path d="M4.5 4.9A1.9 1.9 0 0 1 6.4 3H19.2v14.6H6.4a1.9 1.9 0 0 0-1.9 1.9V4.9Z"/><path d="M4.5 19.5c0 1.05.85 1.9 1.9 1.9H19.2"/></>,
+  clock:       <><circle cx="12" cy="12" r="8.6"/><path d="M12 6.9v5.35l3.35 2"/></>,
+  timer:       <><circle cx="12" cy="13.4" r="7.4"/><path d="M12 9.9v3.6M9.5 2.75h5M18.6 6.4l1.5-1.5"/></>,
+  hourglass:   <><path d="M6.9 3.5h10.2M6.9 20.5h10.2M8.1 3.5v3.15c0 2.05 3.9 3.9 3.9 5.35 0-1.45 3.9-3.3 3.9-5.35V3.5M8.1 20.5v-3.15c0-2.05 3.9-3.9 3.9-5.35 0 1.45 3.9 3.3 3.9 5.35v3.15"/></>,
+  pound:       <><circle cx="12" cy="12" r="8.6"/><path d="M14.6 8.6a2.75 2.75 0 0 0-5 1.6c0 2.5.95 3.25.95 4.6 0 .95-.5 1.7-1.25 2.1h6.05M9.3 12.75h3.8"/></>,
+  money:       <><rect x="2.75" y="6.1" width="18.5" height="11.8" rx="2.6"/><circle cx="12" cy="12" r="2.65"/><path d="M6.1 9.6v4.8M17.9 9.6v4.8"/></>,
+  receipt:     <><path d="M6 3.6h12v16.9l-2.4-1.6-2.4 1.6-2.4-1.6-2.4 1.6L6 20.5V3.6Z"/><path d="M9.25 8.6h5.5M9.25 12.35h5.5"/></>,
+  chartBar:    <><path d="M3.5 20.5h17"/><rect x="5.4" y="10.9" width="3.6" height="7.1" rx="1.3"/><rect x="10.2" y="6.4" width="3.6" height="11.6" rx="1.3"/><rect x="15" y="9" width="3.6" height="9" rx="1.3"/></>,
+  chartPie:    <><circle cx="12" cy="12" r="8.6"/><path d="M12 3.4v8.6h8.6"/></>,
+  trendingUp:  <><path d="m3.5 16.6 5.75-5.75 3.5 3.5L20.5 6.6"/><path d="M15.15 6.6h5.35v5.35"/></>,
+  forecast:    <><circle cx="11.4" cy="11.2" r="6.4"/><path d="M6.1 19.6h10.6"/><path d="m19.6 3.3.78 1.96 1.96.78-1.96.78-.78 1.96-.78-1.96-1.96-.78 1.96-.78.78-1.96Z"/></>,
+  search:      <><circle cx="10.75" cy="10.75" r="6.75"/><path d="m15.65 15.65 4.6 4.6"/></>,
+  filter:      <><path d="M3.6 5.5h16.8l-6.65 7.9v5.55l-3.5 2.05V13.4L3.6 5.5Z"/></>,
+  lock:        <><rect x="4.6" y="10.1" width="14.8" height="10.4" rx="3"/><path d="M8.1 10.1V7.6a3.9 3.9 0 0 1 7.8 0v2.5"/></>,
+  idCard:      <><rect x="2.75" y="5" width="18.5" height="14" rx="3"/><circle cx="8.6" cy="10.6" r="2.3"/><path d="M5.1 16.1c.5-1.65 1.9-2.55 3.5-2.55s3 .9 3.5 2.55M15 9.75h4M15 13.6h4"/></>,
+  pin:         <><path d="M12 20.9s6.4-5.6 6.4-10.15a6.4 6.4 0 1 0-12.8 0C5.6 15.3 12 20.9 12 20.9Z"/><circle cx="12" cy="10.55" r="2.5"/></>,
+  globe:       <><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.25 2.35 3.45 5.35 3.45 8.6S14.25 18.25 12 20.6c-2.25-2.35-3.45-5.35-3.45-8.6S9.75 5.75 12 3.4Z"/></>,
+  warning:     <><path d="M10.63 4.24 2.94 17.5a1.58 1.58 0 0 0 1.37 2.37h15.38a1.58 1.58 0 0 0 1.37-2.37L13.37 4.24a1.58 1.58 0 0 0-2.74 0Z"/><path d="M12 9.6v4.3"/><circle cx="12" cy="16.85" r="0.95" fill="currentColor" stroke="none"/></>,
+  siren:       <><path d="M8.55 2.9h6.9l4.65 4.65v6.9l-4.65 4.65h-6.9L3.9 14.45v-6.9L8.55 2.9Z"/><path d="M12 7.6v4.6"/><circle cx="12" cy="15.5" r="0.95" fill="currentColor" stroke="none"/></>,
+  checkCircle: <><circle cx="12" cy="12" r="8.6"/><path d="m8.15 12.25 2.65 2.65 5.05-5.5"/></>,
+  check:       <><path d="m5.2 12.6 4.55 4.55L18.9 7.4"/></>,
+  close:       <><path d="m6.6 6.6 10.8 10.8M17.4 6.6 6.6 17.4"/></>,
+  plus:        <><path d="M12 5.1v13.8M5.1 12h13.8"/></>,
+  minus:       <><path d="M5.1 12h13.8"/></>,
+  info:        <><circle cx="12" cy="12" r="8.6"/><path d="M12 11.1v5.4"/><circle cx="12" cy="7.85" r="0.95" fill="currentColor" stroke="none"/></>,
+  star:        <><path d="m12 3.4 2.66 5.39 5.94.86-4.3 4.19 1.02 5.92L12 17.05l-5.32 2.71 1.02-5.92-4.3-4.19 5.94-.86L12 3.4Z"/></>,
+  award:       <><circle cx="12" cy="9.15" r="5.65"/><path d="m8.4 14.05-1.15 6.45L12 17.95l4.75 2.55-1.15-6.45"/></>,
+  trophy:      <><path d="M7.9 4.4h8.2v5.05a4.1 4.1 0 0 1-8.2 0V4.4Z"/><path d="M7.9 6.2H5.4a2.6 2.6 0 0 0 2.5 2.6M16.1 6.2h2.5a2.6 2.6 0 0 1-2.5 2.6M12 13.55v3.5M8.6 20.5h6.8"/></>,
+  medical:     <><circle cx="12" cy="12" r="8.6"/><path d="M12 7.9v8.2M7.9 12h8.2"/></>,
+  bed:         <><path d="M3.4 19.9V6.6M3.4 12.6h16.1a2.1 2.1 0 0 1 2.1 2.1v5.2M21.6 16.7H3.4"/><circle cx="7.85" cy="9.35" r="2"/></>,
+  printer:     <><path d="M7 8.6V4.35h10V8.6"/><path d="M6.6 8.6h10.8a3 3 0 0 1 3 3v3.4a1.6 1.6 0 0 1-1.6 1.6H17M6.6 8.6a3 3 0 0 0-3 3v3.4a1.6 1.6 0 0 0 1.6 1.6H7"/><rect x="7" y="13.4" width="10" height="6.35" rx="1.3"/></>,
+  bell:        <><path d="M17.9 9.6a5.9 5.9 0 1 0-11.8 0c0 4.9-2 6.4-2 6.4h15.8s-2-1.5-2-6.4Z"/><path d="M13.7 19.4a2 2 0 0 1-3.4 0"/></>,
+  mail:        <><rect x="2.75" y="5" width="18.5" height="14" rx="3"/><path d="m4.1 7.6 6.85 4.85a2 2 0 0 0 2.3 0L20.1 7.6"/></>,
+  phone:       <><path d="M8.35 3.75H5.7A2 2 0 0 0 3.71 6c.6 6.86 6.43 12.69 13.29 13.29a2 2 0 0 0 2.25-1.99v-2.65l-3.95-1.35-1.9 1.9a13.6 13.6 0 0 1-5.5-5.5l1.9-1.9L8.35 3.75Z"/></>,
+  message:     <><path d="M20.6 12.2a7.8 7.8 0 0 1-11.3 6.97L4 20.5l1.33-5.3A7.8 7.8 0 1 1 20.6 12.2Z"/></>,
+  megaphone:   <><path d="M3.5 10.4v3.2a2 2 0 0 0 2 2h2l8.4 4.6V3.8L7.5 8.4h-2a2 2 0 0 0-2 2Z"/><path d="M19.1 9.15a4 4 0 0 1 0 5.7"/></>,
+  flag:        <><path d="M5.6 21V3.9M5.6 4.9h11.3l-2.05 3.55 2.05 3.55H5.6"/></>,
+  ban:         <><circle cx="12" cy="12" r="8.6"/><path d="m6.15 6.15 11.7 11.7"/></>,
+  hand:        <><path d="M8.9 12.4V5.9a1.75 1.75 0 0 1 3.5 0v5.3m0-4.9a1.75 1.75 0 0 1 3.5 0v5.4m0-3.4a1.75 1.75 0 0 1 3.5 0v6.9a6.4 6.4 0 0 1-6.4 6.4h-1.2a6.4 6.4 0 0 1-6.4-6.4v-2a1.75 1.75 0 0 1 3.5 0"/></>,
+  trash:       <><path d="M4.6 6.85h14.8M9.6 6.85V5.1a1.6 1.6 0 0 1 1.6-1.6h1.6a1.6 1.6 0 0 1 1.6 1.6v1.75M6.6 6.85V18.9a2 2 0 0 0 2 2h6.8a2 2 0 0 0 2-2V6.85M10.1 11.1v5.5M13.9 11.1v5.5"/></>,
+  edit:        <><path d="M16.45 3.9a2.15 2.15 0 0 1 3.05 3.05L8.55 17.9l-4.05 1 1-4.05L16.45 3.9Z"/></>,
+  save:        <><path d="M5.6 3.6h9.95L20.4 8.45V19a1.5 1.5 0 0 1-1.5 1.5H5.6A1.5 1.5 0 0 1 4.1 19V5.1a1.5 1.5 0 0 1 1.5-1.5Z"/><path d="M8.1 3.6v5.05h6.9V3.6M8.1 20.5v-5.85h7.8v5.85"/></>,
+  refresh:     <><path d="M20.1 12a8.1 8.1 0 1 1-2.42-5.78"/><path d="M20.5 4.1v4.6h-4.6"/></>,
+  download:    <><path d="M12 4.1v10.6M7.7 10.4 12 14.7l4.3-4.3M4.6 19.6h14.8"/></>,
+  upload:      <><path d="M12 19.6V9M7.7 13.3 12 9l4.3 4.3M4.6 4.4h14.8"/></>,
+  paperclip:   <><path d="M19.9 11.4 12.2 19.1a4.6 4.6 0 1 1-6.5-6.5l7.9-7.9a3.07 3.07 0 0 1 4.34 4.34l-7.85 7.85a1.53 1.53 0 1 1-2.17-2.17l7.25-7.2"/></>,
+  bolt:        <><path d="M13.2 2.6 4.6 13.7h6.5l-1.3 7.7 8.6-11.1h-6.5l1.3-7.7Z"/></>,
+  sparkle:     <><path d="m11 3.4 1.85 4.75L17.6 10l-4.75 1.85L11 16.6l-1.85-4.75L4.4 10l4.75-1.85L11 3.4Z"/><path d="m18.4 15.1.85 2.15 2.15.85-2.15.85-.85 2.15-.85-2.15-2.15-.85 2.15-.85.85-2.15Z"/></>,
+  rocket:      <><path d="M9.15 11.6c1.6-5.15 5.15-8.15 10.4-8.15 0 5.25-3 8.8-8.15 10.4L9.15 11.6Z"/><path d="M9.6 14.4 4.7 19.3M8.85 13.65l-2.9-.5 1.55-2.6M10.35 15.15l.5 2.9 2.6-1.55"/></>,
+  eye:         <><path d="M2.6 12S6.1 5.6 12 5.6 21.4 12 21.4 12 17.9 18.4 12 18.4 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="3.05"/></>,
+  settings:    <><circle cx="12" cy="12" r="3.05"/><path d="M18.8 14.6a1.5 1.5 0 0 0 .3 1.65l.05.05a1.85 1.85 0 1 1-2.6 2.6l-.05-.05a1.5 1.5 0 0 0-1.65-.3 1.5 1.5 0 0 0-.9 1.37v.13a1.85 1.85 0 1 1-3.7 0v-.07a1.5 1.5 0 0 0-.98-1.37 1.5 1.5 0 0 0-1.65.3l-.05.05a1.85 1.85 0 1 1-2.6-2.6l.05-.05a1.5 1.5 0 0 0 .3-1.65 1.5 1.5 0 0 0-1.37-.9h-.13a1.85 1.85 0 1 1 0-3.7h.07a1.5 1.5 0 0 0 1.37-.98 1.5 1.5 0 0 0-.3-1.65l-.05-.05a1.85 1.85 0 1 1 2.6-2.6l.05.05a1.5 1.5 0 0 0 1.65.3h.07a1.5 1.5 0 0 0 .9-1.37v-.13a1.85 1.85 0 1 1 3.7 0v.07a1.5 1.5 0 0 0 .9 1.37 1.5 1.5 0 0 0 1.65-.3l.05-.05a1.85 1.85 0 1 1 2.6 2.6l-.05.05a1.5 1.5 0 0 0-.3 1.65v.07a1.5 1.5 0 0 0 1.37.9h.13a1.85 1.85 0 1 1 0 3.7h-.07a1.5 1.5 0 0 0-1.37.9Z"/></>,
+  logout:      <><path d="M9.6 20.4H6.1a2 2 0 0 1-2-2V5.6a2 2 0 0 1 2-2h3.5M15.6 16.3l4.3-4.3-4.3-4.3M19.9 12H9.1"/></>,
+  sun:         <><circle cx="12" cy="12" r="4.15"/><path d="M12 2.8v2.1M12 19.1v2.1M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2.8 12h2.1M19.1 12h2.1M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5"/></>,
+  moon:        <><path d="M20.5 14.3A8.55 8.55 0 0 1 9.7 3.5a8.55 8.55 0 1 0 10.8 10.8Z"/></>,
+  chevronDown: <><path d="m6.2 9.4 5.8 5.8 5.8-5.8"/></>,
+  chevronUp:   <><path d="m6.2 14.6 5.8-5.8 5.8 5.8"/></>,
+  chevronRight:<><path d="m9.4 6.2 5.8 5.8-5.8 5.8"/></>,
+  chevronLeft: <><path d="M14.6 6.2 8.8 12l5.8 5.8"/></>,
+  arrowRight:  <><path d="M4.4 12h15.2M13.4 5.8l6.2 6.2-6.2 6.2"/></>,
+  arrowLeft:   <><path d="M19.6 12H4.4M10.6 5.8 4.4 12l6.2 6.2"/></>,
+  link:        <><path d="M10.1 13.6a4.05 4.05 0 0 0 5.72 0l2.87-2.87a4.05 4.05 0 0 0-5.73-5.73l-1.62 1.62"/><path d="M13.9 10.4a4.05 4.05 0 0 0-5.72 0L5.31 13.27a4.05 4.05 0 0 0 5.73 5.73l1.62-1.62"/></>,
+};
+
+const Icon = ({name, size=18, stroke=1.7, style, title}) => {
+  const body = ICON_PATHS[name];
+  if (!body) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" aria-hidden={title?undefined:true}
+      role={title?"img":undefined} focusable="false"
+      style={{flexShrink:0,display:"block",...style}}>
+      {title && <title>{title}</title>}
+      {body}
+    </svg>
+  );
+};
+
+/* Every emoji the app previously rendered, mapped onto the set above. Lets the
+   shared primitives swap glyphs centrally instead of at 300+ call sites.       */
+const EMOJI_ICON = {
+  "📋":"clipboard", "⚠️":"warning", "⚠":"warning", "✅":"checkCircle", "🏥":"hospital",
+  "💰":"money", "📊":"chartBar", "🏦":"bank", "🛡":"shield", "🛡️":"shield",
+  "📄":"document", "📍":"pin", "📅":"calendar", "📆":"calendar", "🤝":"briefcase",
+  "👥":"users", "👤":"user", "🕐":"clock", "🖨️":"printer", "🖨":"printer",
+  "🪪":"idCard", "📈":"trendingUp", "🔍":"search", "🔐":"lock", "💷":"pound",
+  "🧾":"receipt", "🏅":"award", "📁":"folder", "➕":"plus", "🌐":"globe",
+  "🚨":"siren", "⭐":"star", "🔮":"forecast", "🗂":"archive", "🗂️":"archive",
+  "📧":"mail", "✉️":"mail", "⛔":"ban", "🚫":"ban", "📚":"book", "📎":"paperclip",
+  "🏢":"building", "🏆":"trophy", "⚡":"bolt", "🎉":"sparkle", "⏱":"timer", "⏱️":"timer",
+  "🛏":"bed", "🛏️":"bed", "📞":"phone", "📝":"edit", "💾":"save", "🔔":"bell",
+  "🔄":"refresh", "⬇":"download", "🚀":"rocket", "🥧":"chartPie", "💉":"medical",
+  "ℹ️":"info", "📢":"megaphone", "🚩":"flag", "✋":"hand", "⏳":"hourglass",
+  "🗑":"trash", "🗑️":"trash", "💬":"message", "⚕️":"medical", "◈":"grid",
+};
+
+/* Accepts an icon name, a legacy emoji, or a ready-made node. */
+const renderIcon = (icon, size=18, style) => {
+  if (!icon) return null;
+  if (typeof icon !== "string") return icon;
+  const name = ICON_PATHS[icon] ? icon : EMOJI_ICON[icon.trim()];
+  return name ? <Icon name={name} size={size} style={style}/> : null;
 };
 
 /* ─── MOCK DATA ──────────────────────────────────────────────────────────────── */
@@ -412,7 +603,15 @@ const ANALYTICS_SHIFTS = [
   {month:"Oct",open:24,filled:78},{month:"Nov",open:18,filled:92},{month:"Dec",open:30,filled:68},{month:"Jan",open:15,filled:85},{month:"Feb",open:12,filled:98},{month:"Mar",open:6,filled:41},
 ];
 const AGENCY_PIE = [{name:"First Choice",value:42},{name:"ProCare",value:38},{name:"MedStaff UK",value:21},{name:"CareForce",value:14}];
-const PIE_COLORS = [T.amber, T.blue, T.teal, T.purple];
+/* Categorical series colours — held at a similar lightness so no one series
+   shouts louder than the rest, and distinguishable without relying on hue alone. */
+const CHART_COLORS = ['#0071E3', '#5A55E0', '#0E9BAA', '#C86A12', '#1E8E4A', '#A8558F'];
+const PIE_COLORS = CHART_COLORS;
+const TOOLTIP_STYLE = {
+  borderRadius:14, border:`1px solid ${T.hairline}`, boxShadow:T.sh3,
+  fontFamily:FONT, fontSize:12.5, letterSpacing:'-0.008em', padding:'9px 12px',
+  background:'rgba(255,255,255,0.92)', backdropFilter:'saturate(180%) blur(20px)',
+};
 
 const DOCS = [
   {id:1,worker:"Sarah Johnson",type:"DBS Certificate",uploaded:"2025-03-01",expires:"2027-03-01",status:"verified"},
@@ -425,9 +624,11 @@ const DOCS = [
 ];
 
 /* ─── ATOMS ──────────────────────────────────────────────────────────────────── */
-const Badge = ({label,color=T.blue,bg=T.blueBg,dot}) => (
-  <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,letterSpacing:"0.05em",color,background:bg,textTransform:"uppercase",whiteSpace:"nowrap"}}>
-    {dot && <span style={{width:6,height:6,borderRadius:"50%",background:color,display:"inline-block"}}/>}{label}
+const Badge = ({label,color=T.blue,bg=T.blueBg,dot,icon}) => (
+  <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3.5px 9px",borderRadius:T.rPill,fontSize:11.5,fontWeight:590,letterSpacing:"-0.005em",color,background:bg,whiteSpace:"nowrap",lineHeight:1.45}}>
+    {dot && <span style={{width:5.5,height:5.5,borderRadius:"50%",background:color,display:"inline-block",flexShrink:0}}/>}
+    {icon && renderIcon(icon,12)}
+    {label}
   </span>
 );
 
@@ -436,7 +637,7 @@ const statusConfig = {
   pending:{label:"Pending",color:T.yellow,bg:T.yellowBg},
   filled:{label:"Filled",color:T.green,bg:T.greenBg},
   paid:{label:"Paid",color:T.green,bg:T.greenBg},
-  draft:{label:"Draft",color:T.muted,bg:"#f1f5f9"},
+  draft:{label:"Draft",color:T.muted,bg:T.sunken},
   overdue:{label:"Overdue",color:T.red,bg:T.redBg},
   active:{label:"Active",color:T.green,bg:T.greenBg},
   verified:{label:"Verified",color:T.green,bg:T.greenBg},
@@ -446,80 +647,106 @@ const statusConfig = {
 };
 const SBadge = ({s}) => { const c = statusConfig[s]||statusConfig.open; return <Badge label={c.label} color={c.color} bg={c.bg} dot />; };
 
-const Btn = ({children,onClick,variant="primary",small,disabled,full}) => {
-  const vs = {
-    primary:{background:T.amber,color:T.navy,border:"none"},
-    secondary:{background:"transparent",color:T.text,border:`1.5px solid ${T.border}`},
-    danger:{background:T.redBg,color:T.red,border:`1.5px solid #fca5a5`},
-    ghost:{background:"transparent",color:T.muted,border:"none"},
-    dark:{background:T.navy,color:T.white,border:"none"},
-  };
-  const s = vs[variant];
+const BTN_VARIANTS = {
+  primary:  {background:T.accent, color:"#fff",   border:"1px solid transparent", hover:T.accentHover, press:T.accentPress, shadow:"0 1px 2px rgba(0,0,0,0.06)"},
+  secondary:{background:T.white,  color:T.text,   border:`1px solid ${T.border}`, hover:T.raised,      press:T.sunken,      shadow:T.sh1},
+  danger:   {background:T.white,  color:T.red,    border:`1px solid rgba(215,0,21,0.28)`, hover:T.redBg, press:"#FFE0DE",   shadow:T.sh1},
+  ghost:    {background:"transparent", color:T.muted, border:"1px solid transparent", hover:"rgba(0,0,0,0.045)", press:"rgba(0,0,0,0.075)", shadow:"none"},
+  dark:     {background:T.navy,   color:"#fff",   border:"1px solid transparent", hover:T.navyMid,     press:T.navyDeep,    shadow:"0 1px 2px rgba(0,0,0,0.10)"},
+};
+
+const Btn = ({children,onClick,variant="primary",small,disabled,full,icon,type,title}) => {
+  const v = BTN_VARIANTS[variant] || BTN_VARIANTS.primary;
+  const set = (el,bg) => { if(!disabled) el.style.background = bg; };
   return (
-    <button onClick={onClick} disabled={disabled} style={{...s,padding:small?"5px 12px":"9px 18px",borderRadius:8,fontSize:small?11:13,fontWeight:600,cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.5:1,transition:"all 0.15s",width:full?"100%":undefined,fontFamily:"Syne,sans-serif"}}>
+    <button type={type} title={title} onClick={onClick} disabled={disabled}
+      onMouseEnter={e=>set(e.currentTarget,v.hover)}
+      onMouseLeave={e=>set(e.currentTarget,v.background)}
+      onMouseDown={e=>set(e.currentTarget,v.press)}
+      onMouseUp={e=>set(e.currentTarget,v.hover)}
+      style={{background:v.background,color:v.color,border:v.border,boxShadow:disabled?"none":v.shadow,
+        display:"inline-flex",alignItems:"center",justifyContent:"center",gap:small?5:6.5,
+        padding:small?"5.5px 11px":"9px 17px",borderRadius:small?T.rXs:T.rSm,
+        fontSize:small?12:13.5,fontWeight:btnWeight(variant),letterSpacing:"-0.01em",lineHeight:1.35,
+        cursor:disabled?"not-allowed":"pointer",opacity:disabled?0.42:1,
+        transition:`background ${T.t}, box-shadow ${T.t}, opacity ${T.t}`,
+        width:full?"100%":undefined,whiteSpace:"nowrap",fontFamily:FONT}}>
+      {icon && renderIcon(icon,small?13:15)}
       {children}
     </button>
   );
 };
+/* Filled buttons carry slightly more weight so they hold against their fill. */
+function btnWeight(variant){ return variant==="primary"||variant==="dark" ? 560 : 520; }
 
-const Stat = ({label,value,sub,accent,icon,trend,trendUp}) => (
-  <div style={{background:T.white,borderRadius:12,padding:"20px 22px",border:`1px solid ${T.border}`,position:"relative",overflow:"hidden"}}>
-    {accent && <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",background:T.amber}}/>}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-      <div>
-        <div style={{fontSize:12,color:T.muted,fontWeight:600,marginBottom:6,textTransform:"uppercase",letterSpacing:"0.06em"}}>{label}</div>
-        <div style={{fontSize:28,fontWeight:800,color:T.text,lineHeight:1,letterSpacing:"-0.02em"}}>{value}</div>
-        {sub && <div style={{fontSize:11,color:T.muted,marginTop:5}}>{sub}</div>}
-        {trend && <div style={{fontSize:11,marginTop:5,fontWeight:600,color:trendUp?T.green:T.red}}>{trendUp?"↑":"↓"} {trend}</div>}
+const Stat = ({label,value,sub,accent,icon,trend,trendUp,tone}) => {
+  const tint = tone || (accent ? T.accent : T.muted);
+  return (
+    <div style={{background:T.white,borderRadius:T.r,padding:"18px 20px",border:`1px solid ${T.hairline}`,boxShadow:T.sh1,position:"relative"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:12.5,color:T.muted,fontWeight:510,marginBottom:9,letterSpacing:"-0.005em"}}>{label}</div>
+          <div style={{fontSize:30,fontWeight:600,color:T.text,lineHeight:1,letterSpacing:"-0.028em",fontVariantNumeric:"tabular-nums"}}>{value}</div>
+          {sub && <div style={{fontSize:12,color:T.faint,marginTop:7,letterSpacing:"-0.005em"}}>{sub}</div>}
+          {trend && (
+            <div style={{fontSize:12,marginTop:7,fontWeight:520,color:trendUp?T.green:T.red,display:"flex",alignItems:"center",gap:3.5}}>
+              <Icon name="trendingUp" size={13} style={trendUp?undefined:{transform:"scaleY(-1)"}}/>{trend}
+            </div>
+          )}
+        </div>
+        {icon && (
+          <div style={{width:34,height:34,borderRadius:T.rSm,background:`${tint}14`,color:tint,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {renderIcon(icon,18)}
+          </div>
+        )}
       </div>
-      {icon && <div style={{fontSize:22,opacity:0.3}}>{icon}</div>}
     </div>
-  </div>
-);
+  );
+};
 
 const Grid = ({cols=4,gap=16,children,style={}}) => (
-  <div style={{display:"grid",gridTemplateColumns:`repeat(${cols},1fr)`,gap,marginBottom:20,...style}}>{children}</div>
+  <div style={{display:"grid",gridTemplateColumns:`repeat(${cols},minmax(0,1fr))`,gap,marginBottom:20,...style}}>{children}</div>
 );
 
 const Card = ({children,style={}}) => (
-  <div style={{background:T.white,borderRadius:12,border:`1px solid ${T.border}`,...style}}>{children}</div>
+  <div style={{background:T.white,borderRadius:T.r,border:`1px solid ${T.hairline}`,boxShadow:T.sh1,...style}}>{children}</div>
 );
 
 const CardHead = ({title,sub,action,icon}) => (
-  <div style={{padding:"16px 20px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-    <div style={{display:"flex",alignItems:"center",gap:8}}>
-      {icon && <span style={{fontSize:16}}>{icon}</span>}
-      <div>
-        <div style={{fontWeight:700,fontSize:14,color:T.text}}>{title}</div>
-        {sub && <div style={{fontSize:11,color:T.muted,marginTop:1}}>{sub}</div>}
+  <div style={{padding:"15px 20px",borderBottom:`1px solid ${T.divider}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+    <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+      {icon && <span style={{color:T.faint,display:"flex"}}>{renderIcon(icon,17)}</span>}
+      <div style={{minWidth:0}}>
+        <div style={{fontWeight:590,fontSize:14.5,color:T.text,letterSpacing:"-0.016em"}}>{title}</div>
+        {sub && <div style={{fontSize:12,color:T.faint,marginTop:2,letterSpacing:"-0.005em"}}>{sub}</div>}
       </div>
     </div>
     {action}
   </div>
 );
 
-const Th = ({children}) => <th style={{padding:"10px 14px",fontSize:11,fontWeight:700,color:T.muted,textAlign:"left",textTransform:"uppercase",letterSpacing:"0.07em",background:"#f8fafc",borderBottom:`1px solid ${T.border}`}}>{children}</th>;
-const Td = ({children,bold}) => <td style={{padding:"11px 14px",fontSize:13,color:bold?T.text:T.text,fontWeight:bold?600:400,verticalAlign:"middle",borderBottom:`1px solid ${T.border}`}}>{children}</td>;
+const Th = ({children}) => <th style={{padding:"11px 16px",fontSize:12,fontWeight:510,color:T.faint,textAlign:"left",letterSpacing:"-0.005em",background:"transparent",borderBottom:`1px solid ${T.divider}`,whiteSpace:"nowrap"}}>{children}</th>;
+const Td = ({children,bold}) => <td style={{padding:"12px 16px",fontSize:13.5,color:T.text,fontWeight:bold?560:420,letterSpacing:"-0.008em",verticalAlign:"middle",borderBottom:`1px solid ${T.divider}`}}>{children}</td>;
 
 const Table = ({headers,rows,empty}) => (
   <div style={{overflowX:"auto"}}>
     <table style={{width:"100%",borderCollapse:"collapse"}}>
       <thead><tr>{headers.map((h,i)=><Th key={i}>{h}</Th>)}</tr></thead>
-      <tbody>{rows.length ? rows : (empty && <tr><td colSpan={headers.length} style={{padding:32,textAlign:"center",color:T.muted,fontSize:13}}>{empty}</td></tr>)}</tbody>
+      <tbody>{rows.length ? rows : (empty && <tr><td colSpan={headers.length} style={{padding:"44px 32px",textAlign:"center",color:T.faint,fontSize:13.5}}>{empty}</td></tr>)}</tbody>
     </table>
   </div>
 );
 
 const Page = ({title,sub,action,children,icon}) => (
-  <div style={{flex:1,padding:"32px 36px",background:T.bg,minHeight:"100vh",fontFamily:"Syne,sans-serif",maxWidth:"100%",overflow:"hidden"}}>
+  <div style={{flex:1,padding:"34px 38px 48px",background:T.bg,minHeight:"100vh",fontFamily:FONT,maxWidth:"100%",overflow:"hidden",animation:"fcFade 0.28s ease both"}}>
     <style>{FONTS}</style>
-    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:28}}>
-      <div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {icon && <span style={{fontSize:22}}>{icon}</span>}
-          <h1 style={{fontSize:22,fontWeight:800,color:T.text,fontFamily:"Instrument Serif,serif",letterSpacing:"-0.02em"}}>{title}</h1>
+    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:20,marginBottom:26}}>
+      <div style={{minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:11}}>
+          {icon && <span style={{color:T.ghost,display:"flex"}}>{renderIcon(icon,22)}</span>}
+          <h1 style={{fontSize:27,fontWeight:600,color:T.text,letterSpacing:"-0.028em",lineHeight:1.15}}>{title}</h1>
         </div>
-        {sub && <p style={{fontSize:13,color:T.muted,marginTop:3}}>{sub}</p>}
+        {sub && <p style={{fontSize:14,color:T.muted,marginTop:5,letterSpacing:"-0.008em"}}>{sub}</p>}
       </div>
       {action}
     </div>
@@ -527,49 +754,76 @@ const Page = ({title,sub,action,children,icon}) => (
   </div>
 );
 
+const fieldStyle = {width:"100%",padding:"10px 13px",border:`1px solid ${T.border}`,borderRadius:T.rSm,fontSize:13.5,color:T.text,background:T.white,letterSpacing:"-0.008em",transition:`border-color ${T.t}, box-shadow ${T.t}`};
+const labelStyle = {display:"block",fontSize:12.5,fontWeight:510,color:T.muted,marginBottom:6,letterSpacing:"-0.006em"};
+
 const Input = ({label,value,onChange,type="text",placeholder,required,small}) => (
   <div style={{marginBottom:small?0:16}}>
-    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>{label}{required&&<span style={{color:T.red}}> *</span>}</label>}
-    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,color:T.text,background:T.white,outline:"none"}} />
+    {label && <label style={labelStyle}>{label}{required&&<span style={{color:T.red}}> *</span>}</label>}
+    <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={fieldStyle} />
   </div>
 );
 
 const Select = ({label,value,onChange,options,required}) => (
   <div style={{marginBottom:16}}>
-    {label && <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>{label}{required&&<span style={{color:T.red}}> *</span>}</label>}
-    <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,color:T.text,background:T.white}}>
+    {label && <label style={labelStyle}>{label}{required&&<span style={{color:T.red}}> *</span>}</label>}
+    <select value={value} onChange={e=>onChange(e.target.value)} style={{...fieldStyle,cursor:"pointer"}}>
       {options.map(o=><option key={o.value||o} value={o.value||o}>{o.label||o}</option>)}
     </select>
   </div>
 );
 
 const Alert = ({type="info",children}) => {
-  const cfg = {info:{bg:T.blueBg,border:T.blue,color:T.blue},warn:{bg:T.yellowBg,border:T.yellow,color:T.yellow},warning:{bg:T.yellowBg,border:T.yellow,color:T.yellow},error:{bg:T.redBg,border:T.red,color:T.red},success:{bg:T.greenBg,border:T.green,color:T.green}};
+  const cfg = {
+    info:   {bg:T.accentBg, color:T.accentText, icon:"info"},
+    warn:   {bg:T.amberBg,  color:T.amberText,  icon:"warning"},
+    warning:{bg:T.amberBg,  color:T.amberText,  icon:"warning"},
+    error:  {bg:T.redBg,    color:T.red,        icon:"warning"},
+    success:{bg:T.greenBg,  color:T.green,      icon:"checkCircle"},
+  };
   const c = cfg[type] || cfg.info;
-  return <div style={{background:c.bg,borderLeft:`3px solid ${c.border}`,borderRadius:6,padding:"10px 14px",fontSize:12,color:T.text,marginBottom:12,lineHeight:1.6}}>{children}</div>;
+  return (
+    <div style={{background:c.bg,borderRadius:T.rSm,padding:"11px 14px",fontSize:13,color:T.text,marginBottom:12,lineHeight:1.55,letterSpacing:"-0.006em",display:"flex",gap:9,alignItems:"flex-start"}}>
+      <span style={{color:c.color,display:"flex",marginTop:1.5,flexShrink:0}}><Icon name={c.icon} size={15}/></span>
+      <div style={{minWidth:0}}>{children}</div>
+    </div>
+  );
 };
 
 const Modal = ({title,onClose,children,width=520}) => (
-  <div style={{position:"fixed",inset:0,background:"rgba(8,19,42,0.6)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div style={{background:T.white,borderRadius:16,width:"100%",maxWidth:width,maxHeight:"90vh",overflow:"auto",boxShadow:"0 25px 60px rgba(0,0,0,0.3)"}}>
-      <div style={{padding:"20px 24px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <span style={{fontWeight:700,fontSize:16,color:T.text}}>{title}</span>
-        <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:T.muted,lineHeight:1}}>×</button>
+  <div onClick={e=>{if(e.target===e.currentTarget&&onClose)onClose();}}
+    style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.32)",backdropFilter:"saturate(150%) blur(6px)",WebkitBackdropFilter:"saturate(150%) blur(6px)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fcScrim 0.2s ease both"}}>
+    <div style={{background:T.white,borderRadius:T.rLg,width:"100%",maxWidth:width,maxHeight:"88vh",overflow:"auto",boxShadow:T.sh4,animation:"fcRise 0.26s cubic-bezier(0.32,0.72,0,1) both"}}>
+      <div style={{padding:"18px 22px",borderBottom:`1px solid ${T.divider}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,position:"sticky",top:0,background:"rgba(255,255,255,0.86)",backdropFilter:"saturate(180%) blur(20px)",WebkitBackdropFilter:"saturate(180%) blur(20px)",zIndex:1,borderRadius:`${T.rLg}px ${T.rLg}px 0 0`}}>
+        <span style={{fontWeight:600,fontSize:16.5,color:T.text,letterSpacing:"-0.02em"}}>{title}</span>
+        <button onClick={onClose} aria-label="Close"
+          onMouseEnter={e=>{e.currentTarget.style.background="rgba(0,0,0,0.06)";e.currentTarget.style.color=T.text;}}
+          onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=T.faint;}}
+          style={{background:"transparent",border:"none",cursor:"pointer",color:T.faint,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:`background ${T.t}, color ${T.t}`}}>
+          <Icon name="close" size={16}/>
+        </button>
       </div>
-      <div style={{padding:"24px"}}>{children}</div>
+      <div style={{padding:"22px"}}>{children}</div>
     </div>
   </div>
 );
 
 const ProgressBar = ({value,max=100,color=T.green}) => (
-  <div style={{height:6,background:T.border,borderRadius:3,overflow:"hidden"}}>
-    <div style={{height:"100%",width:`${Math.min(100,(value/max)*100)}%`,background:color,borderRadius:3,transition:"width 0.3s"}}/>
+  <div style={{height:6,background:"rgba(0,0,0,0.075)",borderRadius:T.rPill,overflow:"hidden"}}>
+    <div style={{height:"100%",width:`${Math.min(100,(value/max)*100)}%`,background:color,borderRadius:T.rPill,transition:"width 0.45s cubic-bezier(0.4,0,0.2,1)"}}/>
   </div>
 );
 
-const Pill = ({label,active,onClick}) => (
-  <button onClick={onClick} style={{padding:"5px 14px",borderRadius:20,border:`1.5px solid ${active?T.amber:T.border}`,background:active?T.amberBg:T.white,color:active?T.amberText:T.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s"}}>
-    {label}
+const Pill = ({label,active,onClick,icon}) => (
+  <button onClick={onClick}
+    onMouseEnter={e=>{if(!active)e.currentTarget.style.background=T.raised}}
+    onMouseLeave={e=>{if(!active)e.currentTarget.style.background=T.white}}
+    style={{display:"inline-flex",alignItems:"center",gap:5.5,padding:"6px 13px",borderRadius:T.rPill,
+      border:`1px solid ${active?"transparent":T.border}`,background:active?T.accent:T.white,
+      color:active?"#fff":T.muted,fontSize:12.5,fontWeight:active?540:490,letterSpacing:"-0.008em",
+      cursor:"pointer",fontFamily:FONT,transition:`background ${T.t}, color ${T.t}, border-color ${T.t}`,
+      boxShadow:active?"0 1px 2px rgba(0,113,227,0.24)":"none",whiteSpace:"nowrap"}}>
+    {icon && renderIcon(icon,13)}{label}
   </button>
 );
 
@@ -634,18 +888,23 @@ const ExportMenu = ({exports}) => {
   return (
     <div ref={ref} style={{position:"relative",display:"inline-block"}}>
       <button onClick={()=>setOpen(o=>!o)}
-        style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:8,border:`1.5px solid ${T.border}`,background:T.white,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif",color:T.text}}>
-        ⬇ Export {open?"▲":"▼"}
+        onMouseEnter={e=>e.currentTarget.style.background=T.raised}
+        onMouseLeave={e=>e.currentTarget.style.background=T.white}
+        style={{display:"flex",alignItems:"center",gap:6.5,padding:"8.5px 14px",borderRadius:T.rSm,border:`1px solid ${T.border}`,background:T.white,fontWeight:520,fontSize:13,letterSpacing:"-0.01em",cursor:"pointer",fontFamily:FONT,color:T.text,boxShadow:T.sh1,transition:`background ${T.t}`}}>
+        <Icon name="download" size={15}/>Export
+        <Icon name="chevronDown" size={14} style={{color:T.faint,transition:`transform ${T.t}`,transform:open?"rotate(180deg)":"none"}}/>
       </button>
       {open&&(
-        <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",background:T.white,border:`1.5px solid ${T.border}`,borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.1)",zIndex:100,minWidth:200,overflow:"hidden"}}>
+        <div style={{position:"absolute",right:0,top:"calc(100% + 7px)",background:"rgba(255,255,255,0.88)",backdropFilter:"saturate(180%) blur(24px)",WebkitBackdropFilter:"saturate(180%) blur(24px)",border:`1px solid ${T.hairline}`,borderRadius:T.r,boxShadow:T.sh3,zIndex:100,minWidth:224,overflow:"hidden",padding:5,animation:"fcRise 0.18s cubic-bezier(0.32,0.72,0,1) both"}}>
           {exports.map((ex,i)=>(
             <button key={i} onClick={()=>{ex.fn();setOpen(false);}}
-              style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 14px",background:"none",border:"none",cursor:"pointer",fontFamily:"Syne,sans-serif",fontSize:12,color:T.text,textAlign:"left",borderBottom:i<exports.length-1?`1px solid ${T.border}`:"none"}}>
-              <span style={{fontSize:15}}>{ex.icon}</span>
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(0,0,0,0.05)"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+              style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 11px",background:"transparent",border:"none",borderRadius:T.rXs,cursor:"pointer",fontFamily:FONT,fontSize:13,color:T.text,textAlign:"left",transition:`background ${T.t}`}}>
+              <span style={{color:T.faint,display:"flex"}}>{renderIcon(ex.icon,16)}</span>
               <div>
-                <div style={{fontWeight:700}}>{ex.label}</div>
-                {ex.desc&&<div style={{fontSize:10,color:T.muted,marginTop:1}}>{ex.desc}</div>}
+                <div style={{fontWeight:510,letterSpacing:"-0.008em"}}>{ex.label}</div>
+                {ex.desc&&<div style={{fontSize:11.5,color:T.faint,marginTop:1}}>{ex.desc}</div>}
               </div>
             </button>
           ))}
@@ -655,15 +914,18 @@ const ExportMenu = ({exports}) => {
   );
 };
 
-const urgencyColor = u => u==="urgent"?T.red:u==="high"?T.yellow:"#94a3b8";
+/* Data fields are stored lowercase; labels used to rely on CSS uppercasing them. */
+const cap = v => typeof v === "string" && v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+
+const urgencyColor = u => u==="urgent"?T.red:u==="high"?T.amber:T.ghost;
 const TIER_CFG = {
-  "Tier 1": {c:"#b45309", bg:"#fef3c7", border:"#fcd34d", label:"Tier 1 — Priority"},
-  "Tier 2": {c:T.blue,    bg:T.blueBg,  border:"#93c5fd", label:"Tier 2 — Secondary"},
-  "Tier 3": {c:T.muted,   bg:"#f1f5f9", border:T.border,  label:"Tier 3 — Supplementary"},
+  "Tier 1": {c:T.amberText, bg:T.amberBg,  border:"rgba(178,94,0,0.24)",  label:"Tier 1 — Priority"},
+  "Tier 2": {c:T.accentText,bg:T.accentBg, border:"rgba(0,113,227,0.22)", label:"Tier 2 — Secondary"},
+  "Tier 3": {c:T.muted,     bg:T.sunken,   border:T.border,               label:"Tier 3 — Supplementary"},
 };
 const tierColor  = t => TIER_CFG[t]?.c  || T.muted;
-const tierBg     = t => TIER_CFG[t]?.bg  || "#f1f5f9";
-const UrgDot = ({u}) => <span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:urgencyColor(u),marginRight:5}}/>;
+const tierBg     = t => TIER_CFG[t]?.bg  || T.sunken;
+const UrgDot = ({u}) => <span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:urgencyColor(u),marginRight:6,flexShrink:0}}/>;
 
 /* ─── AUTH SCREEN ────────────────────────────────────────────────────────────── */
 const AuthScreen = ({onAuth}) => {
@@ -683,66 +945,100 @@ const AuthScreen = ({onAuth}) => {
   };
 
   return (
-    <div style={{minHeight:"100vh",display:"grid",gridTemplateColumns:"1fr 1fr",fontFamily:"Syne,sans-serif"}}>
+    <div style={{minHeight:"100vh",display:"grid",gridTemplateColumns:"minmax(0,1.05fr) minmax(0,1fr)",fontFamily:FONT,background:T.white}}>
       <style>{FONTS}</style>
-      <div style={{background:`linear-gradient(145deg,${T.navy} 0%,#1a3060 100%)`,display:"flex",flexDirection:"column",justifyContent:"space-between",padding:"48px"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <FCCLogo size={36} showText={true} textColor={T.white} textSize={20}/>
+
+      {/* Brand panel — near-black with a single cool light source, no gradient noise */}
+      <div style={{background:T.navyDeep,display:"flex",flexDirection:"column",justifyContent:"space-between",padding:"52px 56px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:"-22%",left:"-12%",width:620,height:620,borderRadius:"50%",background:"radial-gradient(circle,rgba(107,184,220,0.20) 0%,rgba(107,184,220,0) 68%)",pointerEvents:"none"}}/>
+        <div style={{position:"absolute",bottom:"-30%",right:"-18%",width:560,height:560,borderRadius:"50%",background:"radial-gradient(circle,rgba(0,113,227,0.16) 0%,rgba(0,113,227,0) 70%)",pointerEvents:"none"}}/>
+
+        <div style={{display:"flex",alignItems:"center",gap:10,position:"relative"}}>
+          <FCCLogo size={32} showText={true} textColor="#FFFFFF" textSize={18}/>
         </div>
-        <div>
-          <h2 style={{fontFamily:"Instrument Serif,serif",fontSize:40,color:T.white,lineHeight:1.15,marginBottom:20,letterSpacing:"-0.02em"}}>Healthcare workforce,<br/><em style={{color:T.amber}}>connected.</em></h2>
-          <p style={{color:"rgba(255,255,255,0.5)",fontSize:14,lineHeight:1.8,maxWidth:360}}>One platform connecting care homes, agencies, and workers — with full compliance tracking, automated invoicing, and real-time shift management.</p>
-          <div style={{marginTop:40,display:"flex",flexDirection:"column",gap:12}}>
-            {["Neutral vendor shift distribution","Live compliance & credential tracking","Automated invoicing & rate cards","Multi-role access portals"].map((f,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:10,fontSize:13,color:"rgba(255,255,255,0.65)"}}>
-                <span style={{color:T.amber,fontWeight:700}}>✓</span>{f}
+
+        <div style={{position:"relative",maxWidth:460}}>
+          <h2 style={{fontSize:48,fontWeight:600,color:"#FFFFFF",lineHeight:1.08,marginBottom:20,letterSpacing:"-0.035em"}}>
+            Healthcare workforce,<br/><span style={{color:"rgba(255,255,255,0.45)"}}>connected.</span>
+          </h2>
+          <p style={{color:"rgba(255,255,255,0.56)",fontSize:16,lineHeight:1.65,maxWidth:400,letterSpacing:"-0.012em"}}>
+            One platform connecting care homes, agencies and workers — with full compliance tracking, automated invoicing and real-time shift management.
+          </p>
+          <div style={{marginTop:42,display:"flex",flexDirection:"column",gap:15}}>
+            {[
+              {icon:"briefcase",   t:"Neutral vendor shift distribution"},
+              {icon:"shieldCheck", t:"Live compliance & credential tracking"},
+              {icon:"receipt",     t:"Automated invoicing & rate cards"},
+              {icon:"users",       t:"Multi-role access portals"},
+            ].map((f,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:13,fontSize:14.5,color:"rgba(255,255,255,0.78)",letterSpacing:"-0.011em"}}>
+                <span style={{width:30,height:30,borderRadius:10,background:"rgba(255,255,255,0.08)",color:"#6BB8DC",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <Icon name={f.icon} size={16}/>
+                </span>
+                {f.t}
               </div>
             ))}
           </div>
         </div>
-        <p style={{color:"rgba(255,255,255,0.2)",fontSize:11}}>© 2026 Nexus RPO Ltd. All rights reserved.</p>
+
+        <p style={{color:"rgba(255,255,255,0.26)",fontSize:12,position:"relative",letterSpacing:"-0.005em"}}>© 2026 Nexus RPO Ltd. All rights reserved.</p>
       </div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"32px 48px",background:"#fafbfd",overflowY:"auto"}}>
-        <div style={{width:"100%",maxWidth:400}}>
-          <h2 style={{fontSize:24,fontWeight:800,color:T.text,marginBottom:4}}>{mode==="login"?"Welcome back":"Create account"}</h2>
-          <p style={{fontSize:13,color:T.muted,marginBottom:20}}>{mode==="login"?"Sign in to your Nexus RPO portal":"Set up your Nexus RPO account"}</p>
+
+      {/* Form panel */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 56px",background:T.white,overflowY:"auto"}}>
+        <div style={{width:"100%",maxWidth:392,animation:"fcRise 0.4s cubic-bezier(0.32,0.72,0,1) both"}}>
+          <h2 style={{fontSize:30,fontWeight:600,color:T.text,marginBottom:7,letterSpacing:"-0.03em"}}>{mode==="login"?"Welcome back":"Create account"}</h2>
+          <p style={{fontSize:14.5,color:T.muted,marginBottom:26,letterSpacing:"-0.01em"}}>{mode==="login"?"Sign in to your Nexus RPO portal.":"Set up your Nexus RPO account."}</p>
           {error && <Alert type="error">{error}</Alert>}
-          {/* Demo quick-access — shown prominently at top in login mode */}
+
+          {/* Demo quick-access — a quiet, uniform list rather than a row of coloured chips */}
           {mode==="login" && (
-            <div style={{background:T.amberBg,border:`1.5px solid ${T.amber}55`,borderRadius:10,padding:"12px 14px",marginBottom:20}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.06em"}}>🚀 Demo — tap a role to jump straight in</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            <div style={{marginBottom:26}}>
+              <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:11}}>
+                <span style={{fontSize:12.5,fontWeight:510,color:T.faint,letterSpacing:"-0.005em",whiteSpace:"nowrap"}}>Or explore a demo portal</span>
+                <span style={{flex:1,height:1,background:T.divider}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
                 {[
-                  {r:"admin",       l:"Nexus Admin",      name:"Rachel Obi"},
-                  {r:"clientadmin", l:"Client Admin",   name:"Margaret Cole"},
-                  {r:"carehome",    l:"Site Manager",   name:"Karen Hughes"},
-                  {r:"agency",      l:"Agency",         name:"Laura Bennett"},
-                  {r:"bank",        l:"Bank Staff",     name:"Diane Foster"},
-                ].map(x=>(
+                  {r:"admin",       l:"Nexus Admin",   icon:"grid",      name:"Rachel Obi",     org:"Nexus RPO"},
+                  {r:"clientadmin", l:"Client Admin",  icon:"building",  name:"Margaret Cole",  org:"Sunrise Healthcare Group"},
+                  {r:"carehome",    l:"Site Manager",  icon:"hospital",  name:"Karen Hughes",   org:"Sunrise Care"},
+                  {r:"agency",      l:"Agency",        icon:"briefcase", name:"Laura Bennett",  org:"First Choice Nursing"},
+                  {r:"bank",        l:"Bank Staff",    icon:"user",      name:"Diane Foster",   org:"Bank Staff"},
+                ].map((x,i,arr)=>(
                   <button key={x.r}
-                    onClick={()=>onAuth({email:"demo@example.com",name:x.name,role:x.r,org:x.r==="admin"?"Nexus RPO":x.r==="clientadmin"?"Sunrise Healthcare Group":x.r==="carehome"?"Sunrise Care":x.r==="agency"?"First Choice Nursing":"Bank Staff"})}
-                    style={{padding:"7px 14px",borderRadius:7,background:x.r==="bank"?T.teal:x.r==="carehome"?T.blue:x.r==="clientadmin"?"#7c3aed":T.amber,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",color:x.r==="bank"||x.r==="carehome"||x.r==="clientadmin"?T.white:T.navy,fontFamily:"Syne,sans-serif",flex:"1 1 auto",textAlign:"center"}}>
+                    onClick={()=>onAuth({email:"demo@example.com",name:x.name,role:x.r,org:x.org})}
+                    onMouseEnter={e=>{e.currentTarget.style.background=T.raised;e.currentTarget.style.borderColor=T.border;}}
+                    onMouseLeave={e=>{e.currentTarget.style.background=T.white;e.currentTarget.style.borderColor=T.hairline;}}
+                    style={{display:"flex",alignItems:"center",gap:9,padding:"10px 12px",borderRadius:T.rSm,
+                      background:T.white,border:`1px solid ${T.hairline}`,boxShadow:T.sh1,
+                      fontSize:13,fontWeight:500,letterSpacing:"-0.011em",cursor:"pointer",color:T.text,
+                      fontFamily:FONT,textAlign:"left",transition:`background ${T.t}, border-color ${T.t}`,
+                      gridColumn:i===arr.length-1&&arr.length%2?"span 2":undefined}}>
+                    <span style={{color:roleAccent(x.r),display:"flex",flexShrink:0}}><Icon name={x.icon} size={16}/></span>
                     {x.l}
                   </button>
                 ))}
               </div>
             </div>
           )}
-          {mode==="register" && <Input label="Full Name" value={name} onChange={setName} placeholder="Your name" required />}
-          <Input label="Email Address" type="email" value={email} onChange={setEmail} placeholder="you@organisation.co.uk" required />
+
+          {mode==="register" && <Input label="Full name" value={name} onChange={setName} placeholder="Your name" required />}
+          <Input label="Email address" type="email" value={email} onChange={setEmail} placeholder="you@organisation.co.uk" required />
           <Input label="Password" type="password" value={password} onChange={setPassword} placeholder="••••••••" required />
           {mode==="register" && <>
-            <Select label="Your Role" value={role} onChange={setRole} options={[{value:"admin",label:"Neutral Vendor Admin"},{value:"carehome",label:"Care Home Manager"},{value:"agency",label:"Agency Coordinator"}]} />
+            <Select label="Your role" value={role} onChange={setRole} options={[{value:"admin",label:"Neutral Vendor Admin"},{value:"carehome",label:"Care Home Manager"},{value:"agency",label:"Agency Coordinator"}]} />
             <Input label="Organisation" value={org} onChange={setOrg} placeholder="Your organisation name" />
           </>}
-          <div style={{marginTop:8,marginBottom:16}}>
-            <Btn onClick={handle} full>
-              {mode==="login"?"Sign In →":"Create Account →"}
-            </Btn>
+
+          <div style={{marginTop:20,marginBottom:18}}>
+            <Btn onClick={handle} full>{mode==="login"?"Sign in":"Create account"}</Btn>
           </div>
-          <p style={{fontSize:12,color:T.muted,textAlign:"center"}}>
+
+          <p style={{fontSize:13.5,color:T.muted,textAlign:"center",letterSpacing:"-0.008em"}}>
             {mode==="login"?"Don't have an account?":"Already have an account?"}{" "}
-            <button onClick={()=>setMode(m=>m==="login"?"register":"login")} style={{background:"none",border:"none",color:T.amber,fontWeight:700,cursor:"pointer",fontSize:12,fontFamily:"Syne,sans-serif"}}>
+            <button onClick={()=>setMode(m=>m==="login"?"register":"login")}
+              style={{background:"none",border:"none",color:T.accent,fontWeight:520,cursor:"pointer",fontSize:13.5,fontFamily:FONT,letterSpacing:"-0.008em",padding:0}}>
               {mode==="login"?"Sign up":"Sign in"}
             </button>
           </p>
@@ -770,8 +1066,8 @@ const INIT_RECURRING_PATTERNS = [
 
 /* ─── BUDGET DATA ─────────────────────────────────────────────────────────────── */
 /* ─── BANK STAFF RATES ───────────────────────────────────────────────────────── */
-const CA_PURPLE    = "#7c3aed";
-const CA_PURPLE_BG = "#f5f3ff";
+const CA_PURPLE    = T.purple;
+const CA_PURPLE_BG = T.purpleBg;
 const INIT_BANK_RATES = {
   // Global platform rates — apply to all sites unless a site overrides
   global: [
@@ -858,27 +1154,27 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
 
   const RateInput = ({label, field}) => (
     <div>
-      <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>{label}</label>
+      <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>{label}</label>
       <div style={{position:"relative"}}>
-        <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:T.muted,fontWeight:700}}>£</span>
+        <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:T.muted,fontWeight:560}}>£</span>
         <input type="number" value={editForm[field]||""} onChange={e=>setEditForm(f=>({...f,[field]:e.target.value}))}
-          style={{width:"100%",padding:"8px 8px 8px 22px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",boxSizing:"border-box"}}/>
+          style={{width:"100%",padding:"8px 8px 8px 22px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none",boxSizing:"border-box"}}/>
       </div>
     </div>
   );
   const NewRateInput = ({label, field}) => (
     <div>
-      <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>{label}</label>
+      <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>{label}</label>
       <div style={{position:"relative"}}>
-        <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:T.muted,fontWeight:700}}>£</span>
+        <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:T.muted,fontWeight:560}}>£</span>
         <input type="number" value={newForm[field]||""} onChange={e=>setNewForm(f=>({...f,[field]:e.target.value}))}
-          style={{width:"100%",padding:"8px 8px 8px 22px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",boxSizing:"border-box"}}/>
+          style={{width:"100%",padding:"8px 8px 8px 22px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none",boxSizing:"border-box"}}/>
       </div>
     </div>
   );
 
   return (
-    <Page title="Bank Staff Rates" sub="Set pay rates for internal bank staff by role and shift type" icon="🏦">
+    <Page title="Bank Staff Rates" sub="Set pay rates for internal bank staff by role and shift type" icon="bank">
 
       {/* Tabs — Global + per site */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:4}}>
@@ -886,10 +1182,10 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
           const isActive = tab===t;
           return (
             <button key={t} onClick={()=>{setTab(t);setShowAdd(false);setEditRow(null);}}
-              style={{padding:"7px 16px",borderRadius:20,border:`1.5px solid ${isActive?accent:T.border}`,
-                background:isActive?`${accent}18`:T.white,fontWeight:700,fontSize:12,cursor:"pointer",
-                color:isActive?accent:T.muted,fontFamily:"Syne,sans-serif"}}>
-              {t==="global" ? "🌐 Platform Default" : `🏥 ${t}`}
+              style={{padding:"7px 16px",borderRadius:20,border:`1px solid ${isActive?accent:T.border}`,
+                background:isActive?`${accent}18`:T.white,fontWeight:560,fontSize:12,cursor:"pointer",
+                color:isActive?accent:T.muted,fontFamily:FONT}}>
+              {t==="global" ? "Platform Default" : `${t}`}
             </button>
           );
         })}
@@ -912,26 +1208,26 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
 
         {/* Add new row form */}
         {showAdd && (
-          <div style={{padding:"16px 20px",background:"#f8fafc",borderBottom:`1px solid ${T.border}`}}>
-            <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:12}}>New rate row</div>
+          <div style={{padding:"16px 20px",background:T.raised,borderBottom:`1px solid ${T.border}`}}>
+            <div style={{fontSize:12,fontWeight:560,color:T.text,marginBottom:12}}>New rate row</div>
             <div style={{display:"grid",gridTemplateColumns:"140px 1fr 1fr 1fr 1fr 100px 1fr",gap:10,alignItems:"end"}}>
               <div>
-                <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Role</label>
+                <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>Role</label>
                 <select value={newForm.role} onChange={e=>setNewForm(f=>({...f,role:e.target.value}))}
-                  style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none"}}>
+                  style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none"}}>
                   {ROLES.map(r=><option key={r}>{r}</option>)}
                 </select>
               </div>
               {SHIFT_DAYS.map(d=><NewRateInput key={d.k} label={d.l} field={d.k}/>)}
               <div>
-                <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Night Mod</label>
+                <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>Night Mod</label>
                 <input type="number" step="0.01" value={newForm.nightMod} onChange={e=>setNewForm(f=>({...f,nightMod:e.target.value}))}
-                  style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",boxSizing:"border-box"}}/>
+                  style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none",boxSizing:"border-box"}}/>
               </div>
               <div>
-                <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:4}}>Notes</label>
+                <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>Notes</label>
                 <input type="text" value={newForm.notes} onChange={e=>setNewForm(f=>({...f,notes:e.target.value}))} placeholder="Optional"
-                  style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",boxSizing:"border-box"}}/>
+                  style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none",boxSizing:"border-box"}}/>
               </div>
             </div>
             <div style={{marginTop:12,display:"flex",gap:8}}>
@@ -944,16 +1240,16 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
 
         {/* Non-global: show which global rates are inherited */}
         {!isGlobal && (
-          <div style={{padding:"10px 20px",background:"#f0fdf4",borderBottom:`1px solid ${T.border}`}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.green,marginBottom:6}}>✓ Inheriting from platform defaults</div>
+          <div style={{padding:"10px 20px",background:T.greenBg,borderBottom:`1px solid ${T.border}`}}>
+            <div style={{fontSize:11,fontWeight:560,color:T.green,marginBottom:6}}>✓ Inheriting from platform defaults</div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {ROLES.map(role=>{
                 const overridden = currentRows.some(r=>r.role===role);
                 const gr = globalRow(role);
                 return (
                   <span key={role} style={{fontSize:11,padding:"3px 10px",borderRadius:20,
-                    background:overridden?"#fef3c7":"#dcfce7",
-                    color:overridden?"#b45309":T.green,fontWeight:700}}>
+                    background:overridden?T.amberBg:"#dcfce7",
+                    color:overridden?T.amberText:T.green,fontWeight:560}}>
                     {role}: {overridden?"overridden":`£${gr?.weekday||"—"}{"/hr"}`}
                   </span>
                 );
@@ -979,11 +1275,11 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
                     <Td><RateInput label="" field="bankHoliday"/></Td>
                     <Td>
                       <input type="number" step="0.01" value={editForm.nightMod||""} onChange={e=>setEditForm(f=>({...f,nightMod:e.target.value}))}
-                        style={{width:70,padding:"6px 8px",border:`1.5px solid ${T.border}`,borderRadius:7,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}/>
+                        style={{width:70,padding:"6px 8px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}/>
                     </Td>
                     <Td>
                       <input type="text" value={editForm.notes||""} onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))}
-                        style={{width:"100%",padding:"6px 8px",border:`1.5px solid ${T.border}`,borderRadius:7,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}/>
+                        style={{width:"100%",padding:"6px 8px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}/>
                     </Td>
                     <Td>
                       <div style={{display:"flex",gap:5}}>
@@ -1000,7 +1296,7 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
                     <Td>£{r.sunday}</Td>
                     <Td>£{r.bankHoliday}</Td>
                     <Td>
-                      <span style={{fontSize:12,fontWeight:700,color:T.muted}}>×{r.nightMod}</span>
+                      <span style={{fontSize:12,fontWeight:560,color:T.muted}}>×{r.nightMod}</span>
                       <div style={{fontSize:10,color:T.muted}}>Night: £{Math.round(r.weekday*r.nightMod)}{"/hr"}</div>
                     </Td>
                     <Td style={{fontSize:12,color:T.muted}}>{r.notes||"—"}</Td>
@@ -1024,17 +1320,17 @@ const BankRateCards = ({user, bankRates, setBankRates}) => {
           <CardHead title="Rate Summary — All Roles" sub="Weekday day shift vs night shift comparison"/>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14,padding:"4px 4px 8px"}}>
             {currentRows.map(r=>(
-              <div key={r.id} style={{padding:"14px 16px",borderRadius:10,border:`1.5px solid ${T.border}`,background:"#f8fafc"}}>
-                <div style={{fontWeight:800,fontSize:14,color:T.text,marginBottom:10}}>{r.role}</div>
+              <div key={r.id} style={{padding:"14px 16px",borderRadius:10,border:`1px solid ${T.border}`,background:T.raised}}>
+                <div style={{fontWeight:600,fontSize:14,color:T.text,marginBottom:10}}>{r.role}</div>
                 {SHIFT_DAYS.map(d=>(
                   <div key={d.k} style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:5}}>
                     <span style={{color:T.muted}}>{d.l}</span>
-                    <span style={{fontWeight:700,color:T.text}}>£{r[d.k]}{"/hr"}</span>
+                    <span style={{fontWeight:560,color:T.text}}>£{r[d.k]}{"/hr"}</span>
                   </div>
                 ))}
                 <div style={{borderTop:`1px solid ${T.border}`,marginTop:8,paddingTop:8,display:"flex",justifyContent:"space-between",fontSize:12}}>
                   <span style={{color:T.muted}}>Night (wkday)</span>
-                  <span style={{fontWeight:700,color:accent}}>£{Math.round(r.weekday*r.nightMod)}{"/hr"}</span>
+                  <span style={{fontWeight:560,color:accent}}>£{Math.round(r.weekday*r.nightMod)}{"/hr"}</span>
                 </div>
               </div>
             ))}
@@ -1140,113 +1436,150 @@ const FORECAST_DATA = [
 
 const NAV = {
   admin:[
-    {k:"dashboard",     i:"◈", l:"Dashboard"},
-    {k:"shifts",        i:"📋",l:"Shift Board"},
-    {k:"schedule",      i:"📅",l:"Create Shift"},
-    {k:"agencies",      i:"🤝",l:"Agencies"},
-    {k:"clients",       i:"🏥",l:"Clients & Pricing"},
-    {k:"bankstaff",     i:"🏦",l:"Bank Staff"},
-    {k:"workers",       i:"👥",l:"Workers"},
-    {k:"compliance",    i:"🛡", l:"Compliance"},
-    {k:"expirycal",     i:"📆",l:"Expiry Calendar"},
-    {k:"cqcreport",     i:"🏅",l:"CQC Readiness"},
-    {k:"documents",     i:"📁",l:"Documents"},
-    {k:"timesheets",    i:"🕐",l:"Timesheets"},
-    {k:"invoices",      i:"📄",l:"Invoices"},
-    {k:"creditnotes",   i:"🧾",l:"Credit Notes"},
-    {k:"budgets",       i:"💰",l:"Budgets"},
-    {k:"analytics",     i:"📊",l:"Analytics"},
-    {k:"forecast",      i:"🔮",l:"Demand Forecast"},
-    {k:"reports",       i:"🗂", l:"Reports"},
-    {k:"users",         i:"🔐",l:"Users & Permissions"},
+    {k:"dashboard",     i:"grid", l:"Dashboard"},
+    {k:"shifts",        i:"clipboard", l:"Shift Board"},
+    {k:"schedule",      i:"calendar", l:"Create Shift"},
+    {k:"agencies",      i:"briefcase", l:"Agencies"},
+    {k:"clients",       i:"building", l:"Clients & Pricing"},
+    {k:"bankstaff",     i:"bank", l:"Bank Staff"},
+    {k:"workers",       i:"users", l:"Workers"},
+    {k:"compliance",    i:"shield", l:"Compliance"},
+    {k:"expirycal",     i:"calendar", l:"Expiry Calendar"},
+    {k:"cqcreport",     i:"award", l:"CQC Readiness"},
+    {k:"documents",     i:"folder", l:"Documents"},
+    {k:"timesheets",    i:"clock", l:"Timesheets"},
+    {k:"invoices",      i:"document", l:"Invoices"},
+    {k:"creditnotes",   i:"receipt", l:"Credit Notes"},
+    {k:"budgets",       i:"money", l:"Budgets"},
+    {k:"analytics",     i:"chartBar", l:"Analytics"},
+    {k:"forecast",      i:"forecast", l:"Demand Forecast"},
+    {k:"reports",       i:"archive", l:"Reports"},
+    {k:"users",         i:"lock", l:"Users & Permissions"},
   ],
   clientadmin:[
-    {k:"dashboard",  i:"◈", l:"Group Overview"},
-    {k:"analytics",  i:"📊",l:"Analytics"},
-    {k:"forecast",   i:"🔮",l:"Demand Forecast"},
-    {k:"locations",  i:"🏥",l:"Locations"},
-    {k:"shifts",     i:"📋",l:"All Shifts"},
-    {k:"timesheets", i:"🕐",l:"Timesheets"},
-    {k:"invoices",   i:"📄",l:"Invoices"},
-    {k:"budgets",    i:"💰",l:"Budgets"},
-    {k:"compliance", i:"🛡", l:"Compliance"},
-    {k:"expirycal",  i:"📆",l:"Expiry Calendar"},
-    {k:"rtw",        i:"🪪",l:"RTW Monitoring"},
-    {k:"cqcreport",  i:"🏅",l:"CQC Readiness"},
-    {k:"reports",    i:"🗂", l:"Custom Reports"},
-    {k:"workers",    i:"👥",l:"Worker Profiles"},
-    {k:"users",      i:"🔐",l:"Users & Permissions"},
+    {k:"dashboard",  i:"grid", l:"Group Overview"},
+    {k:"analytics",  i:"chartBar", l:"Analytics"},
+    {k:"forecast",   i:"forecast", l:"Demand Forecast"},
+    {k:"locations",  i:"hospital", l:"Locations"},
+    {k:"shifts",     i:"clipboard", l:"All Shifts"},
+    {k:"timesheets", i:"clock", l:"Timesheets"},
+    {k:"invoices",   i:"document", l:"Invoices"},
+    {k:"budgets",    i:"money", l:"Budgets"},
+    {k:"compliance", i:"shield", l:"Compliance"},
+    {k:"expirycal",  i:"calendar", l:"Expiry Calendar"},
+    {k:"rtw",        i:"idCard", l:"RTW Monitoring"},
+    {k:"cqcreport",  i:"award", l:"CQC Readiness"},
+    {k:"reports",    i:"archive", l:"Custom Reports"},
+    {k:"workers",    i:"users", l:"Worker Profiles"},
+    {k:"users",      i:"lock", l:"Users & Permissions"},
   ],
   carehome:[
-    {k:"dashboard",  i:"◈", l:"Overview"},
-    {k:"request",    i:"➕",l:"Request Shift"},
-    {k:"myshifts",   i:"📋",l:"My Shifts"},
-    {k:"calendar",   i:"📅",l:"Calendar"},
-    {k:"compliance", i:"🛡", l:"Compliance"},
-    {k:"expirycal",  i:"📆",l:"Expiry Calendar"},
-    {k:"rtw",        i:"🪪",l:"RTW Monitoring"},
-    {k:"cqcreport",  i:"🏅",l:"CQC Readiness"},
-    {k:"invoices",   i:"📄",l:"Invoices"},
-    {k:"timesheets", i:"🕐",l:"Timesheets"},
-    {k:"workers",    i:"👥",l:"Worker Profiles"},
+    {k:"dashboard",  i:"grid", l:"Overview"},
+    {k:"request",    i:"plus", l:"Request Shift"},
+    {k:"myshifts",   i:"clipboard", l:"My Shifts"},
+    {k:"calendar",   i:"calendar", l:"Calendar"},
+    {k:"compliance", i:"shield", l:"Compliance"},
+    {k:"expirycal",  i:"calendar", l:"Expiry Calendar"},
+    {k:"rtw",        i:"idCard", l:"RTW Monitoring"},
+    {k:"cqcreport",  i:"award", l:"CQC Readiness"},
+    {k:"invoices",   i:"document", l:"Invoices"},
+    {k:"timesheets", i:"clock", l:"Timesheets"},
+    {k:"workers",    i:"users", l:"Worker Profiles"},
   ],
   agency:[
-    {k:"dashboard",  i:"◈", l:"Dashboard"},
-    {k:"available",  i:"📋",l:"Available Shifts"},
-    {k:"workers",    i:"👥",l:"My Workers"},
-    {k:"timesheets", i:"🕐",l:"Timesheets"},
-    {k:"onboard",    i:"➕",l:"Register Worker"},
-    {k:"rtw",        i:"🪪",l:"Right to Work"},
-    {k:"rateuplifts",i:"📈",l:"Rate Requests"},
-    {k:"documents",  i:"📁",l:"Documents"},
-    {k:"invoices",   i:"📄",l:"Invoices"},
-    {k:"users",      i:"🔐",l:"Users & Permissions"},
+    {k:"dashboard",  i:"grid", l:"Dashboard"},
+    {k:"available",  i:"clipboard", l:"Available Shifts"},
+    {k:"workers",    i:"users", l:"My Workers"},
+    {k:"timesheets", i:"clock", l:"Timesheets"},
+    {k:"onboard",    i:"plus", l:"Register Worker"},
+    {k:"rtw",        i:"idCard", l:"Right to Work"},
+    {k:"rateuplifts",i:"trendingUp", l:"Rate Requests"},
+    {k:"documents",  i:"folder", l:"Documents"},
+    {k:"invoices",   i:"document", l:"Invoices"},
+    {k:"users",      i:"lock", l:"Users & Permissions"},
   ],
   bank:[
-    {k:"dashboard",    i:"◈", l:"My Dashboard"},
-    {k:"available",    i:"📋",l:"Available Shifts"},
-    {k:"myshifts",     i:"✅",l:"My Shifts"},
-    {k:"availability", i:"📅",l:"Set Availability"},
-    {k:"earnings",     i:"💷",l:"Earnings"},
-    {k:"profile",      i:"👤",l:"My Profile"},
+    {k:"dashboard",    i:"grid", l:"My Dashboard"},
+    {k:"available",    i:"clipboard", l:"Available Shifts"},
+    {k:"myshifts",     i:"checkCircle", l:"My Shifts"},
+    {k:"availability", i:"calendar", l:"Set Availability"},
+    {k:"earnings",     i:"pound", l:"Earnings"},
+    {k:"profile",      i:"user", l:"My Profile"},
   ],
 };
 
-const Sidebar = ({role,active,setActive,user,onLogout,tsBadge,perms}) => {
+/* ─── CHROME THEME ───────────────────────────────────────────────────────────
+   The sidebar and top bar render in either a light translucent treatment or a
+   dark one. The content area stays light in both — the toggle governs chrome
+   only, the way a pro Mac app lets you pick a window appearance.              */
+const CHROME = {
+  light: {
+    surface:'rgba(250,250,252,0.80)', solid:'#FAFAFC', border:T.hairline,
+    logo:T.text, label:T.faint, name:T.text, sub:T.muted,
+    item:T.muted, itemHover:T.text, itemHoverBg:'rgba(0,0,0,0.045)',
+    well:'rgba(0,0,0,0.035)', footer:T.ghost, iconOpacity:0.85,
+  },
+  dark: {
+    surface:'rgba(29,29,31,0.94)', solid:'#1D1D1F', border:T.navyBorder,
+    logo:'#FFFFFF', label:'rgba(255,255,255,0.42)', name:'#FFFFFF', sub:'rgba(255,255,255,0.5)',
+    item:'rgba(255,255,255,0.58)', itemHover:'rgba(255,255,255,0.95)', itemHoverBg:'rgba(255,255,255,0.07)',
+    well:'rgba(255,255,255,0.06)', footer:'rgba(255,255,255,0.28)', iconOpacity:0.9,
+  },
+};
+
+const Sidebar = ({role,active,setActive,user,onLogout,tsBadge,perms,chrome="light"}) => {
   const roleLabel = {admin:"Neutral Vendor",clientadmin:"Client Admin",carehome:"Care Home",agency:"Agency",bank:"Bank Staff"};
-  const accent = role==="bank"?T.teal:role==="clientadmin"?"#7c3aed":T.amber;
+  const accent = roleAccent(role);
+  const c = CHROME[chrome] || CHROME.light;
   const visibleNav = (NAV[role]||[]).filter(item=>!perms||perms[item.k]!==false);
   return (
-    <div style={{width:224,minHeight:"100vh",background:T.navy,display:"flex",flexDirection:"column",position:"sticky",top:0,flexShrink:0}}>
-      <div style={{padding:"22px 18px 18px",borderBottom:`1px solid ${T.navyBorder}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-          <FCCLogo size={30} showText={true} textColor={T.white} textSize={15}/>
+    <div style={{width:236,minHeight:"100vh",background:c.surface,backdropFilter:"saturate(180%) blur(24px)",WebkitBackdropFilter:"saturate(180%) blur(24px)",
+      borderRight:`1px solid ${c.border}`,display:"flex",flexDirection:"column",position:"sticky",top:0,flexShrink:0,
+      transition:`background ${T.t}, border-color ${T.t}`}}>
+
+      <div style={{padding:"20px 16px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,paddingLeft:4}}>
+          <FCCLogo size={28} showText={true} textColor={c.logo} textSize={15}/>
         </div>
-        <div style={{background:"rgba(255,255,255,0.07)",borderRadius:8,padding:"9px 11px"}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",textTransform:"uppercase",letterSpacing:"0.08em",fontWeight:600}}>{roleLabel[role]}</div>
-          <div style={{fontSize:12,color:T.white,fontWeight:700,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.org}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:1}}>{user.name}</div>
+        <div style={{background:c.well,borderRadius:T.rSm,padding:"10px 12px",transition:`background ${T.t}`}}>
+          <div style={{fontSize:11,color:c.label,fontWeight:500,letterSpacing:"-0.004em"}}>{roleLabel[role]}</div>
+          <div style={{fontSize:13,color:c.name,fontWeight:560,marginTop:2,letterSpacing:"-0.014em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.org}</div>
+          <div style={{fontSize:11.5,color:c.sub,marginTop:1.5,letterSpacing:"-0.004em"}}>{user.name}</div>
         </div>
       </div>
-      <nav style={{flex:1,padding:"14px 10px",overflow:"auto"}}>
+
+      <nav style={{flex:1,padding:"2px 10px 14px",overflow:"auto"}}>
         {visibleNav.map(item=>{
           const on = active===item.k;
           return (
             <button key={item.k} onClick={()=>setActive(item.k)}
-              style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:"8px 10px",borderRadius:7,background:on?`${accent}22`:"transparent",border:"none",cursor:"pointer",color:on?accent:"rgba(255,255,255,0.5)",fontFamily:"Syne,sans-serif",fontSize:12,fontWeight:on?700:400,marginBottom:1,textAlign:"left",transition:"all 0.12s"}}
-              onMouseEnter={e=>{if(!on)e.currentTarget.style.color="rgba(255,255,255,0.85)"}}
-              onMouseLeave={e=>{if(!on)e.currentTarget.style.color="rgba(255,255,255,0.5)"}}>
-              <span style={{fontSize:14,opacity:on?1:0.7}}>{item.i}</span>{item.l}
-              {item.k==="timesheets"&&tsBadge>0&&<span style={{marginLeft:"auto",background:role==="agency"?T.red:T.green,color:T.white,borderRadius:"50%",width:17,height:17,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,flexShrink:0}}>{tsBadge}</span>}
+              style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"7.5px 10px",borderRadius:T.rXs,
+                background:on?(chrome==="dark"?`${accent}2E`:`${accent}14`):"transparent",border:"none",cursor:"pointer",
+                color:on?(chrome==="dark"?"#FFFFFF":accent):c.item,fontFamily:FONT,fontSize:13,
+                fontWeight:on?550:450,letterSpacing:"-0.011em",marginBottom:1.5,textAlign:"left",
+                transition:`background ${T.t}, color ${T.t}`}}
+              onMouseEnter={e=>{if(!on){e.currentTarget.style.color=c.itemHover;e.currentTarget.style.background=c.itemHoverBg;}}}
+              onMouseLeave={e=>{if(!on){e.currentTarget.style.color=c.item;e.currentTarget.style.background="transparent";}}}>
+              <span style={{display:"flex",opacity:on?1:c.iconOpacity,color:on&&chrome==="dark"?accent:undefined}}>
+                <Icon name={item.i} size={17} stroke={on?1.9:1.7}/>
+              </span>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.l}</span>
+              {item.k==="timesheets"&&tsBadge>0&&(
+                <span style={{marginLeft:"auto",background:role==="agency"?T.red:T.accent,color:"#fff",borderRadius:T.rPill,minWidth:18,height:18,padding:"0 5px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10.5,fontWeight:600,flexShrink:0,fontVariantNumeric:"tabular-nums"}}>{tsBadge}</span>
+              )}
             </button>
           );
         })}
       </nav>
-      <div style={{padding:"10px 10px 16px",borderTop:`1px solid ${T.navyBorder}`}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.2)",textAlign:"center",marginBottom:8}}>v1.0.0 — Demo Mode</div>
-        <button onClick={onLogout} style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 10px",borderRadius:7,background:"transparent",border:"none",cursor:"pointer",color:"rgba(255,255,255,0.3)",fontFamily:"Syne,sans-serif",fontSize:11,fontWeight:500}}>
-          ← Sign Out
+
+      <div style={{padding:"10px 10px 14px",borderTop:`1px solid ${c.border}`}}>
+        <button onClick={onLogout}
+          onMouseEnter={e=>{e.currentTarget.style.color=c.itemHover;e.currentTarget.style.background=c.itemHoverBg;}}
+          onMouseLeave={e=>{e.currentTarget.style.color=c.footer;e.currentTarget.style.background="transparent";}}
+          style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"7.5px 10px",borderRadius:T.rXs,background:"transparent",border:"none",cursor:"pointer",color:c.footer,fontFamily:FONT,fontSize:12.5,fontWeight:450,letterSpacing:"-0.01em",transition:`background ${T.t}, color ${T.t}`}}>
+          <Icon name="logout" size={16}/>Sign out
         </button>
+        <div style={{fontSize:11,color:c.footer,opacity:0.7,textAlign:"center",marginTop:8,letterSpacing:"-0.004em"}}>v1.0.0 — Demo</div>
       </div>
     </div>
   );
@@ -1259,37 +1592,37 @@ const AdminDashboard = ({user, navigate}) => {
   const urgent = SHIFTS.filter(s=>s.urgency==="urgent"&&s.status==="open").length;
   const compAlerts = WORKERS.filter(w=>w.compliance<80).length;
   return (
-    <Page title={`Good morning, ${user.name.split(" ")[0]}`} sub="Tuesday 10 March 2026 — Here's your overview" icon="◈">
+    <Page title={`Good morning, ${user.name.split(" ")[0]}`} sub="Tuesday 10 March 2026 — Here's your overview" icon="grid">
       <Grid cols={4}>
-        <Stat label="Open Shifts" value={open} sub={`${urgent} urgent`} accent icon="📋" trend="2 from yesterday" trendUp={false}/>
-        <Stat label="Shifts Filled (MTD)" value="82" sub="Fill rate: 91%" icon="✅" trend="4% vs last month" trendUp={true}/>
-        <Stat label="Compliance Alerts" value={compAlerts} sub="Immediate action" icon="⚠️"/>
-        <Stat label="MTD Spend" value="£75.5k" sub="Budget: £90k (84%)" icon="💷" trend="vs £83k last month" trendUp={true}/>
+        <Stat label="Open Shifts" value={open} sub={`${urgent} urgent`} accent icon="clipboard" trend="2 from yesterday" trendUp={false}/>
+        <Stat label="Shifts Filled (MTD)" value="82" sub="Fill rate: 91%" icon="checkCircle" trend="4% vs last month" trendUp={true}/>
+        <Stat label="Compliance Alerts" value={compAlerts} sub="Immediate action" icon="warning"/>
+        <Stat label="MTD Spend" value="£75.5k" sub="Budget: £90k (84%)" icon="pound" trend="vs £83k last month" trendUp={true}/>
       </Grid>
       <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:18,marginBottom:18}}>
         <Card>
-          <CardHead title="Fill Rate Trend" sub="Last 6 months" icon="📈"/>
+          <CardHead title="Fill Rate Trend" sub="Last 6 months" icon="trendingUp"/>
           <div style={{padding:"16px 8px"}}>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={ANALYTICS_FILL}>
-                <defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.amber} stopOpacity={0.2}/><stop offset="95%" stopColor={T.amber} stopOpacity={0}/></linearGradient></defs>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-                <YAxis domain={[60,100]} tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false} unit="%"/>
-                <Tooltip formatter={v=>`${v}%`} contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
-                <Area type="monotone" dataKey="rate" stroke={T.amber} strokeWidth={2.5} fill="url(#fg)" dot={{r:4,fill:T.amber}}/>
+                <defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.accent} stopOpacity={0.2}/><stop offset="95%" stopColor={T.accent} stopOpacity={0}/></linearGradient></defs>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[60,100]} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} unit="%"/>
+                <Tooltip formatter={v=>`${v}%`} contentStyle={TOOLTIP_STYLE}/>
+                <Area type="monotone" dataKey="rate" stroke={T.accent} strokeWidth={2.5} fill="url(#fg)" dot={{r:4,fill:T.accent}}/>
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
         <Card>
-          <CardHead title="Shifts by Agency" sub="This month" icon="🥧"/>
+          <CardHead title="Shifts by Agency" sub="This month" icon="chartPie"/>
           <div style={{padding:"16px",display:"flex",flexDirection:"column",alignItems:"center"}}>
             <ResponsiveContainer width="100%" height={140}>
               <PieChart>
                 <Pie data={AGENCY_PIE} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value">
                   {AGENCY_PIE.map((_,i)=><Cell key={i} fill={PIE_COLORS[i]}/>)}
                 </Pie>
-                <Tooltip formatter={(v,n)=>[`${v} shifts`,n]} contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
+                <Tooltip formatter={(v,n)=>[`${v} shifts`,n]} contentStyle={TOOLTIP_STYLE}/>
               </PieChart>
             </ResponsiveContainer>
             <div style={{display:"flex",flexWrap:"wrap",gap:"6px 12px",justifyContent:"center"}}>
@@ -1314,39 +1647,39 @@ const AdminDashboard = ({user, navigate}) => {
                 <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
                 <Td>{s.date}</Td>
                 <Td><SBadge s={s.status}/></Td>
-                <Td>{s.agency||<span style={{color:"#94a3b8",fontStyle:"italic",fontSize:12}}>Unassigned</span>}</Td>
-                <Td><span style={{display:"flex",alignItems:"center",fontSize:12,color:urgencyColor(s.urgency)}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                <Td>{s.agency||<span style={{color:T.ghost,fontStyle:"italic",fontSize:12}}>Unassigned</span>}</Td>
+                <Td><span style={{display:"flex",alignItems:"center",fontSize:12,color:urgencyColor(s.urgency)}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
               </tr>
             ))}
           />
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Card>
-            <CardHead title="Urgent Actions" icon="🚨"/>
+            <CardHead title="Urgent Actions" icon="siren"/>
             <div style={{padding:12}}>
               {SHIFTS.filter(s=>s.urgency==="urgent"&&s.status==="open").map(s=>(
                 <div key={s.id} style={{background:T.redBg,borderRadius:8,padding:"9px 11px",marginBottom:8,borderLeft:`3px solid ${T.red}`}}>
-                  <div style={{fontSize:12,fontWeight:700,color:T.red}}>{s.carehome}</div>
+                  <div style={{fontSize:12,fontWeight:560,color:T.red}}>{s.carehome}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>{s.role} · {s.date} · {s.time}</div>
                   <div style={{marginTop:6}}><Btn small onClick={()=>navigate("shifts")}>Assign Now</Btn></div>
                 </div>
               ))}
               {WORKERS.filter(w=>w.compliance<60).map(w=>(
                 <div key={w.id} style={{background:T.yellowBg,borderRadius:8,padding:"9px 11px",marginBottom:8,borderLeft:`3px solid ${T.yellow}`}}>
-                  <div style={{fontSize:12,fontWeight:700,color:T.yellow}}>{w.name}</div>
+                  <div style={{fontSize:12,fontWeight:560,color:T.yellow}}>{w.name}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>Compliance: {w.compliance}% — {w.agency}</div>
                 </div>
               ))}
             </div>
           </Card>
           <Card>
-            <CardHead title="Agency Performance" icon="📊"/>
+            <CardHead title="Agency Performance" icon="chartBar"/>
             <div style={{padding:14}}>
               {AGENCIES.map(a=>(
                 <div key={a.id} style={{marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
                     <span style={{fontWeight:600,color:T.text}}>{a.name}</span>
-                    <span style={{fontWeight:700,color:a.fillRate>=90?T.green:T.yellow}}>{a.fillRate}%</span>
+                    <span style={{fontWeight:560,color:a.fillRate>=90?T.green:T.yellow}}>{a.fillRate}%</span>
                   </div>
                   <ProgressBar value={a.fillRate} color={a.fillRate>=90?T.green:T.yellow}/>
                 </div>
@@ -1389,7 +1722,7 @@ const ShiftBoard = ({navigate}) => {
   };
 
   return (
-    <Page title="Shift Board" sub="Manage and distribute all shifts across agencies" icon="📋" action={<Btn onClick={()=>navigate&&navigate("schedule")}>+ Create Shift</Btn>}>
+    <Page title="Shift Board" sub="Manage and distribute all shifts across agencies" icon="clipboard" action={<Btn onClick={()=>navigate&&navigate("schedule")}>+ Create Shift</Btn>}>
 
       {/* Assign modal */}
       {modal && modal.status==="open" && (
@@ -1406,9 +1739,9 @@ const ShiftBoard = ({navigate}) => {
             return (
               <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
                 {available.map(a=>(
-                  <button key={a.id} onClick={()=>doAssign(modal.id,a.name)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderRadius:9,border:`1.5px solid ${TIER_CFG[a.tier]?.border||T.border}`,background:T.white,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+                  <button key={a.id} onClick={()=>doAssign(modal.id,a.name)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderRadius:10,border:`1px solid ${TIER_CFG[a.tier]?.border||T.border}`,background:T.white,cursor:"pointer",fontFamily:FONT}}>
                     <div style={{textAlign:"left"}}>
-                      <div style={{fontWeight:700,fontSize:13,color:T.text}}>{a.name}</div>
+                      <div style={{fontWeight:560,fontSize:13,color:T.text}}>{a.name}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:2}}>Fill rate: {a.fillRate}% · Avg response: {a.avgResponse}</div>
                     </div>
                     <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
@@ -1424,9 +1757,9 @@ const ShiftBoard = ({navigate}) => {
       {/* Cancel agency / Withdraw worker modal */}
       {actionModal && (
         <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
-          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{padding:"12px 16px",background:T.raised,borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
             <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
-            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
+            <div style={{fontWeight:600,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
             <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.date} · {actionModal.shift.time}</div>
             {actionModal.type==="cancel" && <div style={{marginTop:6,fontSize:12,color:T.text}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
             {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12,color:T.text}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
@@ -1437,10 +1770,10 @@ const ShiftBoard = ({navigate}) => {
               : "Withdrawing this worker will revert the shift to Open. The site manager and agency will be notified."}
           </Alert>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Reason (optional)</label>
             <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
               placeholder={actionModal.type==="cancel" ? "e.g. Agency unable to fill, reassigning to another…" : "e.g. Worker cancelled, personal reasons…"}
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,fontFamily:FONT,resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
           </div>
           <div style={{display:"flex",gap:8}}>
             <Btn variant="danger" onClick={actionModal.type==="cancel" ? doCancel : doWithdraw}>
@@ -1453,8 +1786,8 @@ const ShiftBoard = ({navigate}) => {
 
       <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:18,flexWrap:"wrap"}}>
         <div style={{position:"relative",flex:1,minWidth:200}}>
-          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search care home or role…" style={{width:"100%",padding:"9px 12px 9px 32px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,background:T.white,color:T.text,outline:"none",fontFamily:"Syne,sans-serif"}}/>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}><Icon name="search" size={15}/></span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search care home or role…" style={{width:"100%",padding:"9px 12px 9px 32px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,background:T.white,color:T.text,outline:"none",fontFamily:FONT}}/>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {["all","open","pending","filled"].map(f=>(
@@ -1475,8 +1808,8 @@ const ShiftBoard = ({navigate}) => {
               <Td>{s.time}</Td>
               <Td bold>£{s.rate}{"/hr"}</Td>
               <Td><SBadge s={s.status}/></Td>
-              <Td>{s.agency||<span style={{color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Unassigned</span>}</Td>
-              <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>—</span>}</Td>
+              <Td>{s.agency||<span style={{color:T.ghost,fontSize:12,fontStyle:"italic"}}>Unassigned</span>}</Td>
+              <Td>{s.worker||<span style={{color:T.ghost,fontSize:12}}>—</span>}</Td>
               <Td>
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                   {s.status==="open"    && <Btn small onClick={()=>assign(s)}>Assign</Btn>}
@@ -1498,10 +1831,10 @@ const Scheduler = ({navigate}) => {
   const [done,setDone] = useState(false);
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
   if(done) return (
-    <Page title="Shift Created" icon="✅">
-      <div style={{maxWidth:480,background:T.white,borderRadius:16,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
-        <div style={{fontSize:52,marginBottom:16}}>✅</div>
-        <h2 style={{fontFamily:"Instrument Serif,serif",fontSize:22,marginBottom:8}}>Shift Published</h2>
+    <Page title="Shift Created" icon="checkCircle">
+      <div style={{maxWidth:480,background:T.white,borderRadius:18,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
+        <div style={{marginBottom:16,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="checkCircle" size={46} stroke={1.5}/></div>
+        <h2 style={{fontFamily:FONT,fontSize:22,marginBottom:8}}>Shift Published</h2>
         <p style={{color:T.muted,fontSize:13,lineHeight:1.7,marginBottom:24}}>Your shift for <strong>{form.role}</strong> at <strong>{form.carehome}</strong> on <strong>{form.date}</strong> has been published. Tier 1 agencies have been notified immediately.</p>
         <div style={{display:"flex",gap:10,justifyContent:"center"}}>
           <Btn onClick={()=>setDone(false)}>Create Another</Btn>
@@ -1511,10 +1844,10 @@ const Scheduler = ({navigate}) => {
     </Page>
   );
   return (
-    <Page title="Create Shift" sub="Publish a new shift — Tier 1 agencies notified first" icon="📅">
+    <Page title="Create Shift" sub="Publish a new shift — Tier 1 agencies notified first" icon="calendar">
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:900}}>
         <Card style={{padding:24}}>
-          <h3 style={{fontWeight:700,fontSize:14,marginBottom:18,color:T.text}}>Shift Details</h3>
+          <h3 style={{fontWeight:560,fontSize:14,marginBottom:18,color:T.text}}>Shift Details</h3>
           <Select label="Care Home" value={form.carehome} onChange={v=>set("carehome",v)} options={CARE_HOMES.map(c=>c.name)} required/>
           <Select label="Role Required" value={form.role} onChange={v=>{set("role",v);}} options={["RGN","RMN","HCA","Senior Carer","Deputy Manager"]} required/>
           <Input label="Date" type="date" value={form.date} onChange={v=>set("date",v)} required/>
@@ -1525,20 +1858,20 @@ const Scheduler = ({navigate}) => {
           <Input label="Rate (£/hr)" type="number" value={form.rate} onChange={v=>set("rate",v)}/>
         </Card>
         <Card style={{padding:24}}>
-          <h3 style={{fontWeight:700,fontSize:14,marginBottom:18,color:T.text}}>Options</h3>
+          <h3 style={{fontWeight:560,fontSize:14,marginBottom:18,color:T.text}}>Options</h3>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Urgency</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Urgency</label>
             <div style={{display:"flex",gap:8}}>
               {["normal","high","urgent"].map(u=>(
-                <button key={u} onClick={()=>set("urgency",u)} style={{flex:1,padding:"8px",borderRadius:8,border:`1.5px solid ${form.urgency===u?urgencyColor(u):T.border}`,background:form.urgency===u?"rgba(0,0,0,0.03)":T.white,color:form.urgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:"Syne,sans-serif"}}>
+                <button key={u} onClick={()=>set("urgency",u)} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${form.urgency===u?urgencyColor(u):T.border}`,background:form.urgency===u?"rgba(0,0,0,0.03)":T.white,color:form.urgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:FONT}}>
                   {u}
                 </button>
               ))}
             </div>
           </div>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Notes</label>
-            <textarea value={form.notes} onChange={e=>set("notes",e.target.value)} placeholder="Any specific requirements..." style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",minHeight:70,resize:"vertical",color:T.text}}/>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Notes</label>
+            <textarea value={form.notes} onChange={e=>set("notes",e.target.value)} placeholder="Any specific requirements..." style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,minHeight:70,resize:"vertical",color:T.text}}/>
           </div>
           <div style={{marginBottom:20}}>
             <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13,color:T.text,fontWeight:500}}>
@@ -1552,8 +1885,8 @@ const Scheduler = ({navigate}) => {
             )}
           </div>
           <div style={{background:T.amberBg,borderRadius:8,padding:"12px 14px",marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Estimated Cost</div>
-            <div style={{fontSize:20,fontWeight:800,color:T.amberText}}>
+            <div style={{fontSize:11,fontWeight:560,color:T.amberText,marginBottom:4}}>Estimated Cost</div>
+            <div style={{fontSize:20,fontWeight:600,color:T.amberText}}>
               £{(() => {
                 const hrs = form.timeStart && form.timeEnd ? Math.max(0, (parseInt(form.timeEnd) - parseInt(form.timeStart))) : 12;
                 return (parseFloat(form.rate)||0) * Math.abs(hrs||12);
@@ -1577,13 +1910,13 @@ const AgencyManagement = ({navigate}) => {
   const set = (k,v)=>setForm(f=>({...f,[k]:v}));
 
   return (
-    <Page title="Agency Management" sub="Monitor and manage all staffing agencies on the platform" icon="🤝" action={<Btn onClick={()=>{setModal(true);setStep(1);}}>+ Onboard Agency</Btn>}>
+    <Page title="Agency Management" sub="Monitor and manage all staffing agencies on the platform" icon="briefcase" action={<Btn onClick={()=>{setModal(true);setStep(1);}}>+ Onboard Agency</Btn>}>
       {profileModal && (
         <Modal title={`Agency Profile — ${profileModal.name}`} onClose={()=>setProfileModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-            {[["Tier",<Badge label={profileModal.tier} color={tierColor(profileModal.tier)} bg={tierBg(profileModal.tier)}/>],["Contact",profileModal.contact],["Email",profileModal.email],["Shifts Total",profileModal.shifts],["Fill Rate",<span style={{fontWeight:700,color:profileModal.fillRate>=90?T.green:T.yellow}}>{profileModal.fillRate}%</span>],["Avg Response",profileModal.avgResponse],["MTD Spend",`£${profileModal.spend.toLocaleString()}`],["Compliance",`${profileModal.compliance}%`]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{k}</div>
+            {[["Tier",<Badge label={profileModal.tier} color={tierColor(profileModal.tier)} bg={tierBg(profileModal.tier)}/>],["Contact",profileModal.contact],["Email",profileModal.email],["Shifts Total",profileModal.shifts],["Fill Rate",<span style={{fontWeight:560,color:profileModal.fillRate>=90?T.green:T.yellow}}>{profileModal.fillRate}%</span>],["Avg Response",profileModal.avgResponse],["MTD Spend",`£${profileModal.spend.toLocaleString()}`],["Compliance",`${profileModal.compliance}%`]].map(([k,v])=>(
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:4}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600}}>{v}</div>
               </div>
             ))}
@@ -1602,23 +1935,23 @@ const AgencyManagement = ({navigate}) => {
               <div key={s} style={{flex:1,height:4,borderRadius:2,background:step>=s?T.amber:T.border}}/>
             ))}
           </div>
-          <div style={{fontSize:11,color:T.muted,marginBottom:16,textTransform:"uppercase",letterSpacing:"0.07em",fontWeight:700}}>
+          <div style={{fontSize:11,color:T.muted,marginBottom:16,letterSpacing:"-0.006em",fontWeight:560}}>
             Step {step} of 3 — {["Agency Details","Contacts & Access","Review & Confirm"][step-1]}
           </div>
           {step===1 && <>
             <Input label="Agency Name" value={form.name} onChange={v=>set("name",v)} placeholder="e.g. Medway Staffing Ltd" required/>
             <div style={{marginBottom:16}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Agency Tier</label>
+              <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Agency Tier</label>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {[
                   {v:"Tier 1",title:"Tier 1 — Priority",desc:"First broadcast of all new shifts. Notified immediately when a shift is published."},
                   {v:"Tier 2",title:"Tier 2 — Secondary",desc:"Notified if no Tier 1 agency fills within 30 minutes."},
                   {v:"Tier 3",title:"Tier 3 — Supplementary",desc:"Notified if no Tier 1 or Tier 2 agency fills within 60 minutes. Useful for cover overflow."},
                 ].map(opt=>(
-                  <label key={opt.v} onClick={()=>set("tier",opt.v)} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",borderRadius:8,border:`1.5px solid ${form.tier===opt.v?tierColor(opt.v):T.border}`,background:form.tier===opt.v?tierBg(opt.v):"#fafafa",cursor:"pointer"}}>
+                  <label key={opt.v} onClick={()=>set("tier",opt.v)} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 14px",borderRadius:8,border:`1px solid ${form.tier===opt.v?tierColor(opt.v):T.border}`,background:form.tier===opt.v?tierBg(opt.v):T.raised,cursor:"pointer"}}>
                     <input type="radio" checked={form.tier===opt.v} onChange={()=>set("tier",opt.v)} style={{marginTop:2,accentColor:tierColor(opt.v)}}/>
                     <div>
-                      <div style={{fontSize:13,fontWeight:700,color:form.tier===opt.v?tierColor(opt.v):T.text}}>{opt.title}</div>
+                      <div style={{fontSize:13,fontWeight:560,color:form.tier===opt.v?tierColor(opt.v):T.text}}>{opt.title}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.desc}</div>
                     </div>
                   </label>
@@ -1634,7 +1967,7 @@ const AgencyManagement = ({navigate}) => {
           </>}
           {step===3 && <>
             <Alert type="success">Ready to onboard <strong>{form.name||"this agency"}</strong> as a <strong>{form.tier}</strong> partner.</Alert>
-            <div style={{background:"#f8fafc",borderRadius:8,padding:14,marginBottom:16}}>
+            <div style={{background:T.raised,borderRadius:8,padding:14,marginBottom:16}}>
               {[["Agency",form.name||"—"],["Tier",form.tier],["Contact",form.contact||"—"],["Email",form.email||"—"],["Phone",form.phone||"—"]].map(([k,v])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${T.border}`,fontSize:13}}>
                   <span style={{color:T.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span>
@@ -1663,7 +1996,7 @@ const AgencyManagement = ({navigate}) => {
               <Td><Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/></Td>
               <Td><div style={{fontSize:12}}><div style={{fontWeight:600}}>{a.contact}</div><div style={{color:T.muted}}>{a.email}</div></div></Td>
               <Td>{a.shifts}</Td>
-              <Td><span style={{fontWeight:700,color:a.fillRate>=90?T.green:T.yellow}}>{a.fillRate}%</span></Td>
+              <Td><span style={{fontWeight:560,color:a.fillRate>=90?T.green:T.yellow}}>{a.fillRate}%</span></Td>
               <Td>{a.avgResponse}</Td>
               <Td>
                 <div style={{display:"flex",flexDirection:"column",gap:4}}>
@@ -1697,27 +2030,27 @@ const WorkerDirectory = ({navigate}) => {
     return ms&&mr;
   });
   return (
-    <Page title="Worker Directory" sub="All registered workers across all agencies" icon="👥">
+    <Page title="Worker Directory" sub="All registered workers across all agencies" icon="users">
       {selected && (
         <Modal title="Worker Profile" onClose={()=>setSelected(null)} width={460}>
           <div style={{textAlign:"center",marginBottom:20}}>
-            <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:T.white,fontWeight:700,margin:"0 auto 10px"}}>{selected.name.split(" ").map(n=>n[0]).join("")}</div>
-            <div style={{fontSize:17,fontWeight:700,color:T.text}}>{selected.name}</div>
+            <div style={{width:64,height:64,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:T.white,fontWeight:560,margin:"0 auto 10px"}}>{selected.name.split(" ").map(n=>n[0]).join("")}</div>
+            <div style={{fontSize:17,fontWeight:560,color:T.text}}>{selected.name}</div>
             <div style={{fontSize:12,color:T.muted,marginTop:2}}>{selected.role} · {selected.agency}</div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
             {[["Email",selected.email],["Phone",selected.phone],["DBS Expiry",selected.dbsExpiry],["Training Expiry",selected.trainingExpiry],["NMC/PIN",selected.pin||"Not provided"],["Available",selected.available?"Yes":"Currently placed"]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:7,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:12,fontWeight:600,color:T.text}}>{v}</div>
               </div>
             ))}
           </div>
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:6}}>Compliance Score</div>
+            <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:6}}>Compliance Score</div>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <div style={{flex:1}}><ProgressBar value={selected.compliance} color={selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}/></div>
-              <span style={{fontWeight:800,fontSize:16,color:selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}}>{selected.compliance}%</span>
+              <span style={{fontWeight:600,fontSize:16,color:selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}}>{selected.compliance}%</span>
             </div>
           </div>
           <div style={{display:"flex",gap:8}}>
@@ -1728,8 +2061,8 @@ const WorkerDirectory = ({navigate}) => {
       )}
       <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center"}}>
         <div style={{position:"relative",flex:1,maxWidth:280}}>
-          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search workers…" style={{width:"100%",padding:"9px 12px 9px 32px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,background:T.white,color:T.text,outline:"none",fontFamily:"Syne,sans-serif"}}/>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}><Icon name="search" size={15}/></span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search workers…" style={{width:"100%",padding:"9px 12px 9px 32px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,background:T.white,color:T.text,outline:"none",fontFamily:FONT}}/>
         </div>
         <div style={{display:"flex",gap:6}}>
           {["All","RGN","RMN","HCA","Senior Carer"].map(r=>(
@@ -1742,9 +2075,9 @@ const WorkerDirectory = ({navigate}) => {
           headers={["Worker","Role","Agency","DBS","Training","PIN","Score","Available","Action"]}
           empty="No workers found"
           rows={filtered.map(w=>(
-            <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?"#fff9f9":"transparent"}}>
+            <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:"transparent"}}>
               <Td><div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber}66,${T.navy}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.navy,flexShrink:0}}>{w.name.split(" ").map(n=>n[0]).join("")}</div>
+                <div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber}66,${T.navy}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:560,color:T.navy,flexShrink:0}}>{w.name.split(" ").map(n=>n[0]).join("")}</div>
                 <span style={{fontWeight:600,fontSize:13}}>{w.name}</span>
               </div></Td>
               <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
@@ -1755,10 +2088,10 @@ const WorkerDirectory = ({navigate}) => {
               <Td>
                 <div style={{display:"flex",alignItems:"center",gap:8,minWidth:80}}>
                   <div style={{flex:1}}><ProgressBar value={w.compliance} color={w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}/></div>
-                  <span style={{fontSize:11,fontWeight:700,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
+                  <span style={{fontSize:11,fontWeight:560,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
                 </div>
               </Td>
-              <Td>{w.available?<Badge label="Available" color={T.green} bg={T.greenBg}/>:<Badge label="On Shift" color={T.muted} bg="#f1f5f9"/>}</Td>
+              <Td>{w.available?<Badge label="Available" color={T.green} bg={T.greenBg}/>:<Badge label="On Shift" color={T.muted} bg={T.sunken}/>}</Td>
               <Td><Btn small variant="secondary" onClick={()=>setSelected(w)}>View</Btn></Td>
             </tr>
           ))}
@@ -1781,8 +2114,8 @@ const RequirementFormModal = ({onSave,onClose,careHome,addedBy,initial}) => {
       <Input label="Requirement Name *" value={form.name} onChange={v=>set("name",v)} placeholder="e.g. Dementia Care Certificate"/>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <div>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Type *</label>
-          <select value={form.type} onChange={e=>set("type",e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}>
+          <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Type *</label>
+          <select value={form.type} onChange={e=>set("type",e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}>
             <option value="document">Document</option>
             <option value="training">Training Certificate</option>
             <option value="registration">Professional Registration</option>
@@ -1790,8 +2123,8 @@ const RequirementFormModal = ({onSave,onClose,careHome,addedBy,initial}) => {
           </select>
         </div>
         <div>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Category</label>
-          <select value={form.category} onChange={e=>set("category",e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}>
+          <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Category</label>
+          <select value={form.category} onChange={e=>set("category",e.target.value)} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}>
             <option value="safeguarding">Safeguarding</option>
             <option value="training">General Training</option>
             <option value="specialist">Specialist</option>
@@ -1803,36 +2136,36 @@ const RequirementFormModal = ({onSave,onClose,careHome,addedBy,initial}) => {
         </div>
       </div>
       <div style={{marginBottom:12}}>
-        <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Applies To Roles *</label>
+        <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Applies To Roles *</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {allRoles.map(r=>{
             const on = form.appliesToRoles.includes(r);
-            return <button key={r} onClick={()=>toggleRole(r)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${on?T.navy:T.border}`,background:on?T.navy:"#f8fafc",color:on?T.white:T.muted,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.12s"}}>{r}</button>;
+            return <button key={r} onClick={()=>toggleRole(r)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${on?T.navy:T.border}`,background:on?T.navy:T.raised,color:on?T.white:T.muted,fontSize:12,fontWeight:560,cursor:"pointer",fontFamily:FONT,transition:"all 0.12s"}}>{r}</button>;
           })}
-          <button onClick={()=>set("appliesToRoles",allRoles)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontSize:11,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>All Roles</button>
+          <button onClick={()=>set("appliesToRoles",allRoles)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${T.border}`,background:"transparent",color:T.muted,fontSize:11,cursor:"pointer",fontFamily:FONT}}>All Roles</button>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <div>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Mandatory?</label>
+          <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Mandatory?</label>
           <div style={{display:"flex",gap:8}}>
             {[true,false].map(v=>(
-              <button key={String(v)} onClick={()=>set("mandatory",v)} style={{flex:1,padding:"8px",borderRadius:8,border:`1.5px solid ${form.mandatory===v?T.navy:T.border}`,background:form.mandatory===v?T.navy:"#f8fafc",color:form.mandatory===v?T.white:T.muted,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+              <button key={String(v)} onClick={()=>set("mandatory",v)} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${form.mandatory===v?T.navy:T.border}`,background:form.mandatory===v?T.navy:T.raised,color:form.mandatory===v?T.white:T.muted,fontSize:12,fontWeight:560,cursor:"pointer",fontFamily:FONT}}>
                 {v?"Mandatory":"Optional"}
               </button>
             ))}
           </div>
         </div>
         <div>
-          <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Expiry (months)</label>
+          <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Expiry (months)</label>
           <input type="number" min="1" max="120" value={form.expiryMonths} onChange={e=>set("expiryMonths",e.target.value)} placeholder="Leave blank if no expiry"
-            style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
+            style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}/>
         </div>
       </div>
       <div style={{marginBottom:16}}>
-        <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Notes / Guidance</label>
+        <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Notes / Guidance</label>
         <textarea value={form.notes} onChange={e=>set("notes",e.target.value)} rows={2} placeholder="Any guidance for agencies or workers on fulfilling this requirement…"
-          style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none"}}/>
+          style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,resize:"vertical",outline:"none"}}/>
       </div>
       <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
         <Btn variant="secondary" onClick={onClose}>Cancel</Btn>
@@ -1855,7 +2188,7 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
   const warning  = WORKERS.filter(w=>w.compliance>=60&&w.compliance<80);
   const good     = WORKERS.filter(w=>w.compliance>=80);
 
-  const catColors = {safeguarding:{c:T.red,bg:T.redBg},training:{c:T.blue,bg:T.blueBg},specialist:{c:T.purple,bg:T.purpleBg},health:{c:T.green,bg:T.greenBg},safety:{c:T.yellow,bg:T.yellowBg},legal:{c:T.navy,bg:"#e8ecf4"},registration:{c:T.teal,bg:T.tealBg}};
+  const catColors = {safeguarding:{c:T.red,bg:T.redBg},training:{c:T.blue,bg:T.blueBg},specialist:{c:T.purple,bg:T.purpleBg},health:{c:T.green,bg:T.greenBg},safety:{c:T.yellow,bg:T.yellowBg},legal:{c:T.navy,bg:T.sunken},registration:{c:T.teal,bg:T.tealBg}};
 
   const addReq = (form) => {
     const newReq = {...form, id:`cr${complianceReqs.length+1}`, createdAt:new Date().toISOString().split("T")[0]};
@@ -1874,7 +2207,7 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
   const displayed  = filterScope==="all"?complianceReqs:filterScope==="global"?globalReqs:siteReqs;
 
   return (
-    <Page title="Compliance" sub="Track worker credentials and manage platform-wide compliance requirements" icon="🛡"
+    <Page title="Compliance" sub="Track worker credentials and manage platform-wide compliance requirements" icon="shield"
       action={tab==="requirements"?<Btn onClick={()=>setShowForm(true)}>+ Add Requirement</Btn>:null}>
 
       {/* Modals */}
@@ -1884,7 +2217,7 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
       {/* Tabs */}
       <div style={{display:"flex",gap:8,marginBottom:18}}>
         {[["workers","Worker Status"],["requirements","Requirements Builder"]].map(([v,l])=>(
-          <button key={v} onClick={()=>setTab(v)} style={{padding:"9px 18px",borderRadius:8,border:"none",background:tab===v?T.navy:"#eef1f6",color:tab===v?T.white:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.12s"}}>
+          <button key={v} onClick={()=>setTab(v)} style={{padding:"9px 18px",borderRadius:8,border:"none",background:tab===v?T.navy:T.sunken,color:tab===v?T.white:T.muted,fontWeight:560,fontSize:12,cursor:"pointer",fontFamily:FONT,transition:"all 0.12s"}}>
             {l}
           </button>
         ))}
@@ -1899,12 +2232,12 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
             <Stat label="Non-Compliant"   value={critical.length} sub="Immediate action"/>
             <Stat label="Avg Score" value={`${Math.round(WORKERS.reduce((a,w)=>a+w.compliance,0)/WORKERS.length)}%`} sub="Target: 95%"/>
           </Grid>
-          {critical.length>0&&<Alert type="error" style={{marginBottom:14}}>⚠️ <strong>{critical.length} worker{critical.length>1?"s are":" is"} non-compliant</strong> and cannot be placed on shifts until resolved.</Alert>}
+          {critical.length>0&&<Alert type="error" style={{marginBottom:14}}><strong>{critical.length} worker{critical.length>1?"s are":" is"} non-compliant</strong> and cannot be placed on shifts until resolved.</Alert>}
           <Card>
             <Table
               headers={["Worker","Role","Agency","DBS","Training","NMC/PIN","Score","Action"]}
               rows={WORKERS.sort((a,b)=>a.compliance-b.compliance).map(w=>(
-                <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:w.compliance<80?"#fffbeb":"transparent"}}>
+                <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:w.compliance<80?T.amberBg:"transparent"}}>
                   <Td bold>{w.name}</Td>
                   <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
                   <Td><span style={{fontSize:12,color:T.muted}}>{w.agency}</span></Td>
@@ -1914,7 +2247,7 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
                   <Td>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{width:60}}><ProgressBar value={w.compliance} color={w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}/></div>
-                      <span style={{fontWeight:700,fontSize:12,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
+                      <span style={{fontWeight:560,fontSize:12,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
                     </div>
                   </Td>
                   <Td>
@@ -1940,8 +2273,8 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
           </Grid>
 
           {/* Info banner */}
-          <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}44`,borderRadius:12,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
-            <strong style={{color:T.blue}}>📋 How requirements work:</strong> Global requirements apply to all workers on all sites. Care homes can also add site-specific requirements — workers must meet both global and their assigned site's requirements before being placed.
+          <div style={{background:T.accentBg,border:`1px solid ${T.blue}44`,borderRadius:14,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
+            <strong style={{color:T.blue}}>How requirements work:</strong> Global requirements apply to all workers on all sites. Care homes can also add site-specific requirements — workers must meet both global and their assigned site's requirements before being placed.
           </div>
 
           {/* Scope filter */}
@@ -1954,20 +2287,20 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
           {/* Site breakdown cards */}
           {filterScope!=="global"&&siteReqs.length>0&&(
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Site-Specific Requirements by Location</div>
+              <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Site-Specific Requirements by Location</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
                 {CARE_HOMES.map(ch=>{
                   const chReqs = siteReqs.filter(r=>r.careHome===ch.name);
                   return (
-                    <div key={ch.id} style={{background:T.white,border:`1.5px solid ${T.border}`,borderRadius:10,padding:"12px 14px"}}>
-                      <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{ch.name}</div>
+                    <div key={ch.id} style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px"}}>
+                      <div style={{fontWeight:560,fontSize:13,marginBottom:4}}>{ch.name}</div>
                       <div style={{fontSize:11,color:T.muted,marginBottom:8}}>{chReqs.length} requirement{chReqs.length!==1?"s":""}</div>
                       {chReqs.length===0?<div style={{fontSize:11,color:T.muted,fontStyle:"italic"}}>No site-specific requirements</div>:(
                         chReqs.map(r=>(
                           <div key={r.id} style={{display:"flex",alignItems:"center",gap:5,marginBottom:4}}>
                             <span style={{fontSize:9,color:r.active?T.green:T.muted}}>●</span>
                             <span style={{fontSize:11,color:r.active?T.text:T.muted,textDecoration:r.active?"none":"line-through"}}>{r.name}</span>
-                            {r.mandatory&&<span style={{fontSize:8,background:T.redBg,color:T.red,borderRadius:3,padding:"1px 4px",fontWeight:700}}>REQ</span>}
+                            {r.mandatory&&<span style={{fontSize:8,background:T.redBg,color:T.red,borderRadius:3,padding:"1px 4px",fontWeight:560}}>REQ</span>}
                           </div>
                         ))
                       )}
@@ -1983,32 +2316,32 @@ const ComplianceTracker = ({complianceReqs,setComplianceReqs,navigate}) => {
             <Table
               headers={["Requirement","Type","Category","Applies To","Scope","Expiry","Mandatory","Added By","Status","Actions"]}
               rows={displayed.map(r=>{
-                const cc = catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
+                const cc = catColors[r.category]||{c:T.muted,bg:T.sunken};
                 return (
-                  <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`,background:r.active?"transparent":"#f8fafc",opacity:r.active?1:0.65}}>
+                  <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`,background:r.active?"transparent":T.raised,opacity:r.active?1:0.65}}>
                     <Td>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13}}>{r.name}</div>
+                        <div style={{fontWeight:560,fontSize:13}}>{r.name}</div>
                         {r.notes&&<div style={{fontSize:10,color:T.muted,marginTop:1,maxWidth:200}}>{r.notes}</div>}
                       </div>
                     </Td>
                     <Td><span style={{fontSize:11,fontWeight:600,color:T.text,textTransform:"capitalize"}}>{r.type}</span></Td>
-                    <Td><Badge label={r.category} color={cc.c} bg={cc.bg}/></Td>
+                    <Td><Badge label={cap(r.category)} color={cc.c} bg={cc.bg}/></Td>
                     <Td>
                       <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                        {r.appliesToRoles.map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}
+                        {r.appliesToRoles.map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:560}}>{role}</span>)}
                       </div>
                     </Td>
                     <Td>
                       {r.scope==="global"
-                        ?<Badge label="🌐 Global" color={T.navy} bg="#e8ecf4"/>
-                        :<Badge label={`📍 ${r.careHome}`} color={T.teal} bg={T.tealBg}/>}
+                        ?<Badge label="Global" color={T.navy} bg={T.sunken}/>
+                        :<Badge label={`${r.careHome}`} color={T.teal} bg={T.tealBg}/>}
                     </Td>
                     <Td><span style={{fontSize:12,color:T.muted}}>{r.expiryMonths?`${r.expiryMonths} months`:"No expiry"}</span></Td>
-                    <Td>{r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg="#f1f5f9"/>}</Td>
+                    <Td>{r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg={T.sunken}/>}</Td>
                     <Td><span style={{fontSize:11,color:T.muted}}>{r.addedBy}</span></Td>
                     <Td>
-                      <button onClick={()=>toggleActive(r.id)} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${r.active?T.green:T.border}`,background:r.active?T.greenBg:"#f1f5f9",color:r.active?T.green:T.muted,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+                      <button onClick={()=>toggleActive(r.id)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${r.active?T.green:T.border}`,background:r.active?T.greenBg:T.sunken,color:r.active?T.green:T.muted,fontSize:10,fontWeight:560,cursor:"pointer",fontFamily:FONT}}>
                         {r.active?"Active":"Inactive"}
                       </button>
                     </Td>
@@ -2045,8 +2378,8 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
   const compliant   = myWorkers.filter(w=>w.compliance>=80);
   const needsAction = myWorkers.filter(w=>w.compliance<80);
 
-  const catColors = {safeguarding:{c:T.red,bg:T.redBg},training:{c:T.blue,bg:T.blueBg},specialist:{c:T.purple,bg:T.purpleBg},health:{c:T.green,bg:T.greenBg},safety:{c:T.yellow,bg:T.yellowBg},legal:{c:T.navy,bg:"#e8ecf4"},registration:{c:T.teal,bg:T.tealBg}};
-  const typeIcon = {document:"📄",training:"📚",registration:"🏅",vaccination:"💉"};
+  const catColors = {safeguarding:{c:T.red,bg:T.redBg},training:{c:T.blue,bg:T.blueBg},specialist:{c:T.purple,bg:T.purpleBg},health:{c:T.green,bg:T.greenBg},safety:{c:T.yellow,bg:T.yellowBg},legal:{c:T.navy,bg:T.sunken},registration:{c:T.teal,bg:T.tealBg}};
+  const typeIcon = {document:"document",training:"book",registration:"award",vaccination:"medical"};
 
   const addReq  = (form) => { setComplianceReqs(p=>[...p,{...form,id:`cr${p.length+1}`,scope:"site",careHome:mySite,createdAt:new Date().toISOString().split("T")[0]}]); setShowForm(false); };
   const saveEdit = (form) => { setComplianceReqs(p=>p.map(r=>r.id===editing.id?{...r,...form}:r)); setEditing(null); };
@@ -2060,24 +2393,24 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
   ];
 
   const ReqCard = ({r, showEdit=false, borderColor=T.border}) => {
-    const cc = catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
+    const cc = catColors[r.category]||{c:T.muted,bg:T.sunken};
     return (
-      <div style={{background:T.white,border:`1.5px solid ${borderColor}`,borderRadius:10,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:12}}>
-        <div style={{width:38,height:38,borderRadius:9,background:cc.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
-          {typeIcon[r.type]||"📋"}
+      <div style={{background:T.white,border:`1px solid ${borderColor}`,borderRadius:10,padding:"14px 16px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:12}}>
+        <div style={{width:38,height:38,borderRadius:10,background:cc.bg,color:cc.c,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          <Icon name={typeIcon[r.type]||"document"} size={18}/>
         </div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,flexWrap:"wrap"}}>
-            <span style={{fontWeight:700,fontSize:13}}>{r.name}</span>
+            <span style={{fontWeight:560,fontSize:13}}>{r.name}</span>
             {r.mandatory
               ? <Badge label="Required" color={T.red} bg={T.redBg}/>
-              : <Badge label="Optional" color={T.muted} bg="#f1f5f9"/>}
-            <Badge label={r.category} color={cc.c} bg={cc.bg}/>
-            {r.expiryMonths&&<span style={{fontSize:10,color:T.muted,background:"#f8fafc",padding:"2px 7px",borderRadius:6,border:`1px solid ${T.border}`}}>Renews every {r.expiryMonths}m</span>}
+              : <Badge label="Optional" color={T.muted} bg={T.sunken}/>}
+            <Badge label={cap(r.category)} color={cc.c} bg={cc.bg}/>
+            {r.expiryMonths&&<span style={{fontSize:10,color:T.muted,background:T.raised,padding:"2px 7px",borderRadius:8,border:`1px solid ${T.border}`}}>Renews every {r.expiryMonths}m</span>}
           </div>
           {r.notes&&<div style={{fontSize:12,color:T.muted,marginBottom:5,lineHeight:1.5}}>{r.notes}</div>}
           <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-            {(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 6px",fontWeight:700}}>{role}</span>)}
+            {(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 6px",fontWeight:560}}>{role}</span>)}
           </div>
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
@@ -2089,7 +2422,7 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
   };
 
   return (
-    <Page title="Compliance" sub={`${mySite} — compliance requirements and worker status`} icon="🛡"
+    <Page title="Compliance" sub={`${mySite} — compliance requirements and worker status`} icon="shield"
       action={tab==="mine"?<Btn onClick={()=>setShowForm(true)}>+ Add Requirement</Btn>:null}>
 
       {showForm&&<RequirementFormModal onSave={addReq} onClose={()=>setShowForm(false)} addedBy={user?.name||"Care Home Manager"} careHome={mySite}/>}
@@ -2103,20 +2436,20 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
       </Grid>
 
       {needsAction.length>0&&(
-        <Alert type="warn">⚠️ {needsAction.length} worker{needsAction.length>1?"s":""} placed at {mySite} {needsAction.length>1?"are":"is"} below 80% compliance — contact the relevant agency to resolve.</Alert>
+        <Alert type="warn">{needsAction.length} worker{needsAction.length>1?"s":""} placed at {mySite} {needsAction.length>1?"are":"is"} below 80% compliance — contact the relevant agency to resolve.</Alert>
       )}
 
       {/* Tabs */}
-      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
+      <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
         {tabs.map(t=>{
           const active=tab===t.k;
           return (
             <button key={t.k} onClick={()=>setTab(t.k)}
-              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
                 background:active?T.white:"transparent",color:active?T.navy:T.muted,
                 boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:7}}>
               {t.l}
-              <span style={{fontSize:11,padding:"1px 6px",borderRadius:10,background:active?"#e8ecf4":"transparent",color:active?T.navy:T.muted,fontWeight:700}}>
+              <span style={{fontSize:11,padding:"1px 6px",borderRadius:10,background:active?T.sunken:"transparent",color:active?T.navy:T.muted,fontWeight:560}}>
                 {t.count}
               </span>
             </button>
@@ -2127,23 +2460,23 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
       {/* ── Requirements tab ── */}
       {tab==="requirements"&&(
         <>
-          <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}33`,borderRadius:10,padding:"11px 15px",marginBottom:14,fontSize:12,color:T.muted,lineHeight:1.6}}>
-            <strong style={{color:T.blue}}>ℹ️ How this works:</strong> All workers placed at {mySite} must meet both the platform-wide requirements below and any additional requirements your site has added.
+          <div style={{background:T.accentBg,border:`1px solid ${T.blue}33`,borderRadius:10,padding:"11px 15px",marginBottom:14,fontSize:12,color:T.muted,lineHeight:1.6}}>
+            <strong style={{color:T.blue}}>How this works:</strong> All workers placed at {mySite} must meet both the platform-wide requirements below and any additional requirements your site has added.
           </div>
           {globalReqs.length>0&&(
             <div style={{marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>🌐 Platform-Wide ({globalReqs.length})</div>
+              <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Platform-Wide ({globalReqs.length})</div>
               {globalReqs.map(r=><ReqCard key={r.id} r={r}/>)}
             </div>
           )}
           {myReqs.filter(r=>r.active).length>0&&(
             <div>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>📍 {mySite} Specific ({myReqs.filter(r=>r.active).length})</div>
+              <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>{mySite} Specific ({myReqs.filter(r=>r.active).length})</div>
               {myReqs.filter(r=>r.active).map(r=><ReqCard key={r.id} r={r} showEdit borderColor={`${T.teal}66`}/>)}
             </div>
           )}
           {allActive.length===0&&(
-            <Card style={{padding:40,textAlign:"center"}}><div style={{fontSize:32,marginBottom:8}}>🛡</div><div style={{color:T.muted}}>No active requirements found.</div></Card>
+            <Card style={{padding:40,textAlign:"center"}}><div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="shield" size={30} stroke={1.5}/></div><div style={{color:T.muted}}>No active requirements found.</div></Card>
           )}
         </>
       )}
@@ -2153,8 +2486,8 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
         <>
           {myWorkers.length===0?(
             <Card style={{padding:40,textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:10}}>👥</div>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>No workers placed yet</div>
+              <div style={{marginBottom:10,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="users" size={30} stroke={1.5}/></div>
+              <div style={{fontWeight:560,fontSize:15,marginBottom:6}}>No workers placed yet</div>
               <p style={{color:T.muted,fontSize:13}}>Workers will appear here once they have been placed at {mySite}.</p>
             </Card>
           ):(
@@ -2162,17 +2495,17 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
               <Table
                 headers={["Worker","Role","Agency","DBS","Training","NMC/PIN","Compliance","RTW"]}
                 rows={myWorkers.sort((a,b)=>a.compliance-b.compliance).map(w=>(
-                  <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:w.compliance<80?"#fffbeb":"transparent"}}>
+                  <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<60?T.redBg:w.compliance<80?T.amberBg:"transparent"}}>
                     <Td bold>{w.name}</Td>
                     <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
                     <Td style={{fontSize:12,color:T.muted}}>{w.agency}</Td>
                     <Td><SBadge s={w.dbs}/></Td>
                     <Td><SBadge s={w.training}/></Td>
-                    <Td>{w.pin?<Badge label="✓ Verified" color={T.green} bg={T.greenBg}/>:<Badge label="N/A" color={T.muted} bg="#f1f5f9"/>}</Td>
+                    <Td>{w.pin?<Badge label="✓ Verified" color={T.green} bg={T.greenBg}/>:<Badge label="N/A" color={T.muted} bg={T.sunken}/>}</Td>
                     <Td>
                       <div style={{display:"flex",alignItems:"center",gap:8,minWidth:90}}>
                         <div style={{flex:1}}><ProgressBar value={w.compliance} color={w.compliance>=80?T.green:w.compliance>=60?T.amber:T.red}/></div>
-                        <span style={{fontSize:11,fontWeight:700,color:w.compliance>=80?T.green:w.compliance>=60?T.amber:T.red,minWidth:32}}>{w.compliance}%</span>
+                        <span style={{fontSize:11,fontWeight:560,color:w.compliance>=80?T.green:w.compliance>=60?T.amber:T.red,minWidth:32}}>{w.compliance}%</span>
                       </div>
                     </Td>
                     <Td>
@@ -2192,12 +2525,12 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
       {tab==="mine"&&(
         <>
           <div style={{background:T.tealBg,border:`1px solid ${T.teal}44`,borderRadius:10,padding:"11px 15px",marginBottom:14,fontSize:12,color:T.teal,fontWeight:600,lineHeight:1.6}}>
-            📍 Site-specific requirements you manage. Workers placed at {mySite} must meet these in addition to all platform requirements.
+            Site-specific requirements you manage. Workers placed at {mySite} must meet these in addition to all platform requirements.
           </div>
           {myReqs.length===0?(
             <Card style={{padding:40,textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:10}}>📋</div>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>No site-specific requirements yet</div>
+              <div style={{marginBottom:10,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="clipboard" size={30} stroke={1.5}/></div>
+              <div style={{fontWeight:560,fontSize:15,marginBottom:6}}>No site-specific requirements yet</div>
               <p style={{color:T.muted,fontSize:13,marginBottom:16}}>Add requirements specific to your home — specialist training, site health checks, or additional certifications.</p>
               <Btn onClick={()=>setShowForm(true)}>+ Add Your First Requirement</Btn>
             </Card>
@@ -2206,19 +2539,19 @@ const CareHomeCompliance = ({complianceReqs,setComplianceReqs,user}) => {
               <Table
                 headers={["Requirement","Category","Applies To","Renews","Status","Actions"]}
                 rows={myReqs.map(r=>{
-                  const cc=catColors[r.category]||{c:T.muted,bg:"#f1f5f9"};
+                  const cc=catColors[r.category]||{c:T.muted,bg:T.sunken};
                   return (
                     <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`,opacity:r.active?1:0.55}}>
                       <Td>
-                        <div style={{fontWeight:700,fontSize:13}}>{r.name}</div>
+                        <div style={{fontWeight:560,fontSize:13}}>{r.name}</div>
                         {r.notes&&<div style={{fontSize:10,color:T.muted,marginTop:1}}>{r.notes}</div>}
-                        <div style={{marginTop:3}}>{r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg="#f1f5f9"/>}</div>
+                        <div style={{marginTop:3}}>{r.mandatory?<Badge label="Required" color={T.red} bg={T.redBg}/>:<Badge label="Optional" color={T.muted} bg={T.sunken}/>}</div>
                       </Td>
-                      <Td><Badge label={r.category} color={cc.c} bg={cc.bg}/></Td>
-                      <Td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{role}</span>)}</div></Td>
+                      <Td><Badge label={cap(r.category)} color={cc.c} bg={cc.bg}/></Td>
+                      <Td><div style={{display:"flex",gap:3,flexWrap:"wrap"}}>{(r.appliesToRoles||[]).map(role=><span key={role} style={{fontSize:9,background:T.purpleBg,color:T.purple,borderRadius:4,padding:"2px 5px",fontWeight:560}}>{role}</span>)}</div></Td>
                       <Td><span style={{fontSize:12,color:T.muted}}>{r.expiryMonths?`${r.expiryMonths} months`:"None"}</span></Td>
                       <Td>
-                        <button onClick={()=>toggleActive(r.id)} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${r.active?T.green:T.border}`,background:r.active?T.greenBg:"#f1f5f9",color:r.active?T.green:T.muted,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+                        <button onClick={()=>toggleActive(r.id)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${r.active?T.green:T.border}`,background:r.active?T.greenBg:T.sunken,color:r.active?T.green:T.muted,fontSize:10,fontWeight:560,cursor:"pointer",fontFamily:FONT}}>
                           {r.active?"Active":"Inactive"}
                         </button>
                       </Td>
@@ -2255,17 +2588,17 @@ const DocumentVault = () => {
   };
 
   return (
-    <Page title="Document Vault" sub="Centralised storage for all worker credentials" icon="📁" action={<Btn onClick={()=>setUploadModal(true)}>Upload Document</Btn>}>
+    <Page title="Document Vault" sub="Centralised storage for all worker credentials" icon="folder" action={<Btn onClick={()=>setUploadModal(true)}>Upload Document</Btn>}>
       {uploadModal && (
         <Modal title="Upload Document" onClose={()=>setUploadModal(false)}>
           <Select label="Worker" value="" onChange={()=>{}} options={WORKERS.map(w=>w.name)}/>
           <Select label="Document Type" value="" onChange={()=>{}} options={["DBS Certificate","Mandatory Training","Right to Work","NMC PIN","Passport","Visa/BRP"]}/>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Upload File</label>
-            <div style={{border:`2px dashed ${T.border}`,borderRadius:8,padding:"28px",textAlign:"center",cursor:"pointer",background:"#f8fafc"}}>
-              <div style={{fontSize:28,marginBottom:8}}>📎</div>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Upload File</label>
+            <div style={{border:`2px dashed ${T.border}`,borderRadius:8,padding:"28px",textAlign:"center",cursor:"pointer",background:T.raised}}>
+              <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="paperclip" size={26} stroke={1.5}/></div>
               <div style={{fontSize:13,color:T.muted}}>Drag & drop or click to browse</div>
-              <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>PDF, JPG, PNG — max 10MB</div>
+              <div style={{fontSize:11,color:T.ghost,marginTop:4}}>PDF, JPG, PNG — max 10MB</div>
             </div>
           </div>
           <Input label="Expiry Date" type="date" value="" onChange={()=>{}}/>
@@ -2279,8 +2612,8 @@ const DocumentVault = () => {
         <Modal title={`${viewModal.type} — ${viewModal.worker}`} onClose={()=>setViewModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
             {[["Worker",viewModal.worker],["Document Type",viewModal.type],["Uploaded",viewModal.uploaded],["Expires",viewModal.expires]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600}}>{v}</div>
               </div>
             ))}
@@ -2306,7 +2639,7 @@ const DocumentVault = () => {
         <Table
           headers={["Worker","Document Type","Upload Date","Expiry Date","Status","Actions"]}
           rows={filtered.map((d,i)=>(
-            <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:d.status==="expired"?T.redBg:d.status==="expiring"?"#fffbeb":"transparent"}}>
+            <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:d.status==="expired"?T.redBg:d.status==="expiring"?T.amberBg:"transparent"}}>
               <Td bold>{d.worker}</Td>
               <Td>{d.type}</Td>
               <Td>{d.uploaded}</Td>
@@ -2364,8 +2697,8 @@ const RateEditModal = ({rate, onSave, onClose, onDelete, isNew}) => {
         <Select label="Role" value={r.role} onChange={v=>f("role",v)} options={ROLES}/>
         <Select label="Band" value={r.band} onChange={v=>f("band",v)} options={BANDS}/>
       </div>
-      <div style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",margin:"10px 0 14px"}}>
-        <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>
+      <div style={{background:T.raised,borderRadius:8,padding:"12px 14px",margin:"10px 0 14px"}}>
+        <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>
           {r.type==="agency"?"Pay Rate (£/hr — what Nexus RPO pays agency)":"Charge Rate (£/hr — what Nexus RPO bills client)"}
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -2428,14 +2761,14 @@ const RateCards = ({rateCards, setRateCards}) => {
 
   const TabBtn = ({id,label}) => (
     <button onClick={()=>setTab(id)} style={{
-      padding:"8px 20px",borderRadius:8,border:`1.5px solid ${tab===id?T.navy:T.border}`,
+      padding:"8px 20px",borderRadius:8,border:`1px solid ${tab===id?T.navy:T.border}`,
       background:tab===id?T.navy:"transparent",color:tab===id?T.white:T.muted,
-      fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s"
+      fontWeight:560,fontSize:12,cursor:"pointer",fontFamily:FONT,transition:"all 0.15s"
     }}>{label}</button>
   );
 
   const RateRow = ({r}) => (
-    <tr style={{borderBottom:`1px solid ${T.border}`,background:r.notes?"#fffdf0":"transparent"}}>
+    <tr style={{borderBottom:`1px solid ${T.border}`,background:r.notes?T.amberBg:"transparent"}}>
       <Td><Badge label={r.role} color={T.purple} bg={T.purpleBg}/></Td>
       <Td><span style={{fontSize:11,color:T.muted}}>{r.band}</span></Td>
       <Td bold>£{r.weekday}</Td>
@@ -2445,7 +2778,7 @@ const RateCards = ({rateCards, setRateCards}) => {
       <Td><span style={{fontSize:12,color:T.muted}}>×{r.nightMod}</span></Td>
       <Td>
         {r.notes
-          ? <span title={r.notes} style={{fontSize:11,color:T.yellow,cursor:"help"}}>⚠ Note</span>
+          ? <span title={r.notes} style={{fontSize:11,color:T.yellow,cursor:"help"}}>Note</span>
           : <span style={{fontSize:11,color:T.muted}}>—</span>}
       </Td>
       <Td>
@@ -2457,7 +2790,7 @@ const RateCards = ({rateCards, setRateCards}) => {
   const tableHeaders = ["Role","Band","Weekday","Saturday","Sunday","Bank Hol","Night ×","Notes",""];
 
   return (
-    <Page title="Rate Cards" sub="Set pay rates per agency and charge rates per client" icon="💷">
+    <Page title="Rate Cards" sub="Set pay rates per agency and charge rates per client" icon="pound">
 
       {editing && (
         <RateEditModal rate={editing} isNew={isNew} onSave={saveRate} onDelete={deleteRate} onClose={()=>setEditing(null)}/>
@@ -2475,9 +2808,9 @@ const RateCards = ({rateCards, setRateCards}) => {
 
       {/* Tab switcher */}
       <div style={{display:"flex",gap:8,marginBottom:18}}>
-        <TabBtn id="agency" label="🏢 Agency Rates"/>
-        <TabBtn id="client" label="🏥 Client Rates"/>
-        <TabBtn id="matrix" label="📊 Coverage Matrix"/>
+        <TabBtn id="agency" label="Agency Rates"/>
+        <TabBtn id="client" label="Client Rates"/>
+        <TabBtn id="matrix" label="Coverage Matrix"/>
       </div>
 
       {/* ── AGENCY RATES TAB ─────────────────────────────────────────────────── */}
@@ -2487,9 +2820,9 @@ const RateCards = ({rateCards, setRateCards}) => {
             <div style={{display:"flex",gap:6}}>
               {agencyNames.map(ag=>(
                 <button key={ag} onClick={()=>setSelAgency(ag)} style={{
-                  padding:"6px 14px",borderRadius:20,border:`1.5px solid ${selAgency===ag?T.navy:T.border}`,
+                  padding:"6px 14px",borderRadius:20,border:`1px solid ${selAgency===ag?T.navy:T.border}`,
                   background:selAgency===ag?T.navy:"transparent",color:selAgency===ag?T.white:T.muted,
-                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s",whiteSpace:"nowrap"
+                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:FONT,transition:"all 0.15s",whiteSpace:"nowrap"
                 }}>{ag}</button>
               ))}
             </div>
@@ -2500,14 +2833,14 @@ const RateCards = ({rateCards, setRateCards}) => {
 
           {agencyRates.length === 0
             ? <Card style={{padding:32,textAlign:"center"}}>
-                <div style={{fontSize:32,marginBottom:8}}>📋</div>
-                <div style={{fontWeight:700,marginBottom:6}}>No rates set for {selAgency}</div>
+                <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="clipboard" size={30} stroke={1.5}/></div>
+                <div style={{fontWeight:560,marginBottom:6}}>No rates set for {selAgency}</div>
                 <div style={{color:T.muted,fontSize:13,marginBottom:16}}>Add rate cards to define what Nexus RPO pays this agency per role.</div>
                 <Btn onClick={()=>{setEditing(blankRate("agency",{agency:selAgency}));setIsNew(true);}}>+ Add First Rate Card</Btn>
               </Card>
             : <Card>
-                <div style={{padding:"12px 18px",background:"#f0fdf4",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:12,fontWeight:700,color:T.green}}>Pay rates for {selAgency}</span>
+                <div style={{padding:"12px 18px",background:T.greenBg,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:12,fontWeight:560,color:T.green}}>Pay rates for {selAgency}</span>
                   <span style={{fontSize:11,color:T.muted}}>— what Nexus RPO pays this agency per hour billed</span>
                 </div>
                 <Table headers={tableHeaders} rows={agencyRates.map(r=><RateRow key={r.id} r={r}/>)}/>
@@ -2518,14 +2851,14 @@ const RateCards = ({rateCards, setRateCards}) => {
           {agencyRates.length > 0 && (
             <Card style={{marginTop:14,padding:18}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <h3 style={{fontWeight:700,fontSize:13}}>12-Hour Shift Cost Estimate ({selAgency})</h3>
+                <h3 style={{fontWeight:560,fontSize:13}}>12-Hour Shift Cost Estimate ({selAgency})</h3>
                 <Badge label={AGENCIES.find(a=>a.name===selAgency)?.tier||"Tier 2"} color={tierColor(AGENCIES.find(a=>a.name===selAgency)?.tier||"Tier 2")} bg={tierBg(AGENCIES.find(a=>a.name===selAgency)?.tier||"Tier 2")}/>
               </div>
               <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                 {agencyRates.map(r=>(
-                  <div key={r.id} style={{background:"#f8fafc",borderRadius:8,padding:"10px 14px",minWidth:120}}>
+                  <div key={r.id} style={{background:T.raised,borderRadius:8,padding:"10px 14px",minWidth:120}}>
                     <div style={{fontSize:11,color:T.muted,marginBottom:2}}>{r.role} · 12hr weekday</div>
-                    <div style={{fontSize:20,fontWeight:800,color:T.navy}}>£{r.weekday*12}</div>
+                    <div style={{fontSize:20,fontWeight:600,color:T.navy}}>£{r.weekday*12}</div>
                   </div>
                 ))}
               </div>
@@ -2541,9 +2874,9 @@ const RateCards = ({rateCards, setRateCards}) => {
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {careHomeNames.map(ch=>(
                 <button key={ch} onClick={()=>setSelClient(ch)} style={{
-                  padding:"6px 14px",borderRadius:20,border:`1.5px solid ${selClient===ch?T.navy:T.border}`,
+                  padding:"6px 14px",borderRadius:20,border:`1px solid ${selClient===ch?T.navy:T.border}`,
                   background:selClient===ch?T.navy:"transparent",color:selClient===ch?T.white:T.muted,
-                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s",whiteSpace:"nowrap"
+                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:FONT,transition:"all 0.15s",whiteSpace:"nowrap"
                 }}>{ch}</button>
               ))}
             </div>
@@ -2554,14 +2887,14 @@ const RateCards = ({rateCards, setRateCards}) => {
 
           {clientRates.length === 0
             ? <Card style={{padding:32,textAlign:"center"}}>
-                <div style={{fontSize:32,marginBottom:8}}>🏥</div>
-                <div style={{fontWeight:700,marginBottom:6}}>No rates set for {selClient}</div>
+                <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="hospital" size={30} stroke={1.5}/></div>
+                <div style={{fontWeight:560,marginBottom:6}}>No rates set for {selClient}</div>
                 <div style={{color:T.muted,fontSize:13,marginBottom:16}}>Add rate cards to define what this care home is billed per role.</div>
                 <Btn onClick={()=>{setEditing(blankRate("client",{careHome:selClient}));setIsNew(true);}}>+ Add First Rate Card</Btn>
               </Card>
             : <Card>
-                <div style={{padding:"12px 18px",background:"#eff6ff",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:12,fontWeight:700,color:T.blue}}>Charge rates for {selClient}</span>
+                <div style={{padding:"12px 18px",background:T.accentBg,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:12,fontWeight:560,color:T.blue}}>Charge rates for {selClient}</span>
                   <span style={{fontSize:11,color:T.muted}}>— what Nexus RPO bills this care home per hour</span>
                 </div>
                 <Table headers={tableHeaders} rows={clientRates.map(r=><RateRow key={r.id} r={r}/>)}/>
@@ -2570,12 +2903,12 @@ const RateCards = ({rateCards, setRateCards}) => {
 
           {clientRates.length > 0 && (
             <Card style={{marginTop:14,padding:18}}>
-              <h3 style={{fontWeight:700,fontSize:13,marginBottom:12}}>12-Hour Shift Revenue Estimate ({selClient})</h3>
+              <h3 style={{fontWeight:560,fontSize:13,marginBottom:12}}>12-Hour Shift Revenue Estimate ({selClient})</h3>
               <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
                 {clientRates.map(r=>(
-                  <div key={r.id} style={{background:"#f8fafc",borderRadius:8,padding:"10px 14px",minWidth:120}}>
+                  <div key={r.id} style={{background:T.raised,borderRadius:8,padding:"10px 14px",minWidth:120}}>
                     <div style={{fontSize:11,color:T.muted,marginBottom:2}}>{r.role} · 12hr weekday</div>
-                    <div style={{fontSize:20,fontWeight:800,color:T.blue}}>£{r.weekday*12}</div>
+                    <div style={{fontSize:20,fontWeight:600,color:T.blue}}>£{r.weekday*12}</div>
                   </div>
                 ))}
               </div>
@@ -2592,26 +2925,26 @@ const RateCards = ({rateCards, setRateCards}) => {
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {careHomeNames.map(ch=>(
                 <button key={ch} onClick={()=>setSelClient(ch)} style={{
-                  padding:"6px 14px",borderRadius:20,border:`1.5px solid ${selClient===ch?T.navy:T.border}`,
+                  padding:"6px 14px",borderRadius:20,border:`1px solid ${selClient===ch?T.navy:T.border}`,
                   background:selClient===ch?T.navy:"transparent",color:selClient===ch?T.white:T.muted,
-                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:"Syne,sans-serif",transition:"all 0.15s",whiteSpace:"nowrap"
+                  fontWeight:600,fontSize:11,cursor:"pointer",fontFamily:FONT,transition:"all 0.15s",whiteSpace:"nowrap"
                 }}>{ch}</button>
               ))}
             </div>
           </div>
 
           <Card>
-            <div style={{padding:"12px 18px",background:"#f8fafc",borderBottom:`1px solid ${T.border}`}}>
-              <span style={{fontWeight:700,fontSize:12}}>Rate Coverage — {selClient}</span>
+            <div style={{padding:"12px 18px",background:T.raised,borderBottom:`1px solid ${T.border}`}}>
+              <span style={{fontWeight:560,fontSize:12}}>Rate Coverage — {selClient}</span>
               <span style={{fontSize:11,color:T.muted,marginLeft:8}}>Green = agency rate set · Blue = client rate set · Red = gap</span>
             </div>
             <div style={{overflowX:"auto"}}>
               <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
                 <thead>
-                  <tr style={{background:"#f8fafc"}}>
-                    <th style={{padding:"9px 14px",fontSize:11,fontWeight:700,color:T.muted,textAlign:"left",borderBottom:`1px solid ${T.border}`,textTransform:"uppercase",letterSpacing:"0.06em"}}>Agency</th>
+                  <tr style={{background:T.raised}}>
+                    <th style={{padding:"9px 14px",fontSize:11,fontWeight:560,color:T.muted,textAlign:"left",borderBottom:`1px solid ${T.border}`,letterSpacing:"-0.006em"}}>Agency</th>
                     {ROLES.slice(0,4).map(role=>(
-                      <th key={role} style={{padding:"9px 12px",fontSize:11,fontWeight:700,color:T.muted,textAlign:"center",borderBottom:`1px solid ${T.border}`,textTransform:"uppercase",letterSpacing:"0.06em"}}>{role}</th>
+                      <th key={role} style={{padding:"9px 12px",fontSize:11,fontWeight:560,color:T.muted,textAlign:"center",borderBottom:`1px solid ${T.border}`,letterSpacing:"-0.006em"}}>{role}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2629,15 +2962,15 @@ const RateCards = ({rateCards, setRateCards}) => {
                           return (
                             <td key={role} style={{padding:"11px 12px",textAlign:"center"}}>
                               {noneSet
-                                ? <span style={{fontSize:11,color:T.red,fontWeight:700,background:T.redBg,padding:"3px 8px",borderRadius:6}}>No rates</span>
+                                ? <span style={{fontSize:11,color:T.red,fontWeight:560,background:T.redBg,padding:"3px 8px",borderRadius:8}}>No rates</span>
                                 : <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
-                                    {agRate && <span style={{fontSize:11,color:T.green,fontWeight:700,background:T.greenBg,padding:"2px 7px",borderRadius:5}}>£{agRate.weekday} pay</span>}
-                                    {clRate && <span style={{fontSize:11,color:T.blue, fontWeight:700,background:"#eff6ff",padding:"2px 7px",borderRadius:5}}>£{clRate.weekday} bill</span>}
-                                    {bothSet && <span style={{fontSize:10,color:margin>=0?T.green:T.red,fontWeight:800}}>
+                                    {agRate && <span style={{fontSize:11,color:T.green,fontWeight:560,background:T.greenBg,padding:"2px 7px",borderRadius:5}}>£{agRate.weekday} pay</span>}
+                                    {clRate && <span style={{fontSize:11,color:T.blue, fontWeight:560,background:T.accentBg,padding:"2px 7px",borderRadius:5}}>£{clRate.weekday} bill</span>}
+                                    {bothSet && <span style={{fontSize:10,color:margin>=0?T.green:T.red,fontWeight:600}}>
                                       {margin>=0?`+£${margin} margin`:`-£${Math.abs(margin)} loss`}
                                     </span>}
-                                    {!agRate && <span style={{fontSize:10,color:T.yellow,fontWeight:700}}>⚠ no pay rate</span>}
-                                    {!clRate && <span style={{fontSize:10,color:T.yellow,fontWeight:700}}>⚠ no charge rate</span>}
+                                    {!agRate && <span style={{fontSize:10,color:T.yellow,fontWeight:560}}>no pay rate</span>}
+                                    {!clRate && <span style={{fontSize:10,color:T.yellow,fontWeight:560}}>no charge rate</span>}
                                   </div>
                               }
                             </td>
@@ -2689,47 +3022,47 @@ const InvoiceManager = ({invoices=INVOICES, setInvoices, timesheets=[]}) => {
   const statusColors = {draft:{c:T.purple,bg:T.purpleBg},pending:{c:T.yellow,bg:T.yellowBg},paid:{c:T.green,bg:T.greenBg},overdue:{c:T.red,bg:T.redBg}};
 
   const invExports = [
-    {icon:"📋",label:"All Invoices — CSV",desc:"Full invoice ledger",fn:()=>exportCSV("fcc-invoices.csv",
+    {icon:"clipboard",label:"All Invoices — CSV",desc:"Full invoice ledger",fn:()=>exportCSV("fcc-invoices.csv",
       ["Invoice ID","Agency","Period","Shifts","Amount (£)","Issued","Due","Status"],
       live.map(i=>[i.id,i.agency,i.period,i.shifts,i.amount,i.issued,i.due,i.status]))},
-    {icon:"💷",label:"Paid Invoices — CSV",desc:"Settled invoices only",fn:()=>exportCSV("fcc-invoices-paid.csv",
+    {icon:"pound",label:"Paid Invoices — CSV",desc:"Settled invoices only",fn:()=>exportCSV("fcc-invoices-paid.csv",
       ["Invoice ID","Agency","Period","Amount (£)","Paid Date"],
       live.filter(i=>i.status==="paid").map(i=>[i.id,i.agency,i.period,i.amount,i.due]))},
-    {icon:"⚠️",label:"Overdue Invoices — CSV",desc:"Outstanding overdue",fn:()=>exportCSV("fcc-invoices-overdue.csv",
+    {icon:"warning",label:"Overdue Invoices — CSV",desc:"Outstanding overdue",fn:()=>exportCSV("fcc-invoices-overdue.csv",
       ["Invoice ID","Agency","Period","Amount (£)","Due Date"],
       live.filter(i=>i.status==="overdue").map(i=>[i.id,i.agency,i.period,i.amount,i.due]))},
-    {icon:"🖨️",label:"Invoice Ledger — PDF",desc:"Printable HTML report",fn:()=>exportHTML("Invoice Ledger","Nexus RPO — All Invoices",
+    {icon:"printer",label:"Invoice Ledger — PDF",desc:"Printable HTML report",fn:()=>exportHTML("Invoice Ledger","Nexus RPO — All Invoices",
       buildTable(["Invoice ID","Agency","Period","Shifts","Amount","Due","Status"],
         live.map(i=>[i.id,i.agency,i.period,i.shifts,`£${i.amount.toLocaleString()}`,i.due,i.status.toUpperCase()])))},
   ];
 
   return (
-    <Page title="Invoice Manager" sub="All agency invoices — draft and issued" icon="📄" action={<ExportMenu exports={invExports}/>}>
+    <Page title="Invoice Manager" sub="All agency invoices — draft and issued" icon="document" action={<ExportMenu exports={invExports}/>}>
 
       {/* Invoice detail modal */}
       {viewInv && (
         <Modal title={`Invoice ${viewInv.id}`} onClose={()=>setViewInv(null)}>
-          <div style={{background:"#f8fafc",borderRadius:10,padding:"14px 16px",marginBottom:14}}>
+          <div style={{background:T.raised,borderRadius:10,padding:"14px 16px",marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
               <div>
-                <div style={{fontWeight:800,fontSize:16,color:T.navy,marginBottom:2}}>{viewInv.id}</div>
+                <div style={{fontWeight:600,fontSize:16,color:T.navy,marginBottom:2}}>{viewInv.id}</div>
                 <div style={{fontSize:12,color:T.muted}}>{viewInv.agency} · {viewInv.period}</div>
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{fontSize:24,fontWeight:800,color:T.green}}>£{viewInv.amount?.toLocaleString()}</div>
+                <div style={{fontSize:24,fontWeight:600,color:T.green}}>£{viewInv.amount?.toLocaleString()}</div>
                 <div style={{fontSize:11,color:T.muted}}>Due {viewInv.due||"TBC"}</div>
               </div>
             </div>
           </div>
           <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Timesheets included</div>
+            <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Timesheets included</div>
             {getTimesheets(viewInv).map(ts=>(
-              <div key={ts.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",borderRadius:7,background:"#f0fff4",border:`1px solid ${T.green}33`,marginBottom:5}}>
+              <div key={ts.id} style={{display:"flex",justifyContent:"space-between",padding:"8px 12px",borderRadius:8,background:T.greenBg,border:`1px solid ${T.green}33`,marginBottom:5}}>
                 <div>
-                  <span style={{fontWeight:700,fontSize:12}}>{ts.worker}</span>
+                  <span style={{fontWeight:560,fontSize:12}}>{ts.worker}</span>
                   <span style={{fontSize:11,color:T.muted,marginLeft:8}}>{ts.role} · {ts.date} · {ts.hoursWorked}h</span>
                 </div>
-                <span style={{fontWeight:800,fontSize:13,color:T.green}}>£{ts.total}</span>
+                <span style={{fontWeight:600,fontSize:13,color:T.green}}>£{ts.total}</span>
               </div>
             ))}
             {getTimesheets(viewInv).length===0 && <p style={{fontSize:12,color:T.muted}}>No timesheet detail available.</p>}
@@ -2749,25 +3082,25 @@ const InvoiceManager = ({invoices=INVOICES, setInvoices, timesheets=[]}) => {
         <Stat label="Overdue" value={`£${overdue.toLocaleString()}`} sub={overdue>0?"Immediate action":"All clear"} accent={overdue>0}/>
       </Grid>
 
-      {overdue>0 && <Alert type="error">⚠️ {live.filter(i=>i.status==="overdue").length} invoice{live.filter(i=>i.status==="overdue").length>1?"s are":" is"} overdue.</Alert>}
+      {overdue>0 && <Alert type="error">{live.filter(i=>i.status==="overdue").length} invoice{live.filter(i=>i.status==="overdue").length>1?"s are":" is"} overdue.</Alert>}
 
       {/* Draft invoices — auto-grouped from approved timesheets */}
       {drafts.length>0 && (
         <Card style={{marginBottom:18,border:`2px solid ${T.purple}44`}}>
-          <CardHead title="Draft Invoices" icon="🧾" sub="Auto-grouped from approved timesheets — review and send to agencies"/>
+          <CardHead title="Draft Invoices" icon="receipt" sub="Auto-grouped from approved timesheets — review and send to agencies"/>
           <div style={{padding:"0 14px 14px"}}>
             {drafts.map(inv=>{
               const ts = getTimesheets(inv);
               return (
-                <div key={inv.id} style={{padding:"16px 18px",background:"#faf5ff",borderRadius:10,border:`1.5px solid ${T.purple}44`,marginBottom:10}}>
+                <div key={inv.id} style={{padding:"16px 18px",background:T.purpleBg,borderRadius:10,border:`1px solid ${T.purple}44`,marginBottom:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:10,marginBottom:12}}>
                     <div>
-                      <div style={{fontWeight:800,fontSize:15,color:T.navy,marginBottom:3}}>{inv.agency}</div>
+                      <div style={{fontWeight:600,fontSize:15,color:T.navy,marginBottom:3}}>{inv.agency}</div>
                       <div style={{fontSize:12,color:T.muted}}>{inv.shifts} timesheet{inv.shifts!==1?"s":""} · {inv.period} · All care-home approved</div>
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:22,fontWeight:800,color:T.green}}>£{inv.amount.toLocaleString()}</div>
+                        <div style={{fontSize:22,fontWeight:600,color:T.green}}>£{inv.amount.toLocaleString()}</div>
                         <div style={{fontSize:11,color:T.muted}}>Total value</div>
                       </div>
                       <div style={{display:"flex",gap:8}}>
@@ -2794,13 +3127,13 @@ const InvoiceManager = ({invoices=INVOICES, setInvoices, timesheets=[]}) => {
 
       {/* Sent invoices */}
       <Card>
-        <CardHead title="Sent Invoices" sub="All issued invoices" icon="📋"/>
+        <CardHead title="Sent Invoices" sub="All issued invoices" icon="clipboard"/>
         <Table
           headers={["Invoice","Agency","Period","Timesheets","Amount","Issued","Due","Status","Actions"]}
           empty="No sent invoices yet"
           rows={live.map(inv=>(
             <tr key={inv.id} style={{borderBottom:`1px solid ${T.border}`,background:inv.status==="overdue"?T.redBg:"transparent"}}>
-              <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700,color:T.navy}}>{inv.id}</span></Td>
+              <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:560,color:T.navy}}>{inv.id}</span></Td>
               <Td bold>{inv.agency}</Td>
               <Td>{inv.period}</Td>
               <Td>{inv.shifts}</Td>
@@ -2841,8 +3174,8 @@ const AdminBudgets = ({budgets,setBudgets}) => {
   const totalAnnual  = sites.reduce((a,s)=>a+((budgets?.[s]||INIT_BUDGETS[s]).annual),0);
   const totalMtd     = sites.reduce((a,s)=>a+((budgets?.[s]||INIT_BUDGETS[s]).mtdSpend),0);
   return (
-    <Page title="Budget Management" sub="Set and monitor agency spend budgets for each care home" icon="💰"
-      action={<div style={{fontSize:13,fontWeight:700,color:T.amber}}>Total monthly: £{totalMonthly.toLocaleString()}</div>}>
+    <Page title="Budget Management" sub="Set and monitor agency spend budgets for each care home" icon="money"
+      action={<div style={{fontSize:13,fontWeight:560,color:T.amber}}>Total monthly: £{totalMonthly.toLocaleString()}</div>}>
       {editSite&&(
         <Modal title={`Set Budget — ${editSite}`} onClose={()=>setEditSite(null)}>
           <Alert type="info">Budget figures control the tracker bars shown to site managers. Spend is populated automatically from approved timesheets.</Alert>
@@ -2851,10 +3184,10 @@ const AdminBudgets = ({budgets,setBudgets}) => {
             <Input label="Annual Budget (£)"  type="number" value={editForm.annual}  onChange={v=>setEditForm(f=>({...f,annual:v}))}/>
           </div>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Alert Thresholds</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Alert Thresholds</label>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {[{k:"alertAt75",label:"Alert site manager at 75% of monthly budget",color:"#b45309",bg:"#fef3c7"},{k:"alertAt90",label:"Alert site manager at 90% of monthly budget",color:T.red,bg:T.redBg}].map(opt=>(
-                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1.5px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
+              {[{k:"alertAt75",label:"Alert site manager at 75% of monthly budget",color:T.amberText,bg:T.amberBg},{k:"alertAt90",label:"Alert site manager at 90% of monthly budget",color:T.red,bg:T.redBg}].map(opt=>(
+                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
                   <input type="checkbox" checked={editForm[opt.k]} readOnly style={{accentColor:opt.color,width:14,height:14}}/>
                   <span style={{fontSize:13,fontWeight:600,color:editForm[opt.k]?opt.color:T.text}}>{opt.label}</span>
                 </label>
@@ -2877,24 +3210,24 @@ const AdminBudgets = ({budgets,setBudgets}) => {
           rows={sites.map(site=>{
             const b=budgets?.[site]||INIT_BUDGETS[site];
             const pct=Math.round((b.mtdSpend/b.monthly)*100);
-            const col=pct>=90?T.red:pct>=75?"#b45309":T.green;
+            const col=pct>=90?T.red:pct>=75?T.amberText:T.green;
             return (
-              <tr key={site} style={{borderBottom:`1px solid ${T.border}`,background:pct>=90?T.redBg:pct>=75?"#fffbeb":"transparent"}}>
+              <tr key={site} style={{borderBottom:`1px solid ${T.border}`,background:pct>=90?T.redBg:pct>=75?T.amberBg:"transparent"}}>
                 <Td bold>{site}</Td>
                 <Td bold>£{b.monthly.toLocaleString()}</Td>
                 <Td>£{b.annual.toLocaleString()}</Td>
-                <Td><span style={{fontWeight:700,color:col}}>£{b.mtdSpend.toLocaleString()}</span></Td>
+                <Td><span style={{fontWeight:560,color:col}}>£{b.mtdSpend.toLocaleString()}</span></Td>
                 <Td>
                   <div style={{display:"flex",alignItems:"center",gap:8,minWidth:100}}>
                     <div style={{flex:1}}><ProgressBar value={pct} color={col}/></div>
-                    <span style={{fontSize:11,fontWeight:700,color:col,minWidth:30}}>{pct}%</span>
+                    <span style={{fontSize:11,fontWeight:560,color:col,minWidth:30}}>{pct}%</span>
                   </div>
                 </Td>
-                <Td><span style={{fontWeight:700,color:b.monthly-b.mtdSpend<2000?T.red:T.text}}>£{(b.monthly-b.mtdSpend).toLocaleString()}</span></Td>
+                <Td><span style={{fontWeight:560,color:b.monthly-b.mtdSpend<2000?T.red:T.text}}>£{(b.monthly-b.mtdSpend).toLocaleString()}</span></Td>
                 <Td>
                   <div style={{display:"flex",gap:4}}>
-                    {b.alertAt75&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:4,background:"#fef3c7",color:"#b45309"}}>75%</span>}
-                    {b.alertAt90&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:4,background:T.redBg,color:T.red}}>90%</span>}
+                    {b.alertAt75&&<span style={{fontSize:10,fontWeight:560,padding:"2px 6px",borderRadius:4,background:T.amberBg,color:T.amberText}}>75%</span>}
+                    {b.alertAt90&&<span style={{fontSize:10,fontWeight:560,padding:"2px 6px",borderRadius:4,background:T.redBg,color:T.red}}>90%</span>}
                     {!b.alertAt75&&!b.alertAt90&&<span style={{fontSize:11,color:T.muted}}>None</span>}
                   </div>
                 </Td>
@@ -2911,19 +3244,19 @@ const AdminBudgets = ({budgets,setBudgets}) => {
 /* ─── ADMIN: ANALYTICS ───────────────────────────────────────────────────────── */
 const Analytics = ({budgets}) => {
   const exports = [
-    {icon:"📊",label:"Spend Report — CSV",desc:"Monthly spend by agency",fn:()=>exportCSV("fcc-spend-report.csv",
+    {icon:"chartBar",label:"Spend Report — CSV",desc:"Monthly spend by agency",fn:()=>exportCSV("fcc-spend-report.csv",
       ["Month","Spend (£)"],
       ANALYTICS_SPEND.map(r=>[r.month,r.spend]))},
-    {icon:"📋",label:"Shift Summary — CSV",desc:"Open vs filled by month",fn:()=>exportCSV("fcc-shift-summary.csv",
+    {icon:"clipboard",label:"Shift Summary — CSV",desc:"Open vs filled by month",fn:()=>exportCSV("fcc-shift-summary.csv",
       ["Month","Filled","Open"],
       ANALYTICS_SHIFTS.map(r=>[r.month,r.filled,r.open]))},
-    {icon:"🏦",label:"Agency Performance — CSV",desc:"Fill rate, response, compliance",fn:()=>exportCSV("fcc-agency-performance.csv",
+    {icon:"bank",label:"Agency Performance — CSV",desc:"Fill rate, response, compliance",fn:()=>exportCSV("fcc-agency-performance.csv",
       ["Agency","Tier","Shifts","Fill Rate (%)","Avg Response","Compliance (%)","Spend (£)"],
       AGENCIES.map(a=>[a.name,a.tier,a.shifts,a.fillRate,a.avgResponse,a.compliance,a.spend]))},
-    {icon:"💰",label:"Budget Summary — CSV",desc:"Spend vs budget per site",fn:()=>exportCSV("budget-summary.csv",
+    {icon:"money",label:"Budget Summary — CSV",desc:"Spend vs budget per site",fn:()=>exportCSV("budget-summary.csv",
       ["Care Home","Monthly Budget","MTD Spend","MTD %","Remaining","YTD Spend"],
       Object.entries(budgets||INIT_BUDGETS).map(([s,b])=>[s,b.monthly,b.mtdSpend,`${Math.round((b.mtdSpend/b.monthly)*100)}%`,b.monthly-b.mtdSpend,b.ytdSpend]))},
-    {icon:"🖨️",label:"Full Analytics Report — PDF",desc:"Printable HTML report",fn:()=>exportHTML("Nexus RPO Analytics Report","January–March 2026",
+    {icon:"printer",label:"Full Analytics Report — PDF",desc:"Printable HTML report",fn:()=>exportHTML("Nexus RPO Analytics Report","January–March 2026",
       buildTable(["Month","Spend (£)","Fill Rate (%)","Filled Shifts","Open Shifts"],
         ANALYTICS_SPEND.map((r,i)=>[r.month,`£${r.spend.toLocaleString()}`,ANALYTICS_FILL[i]?.rate||"—",ANALYTICS_SHIFTS[i]?.filled||"—",ANALYTICS_SHIFTS[i]?.open||"—"])))},
   ];
@@ -2937,7 +3270,7 @@ const Analytics = ({budgets}) => {
   }));
 
   return (
-  <Page title="Analytics & Reporting" sub="Performance insights across your neutral vendor operation" icon="📊" action={<ExportMenu exports={exports}/>}>
+  <Page title="Analytics & Reporting" sub="Performance insights across your neutral vendor operation" icon="chartBar" action={<ExportMenu exports={exports}/>}>
     <Grid cols={4}>
       <Stat label="YTD Spend" value="£423k" accent trend="£18k vs budget" trendUp={true}/>
       <Stat label="Avg Fill Rate" value="86%" trend="6% vs last year" trendUp={true}/>
@@ -2946,28 +3279,28 @@ const Analytics = ({budgets}) => {
     </Grid>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:18}}>
       <Card>
-        <CardHead title="Monthly Spend (£)" icon="💷"/>
+        <CardHead title="Monthly Spend (£)" icon="pound"/>
         <div style={{padding:"12px 4px"}}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={ANALYTICS_SPEND} barSize={28}>
-              <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-              <YAxis tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false} tickFormatter={v=>`£${v/1000}k`}/>
-              <Tooltip formatter={v=>[`£${v.toLocaleString()}`,"Spend"]} contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
-              <Bar dataKey="spend" fill={T.amber} radius={[4,4,0,0]}/>
+              <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} tickFormatter={v=>`£${v/1000}k`}/>
+              <Tooltip formatter={v=>[`£${v.toLocaleString()}`,"Spend"]} contentStyle={TOOLTIP_STYLE}/>
+              <Bar dataKey="spend" fill={T.accent} radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
       <Card>
-        <CardHead title="Shifts: Open vs Filled" icon="📋"/>
+        <CardHead title="Shifts: Open vs Filled" icon="clipboard"/>
         <div style={{padding:"12px 4px"}}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={ANALYTICS_SHIFTS} barSize={14}>
-              <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-              <YAxis tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
+              <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={TOOLTIP_STYLE}/>
               <Bar dataKey="filled" fill={T.green} radius={[3,3,0,0]} name="Filled"/>
-              <Bar dataKey="open" fill={T.redBg} radius={[3,3,0,0]} name="Open"/>
+              <Bar dataKey="open" fill={T.ghost} radius={[3,3,0,0]} name="Open"/>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -2975,29 +3308,29 @@ const Analytics = ({budgets}) => {
     </div>
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:18,marginBottom:18}}>
       <Card>
-        <CardHead title="Fill Rate Trend" icon="📈"/>
+        <CardHead title="Fill Rate Trend" icon="trendingUp"/>
         <div style={{padding:"12px 4px"}}>
           <ResponsiveContainer width="100%" height={180}>
             <LineChart data={ANALYTICS_FILL}>
-              <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-              <YAxis domain={[60,100]} tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false} unit="%"/>
-              <Tooltip formatter={v=>`${v}%`} contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
+              <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+              <YAxis domain={[60,100]} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} unit="%"/>
+              <Tooltip formatter={v=>`${v}%`} contentStyle={TOOLTIP_STYLE}/>
               <Line type="monotone" dataKey="rate" stroke={T.green} strokeWidth={2.5} dot={{r:5,fill:T.green}} activeDot={{r:7}}/>
             </LineChart>
           </ResponsiveContainer>
         </div>
       </Card>
       <Card>
-        <CardHead title="Agency League Table" icon="🏆"/>
+        <CardHead title="Agency League Table" icon="trophy"/>
         <div style={{padding:16}}>
           {AGENCIES.sort((a,b)=>b.fillRate-a.fillRate).map((a,i)=>(
             <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-              <span style={{width:20,height:20,borderRadius:"50%",background:i===0?T.amber:i===1?"#94a3b8":i===2?"#cd7f32":T.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<3?T.white:T.muted,flexShrink:0}}>{i+1}</span>
+              <span style={{width:20,height:20,borderRadius:"50%",background:i===0?T.amber:i===1?T.faint:i===2?"#9A6B3F":T.sunken,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10.5,fontWeight:600,color:i<3?"#fff":T.muted,flexShrink:0}}>{i+1}</span>
               <div style={{flex:1}}>
                 <div style={{fontSize:12,fontWeight:600,marginBottom:3}}>{a.name}</div>
-                <ProgressBar value={a.fillRate} color={i===0?T.amber:i===1?"#64748b":i===2?"#cd7f32":T.border}/>
+                <ProgressBar value={a.fillRate} color={i===0?T.amber:i===1?T.muted:i===2?"#cd7f32":T.border}/>
               </div>
-              <span style={{fontSize:13,fontWeight:700,color:T.text}}>{a.fillRate}%</span>
+              <span style={{fontSize:13,fontWeight:560,color:T.text}}>{a.fillRate}%</span>
             </div>
           ))}
         </div>
@@ -3006,29 +3339,29 @@ const Analytics = ({budgets}) => {
 
     {/* Budget breakdown section */}
     <Card>
-      <CardHead title="Spend vs Budget by Site — March 2026" icon="💰" sub="Live figures from budget tracker"/>
+      <CardHead title="Spend vs Budget by Site — March 2026" icon="money" sub="Live figures from budget tracker"/>
       <div style={{padding:"0 8px 8px"}}>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={budgetSiteData} margin={{top:8,right:8,bottom:0,left:0}}>
-            <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-            <XAxis dataKey="site" tick={{fontSize:11,fill:T.muted}}/>
-            <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11,fill:T.muted}} width={44}/>
+            <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+            <XAxis dataKey="site" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+            <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={44}/>
             <Tooltip formatter={(v,n)=>[`£${v.toLocaleString()}`,n==="spend"?"MTD Spend":"Monthly Budget"]}/>
-            <Bar dataKey="budget" fill="#e2e8f0" radius={[4,4,0,0]} name="budget"/>
-            <Bar dataKey="spend" fill={T.amber} radius={[4,4,0,0]} name="spend"/>
+            <Bar dataKey="budget" fill={T.sunken} radius={[4,4,0,0]} name="budget"/>
+            <Bar dataKey="spend" fill={T.accent} radius={[4,4,0,0]} name="spend"/>
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div style={{padding:"0 16px 14px"}}>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {budgetSiteData.map(d=>{
-            const col=d.pct>=90?T.red:d.pct>=75?"#b45309":T.green;
+            const col=d.pct>=90?T.red:d.pct>=75?T.amberText:T.green;
             return (
-              <div key={d.site} style={{flex:"1 1 160px",padding:"10px 12px",background:"#f8fafc",borderRadius:8,border:`1px solid ${T.border}`}}>
-                <div style={{fontSize:11,fontWeight:700,color:T.text,marginBottom:4}}>{d.site}</div>
+              <div key={d.site} style={{flex:"1 1 160px",padding:"10px 12px",background:T.raised,borderRadius:8,border:`1px solid ${T.border}`}}>
+                <div style={{fontSize:11,fontWeight:560,color:T.text,marginBottom:4}}>{d.site}</div>
                 <ProgressBar value={d.pct} color={col}/>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.muted,marginTop:3}}>
-                  <span style={{fontWeight:700,color:col}}>{d.pct}%</span>
+                  <span style={{fontWeight:560,color:col}}>{d.pct}%</span>
                   <span>£{d.spend.toLocaleString()} / £{d.budget.toLocaleString()}</span>
                 </div>
               </div>
@@ -3070,7 +3403,7 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
   const budgetPct = Math.round(mtdSpend/budget*100);
 
   return (
-    <Page title={`Hello, ${user.name.split(" ")[0]}`} sub="Sunrise Care — Staffing Analytics Overview" icon="◈">
+    <Page title={`Hello, ${user.name.split(" ")[0]}`} sub="Sunrise Care — Staffing Analytics Overview" icon="grid">
 
       {/* KPI Row */}
       <Grid cols={4}>
@@ -3082,11 +3415,11 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
 
       {/* Urgent alerts */}
       {urgent.length>0&&(
-        <div style={{background:"#fef3c7",border:"1.5px solid #f59e0b",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-          <span style={{fontSize:18}}>⚠️</span>
+        <div style={{background:T.amberBg,border:"1px solid #f59e0b",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+          <span style={{fontSize:18}}><Icon name="warning" size={15}/></span>
           <div>
-            <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Action needed: {urgent.length} urgent unfilled {urgent.length===1?"shift":"shifts"}</div>
-            <div style={{fontSize:12,color:"#b45309",marginTop:2}}>{urgent.map(s=>`${s.role} · ${s.date}`).join(" · ")}</div>
+            <div style={{fontWeight:560,fontSize:13,color:T.amberText}}>Action needed: {urgent.length} urgent unfilled {urgent.length===1?"shift":"shifts"}</div>
+            <div style={{fontSize:12,color:T.amberText,marginTop:2}}>{urgent.map(s=>`${s.role} · ${s.date}`).join(" · ")}</div>
           </div>
         </div>
       )}
@@ -3098,11 +3431,11 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
           <div style={{padding:"0 8px 8px"}}>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={CH_SPEND_DATA} margin={{top:8,right:8,bottom:0,left:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}}/>
-                <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11,fill:T.muted}} width={40}/>
+                <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={40}/>
                 <Tooltip formatter={(v,n)=>[`£${v.toLocaleString()}`,n==="spend"?"Spend":"Budget"]}/>
-                <Bar dataKey="spend" fill={T.amber} radius={[4,4,0,0]} name="spend"/>
+                <Bar dataKey="spend" fill={T.accent} radius={[4,4,0,0]} name="spend"/>
                 <Line type="monotone" dataKey="budget" stroke={T.red} strokeDasharray="5 3" strokeWidth={2} dot={false} name="budget"/>
               </ComposedChart>
             </ResponsiveContainer>
@@ -3113,9 +3446,9 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
           <div style={{padding:"0 8px 8px"}}>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={CH_FILL_DATA} margin={{top:8,right:8,bottom:0,left:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}}/>
-                <YAxis domain={[60,100]} tickFormatter={v=>`${v}%`} tick={{fontSize:11,fill:T.muted}} width={36}/>
+                <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis domain={[60,100]} tickFormatter={v=>`${v}%`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={36}/>
                 <Tooltip formatter={v=>[`${v}%`,"Fill Rate"]}/>
                 <Line type="monotone" dataKey="rate" stroke={T.teal} strokeWidth={2.5} dot={{r:4,fill:T.teal}} activeDot={{r:6}}/>
               </LineChart>
@@ -3134,7 +3467,7 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
             {CH_ROLE_DATA.map(r=>(
               <div key={r.role} style={{marginBottom:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{fontSize:12,fontWeight:700,color:T.text}}>{r.role}</span>
+                  <span style={{fontSize:12,fontWeight:560,color:T.text}}>{r.role}</span>
                   <span style={{fontSize:12,color:T.muted}}>{r.shifts} shifts · <strong style={{color:T.text}}>£{r.spend.toLocaleString()}</strong></span>
                 </div>
                 <ProgressBar value={r.shifts} max={24} color={r.role==="RGN"?T.amber:r.role==="RMN"?T.purple:r.role==="HCA"?T.teal:T.blue}/>
@@ -3152,7 +3485,7 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
               return (
                 <div key={a.name} style={{marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <span style={{fontSize:12,fontWeight:700,color:T.text}}>{a.name}</span>
+                    <span style={{fontSize:12,fontWeight:560,color:T.text}}>{a.name}</span>
                     <span style={{fontSize:12,color:T.muted}}>{a.shifts} shifts · {a.pct}%</span>
                   </div>
                   <ProgressBar value={a.pct} max={100} color={colors[i%colors.length]}/>
@@ -3172,14 +3505,14 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
         <Table
           headers={["Role","Date","Time","Urgency","Status","Agency","Worker"]}
           rows={mine.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>(
-            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&s.status!=="filled"?"#fffbeb":"transparent"}}>
+            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&s.status!=="filled"?T.amberBg:"transparent"}}>
               <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
               <Td>{s.date}</Td>
               <Td style={{color:T.muted,fontSize:12}}>{s.time}</Td>
-              <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+              <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
               <Td><SBadge s={s.status}/></Td>
               <Td style={{fontSize:12}}>{s.agency||<span style={{color:T.muted}}>Unassigned</span>}</Td>
-              <Td style={{fontSize:12}}>{s.worker||<span style={{color:"#94a3b8"}}>Awaiting</span>}</Td>
+              <Td style={{fontSize:12}}>{s.worker||<span style={{color:T.ghost}}>Awaiting</span>}</Td>
             </tr>
           ))}
         />
@@ -3187,7 +3520,7 @@ const CareHomeDashboard = ({user, navigate, budgets, setBudgets}) => {
 
       {/* Notices */}
       <Card>
-        <CardHead title="Notices & Updates" icon="📢"/>
+        <CardHead title="Notices & Updates" icon="megaphone"/>
         <div style={{padding:"4px 16px 16px",display:"flex",flexDirection:"column",gap:8}}>
           <Alert type="warn">2 unfilled night shifts this week — contact your coordinator.</Alert>
           <Alert type="success">Emma Clarke confirmed for 15 Mar — fully verified and compliant.</Alert>
@@ -3211,7 +3544,7 @@ const BROADCAST_OPTIONS = [
   {
     key:"bank_first",
     label:"Bank Staff first",
-    icon:"🏦",
+    icon:"bank",
     desc:"Offer to your internal bank staff for 2 hours. If unclaimed, escalates automatically to Tier 1 agencies.",
     color:T.teal,
     bg:T.tealBg,
@@ -3222,22 +3555,22 @@ const BROADCAST_OPTIONS = [
   {
     key:"agencies",
     label:"Agencies only",
-    icon:"🤝",
+    icon:"briefcase",
     desc:"Broadcast directly to Tier 1 agencies immediately. Bank staff will not be notified.",
     color:T.amber,
     bg:T.amberBg,
-    border:"#fcd34d",
+    border:"rgba(178,94,0,0.3)",
     tag:"Standard",
-    tagColor:"#b45309",
+    tagColor:T.amberText,
   },
   {
     key:"both",
     label:"Bank Staff + Agencies simultaneously",
-    icon:"⚡",
+    icon:"bolt",
     desc:"Notify both bank staff and Tier 1 agencies at the same time. Best for urgent shifts.",
     color:T.red,
     bg:T.redBg,
-    border:"#fca5a5",
+    border:"rgba(215,0,21,0.35)",
     tag:"Urgent cover",
     tagColor:T.red,
   },
@@ -3331,13 +3664,13 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
   /* ── SUCCESS SCREENS ── */
   if(submitted) return (
-    <Page title="Request Submitted" icon="✅">
-      <div style={{maxWidth:460,background:T.white,borderRadius:16,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
-        <div style={{fontSize:52,marginBottom:12}}>✅</div>
-        <h2 style={{fontFamily:"Instrument Serif,serif",fontSize:22,marginBottom:8}}>Shift Published</h2>
+    <Page title="Request Submitted" icon="checkCircle">
+      <div style={{maxWidth:460,background:T.white,borderRadius:18,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
+        <div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="checkCircle" size={46} stroke={1.5}/></div>
+        <h2 style={{fontFamily:FONT,fontSize:22,marginBottom:8}}>Shift Published</h2>
         <div style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 14px",borderRadius:20,background:selectedBroadcast.bg,border:`1px solid ${selectedBroadcast.border}`,marginBottom:14}}>
-          <span>{selectedBroadcast.icon}</span>
-          <span style={{fontSize:12,fontWeight:700,color:selectedBroadcast.color}}>{selectedBroadcast.label}</span>
+          <span style={{display:"flex"}}>{renderIcon(selectedBroadcast.icon,16)}</span>
+          <span style={{fontSize:12,fontWeight:560,color:selectedBroadcast.color}}>{selectedBroadcast.label}</span>
         </div>
         <p style={{color:T.muted,fontSize:13,lineHeight:1.7,marginBottom:24}}>Your {form.role} shift for {form.date} has been published. Est. cost: <strong>£{singleCost}</strong>.</p>
         <div style={{display:"flex",gap:10,justifyContent:"center"}}>
@@ -3349,17 +3682,17 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
   );
 
   if(bSubmitted) return (
-    <Page title="Bulk Request Submitted" icon="✅">
-      <div style={{maxWidth:500,background:T.white,borderRadius:16,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
-        <div style={{fontSize:52,marginBottom:12}}>✅</div>
-        <h2 style={{fontFamily:"Instrument Serif,serif",fontSize:22,marginBottom:8}}>{validBRows.length} Shifts Published</h2>
+    <Page title="Bulk Request Submitted" icon="checkCircle">
+      <div style={{maxWidth:500,background:T.white,borderRadius:18,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
+        <div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="checkCircle" size={46} stroke={1.5}/></div>
+        <h2 style={{fontFamily:FONT,fontSize:22,marginBottom:8}}>{validBRows.length} Shifts Published</h2>
         <div style={{background:T.amberBg,borderRadius:10,padding:"14px 20px",marginBottom:20}}>
           {validBRows.map(r=>(
             <div key={r.id} style={{fontSize:12,color:T.amberText,display:"flex",justifyContent:"space-between",marginBottom:3}}>
               <span>{bRole}</span><span>{r.date} · {bStart}{"–"}{bEnd}</span>
             </div>
           ))}
-          <div style={{borderTop:"1px solid #fcd34d",marginTop:10,paddingTop:10,fontWeight:800,fontSize:14,color:T.amberText}}>Total est. £{bTotalCost.toLocaleString()}</div>
+          <div style={{borderTop:"1px solid #fcd34d",marginTop:10,paddingTop:10,fontWeight:600,fontSize:14,color:T.amberText}}>Total est. £{bTotalCost.toLocaleString()}</div>
         </div>
         <div style={{display:"flex",gap:10,justifyContent:"center"}}>
           <Btn onClick={()=>{setBSubmitted(false);setBRows([{id:1,date:""},{id:2,date:""},{id:3,date:""}]);}}>Add More</Btn>
@@ -3370,7 +3703,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
   );
 
   return (
-    <Page title="Request Shifts" sub="Single or bulk shift requests" icon="➕">
+    <Page title="Request Shifts" sub="Single or bulk shift requests" icon="plus">
 
       {/* Pattern editor modal */}
       {showPatternEditor && (
@@ -3381,7 +3714,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
               <Input label="Start Time" type="time" value={patForm.s} onChange={v=>setPatForm(f=>({...f,s:v}))}/>
               <Input label="End Time"   type="time" value={patForm.e} onChange={v=>setPatForm(f=>({...f,e:v}))}/>
             </div>
-            <div style={{padding:"10px 14px",borderRadius:8,background:"#f8fafc",border:`1px solid ${T.border}`,fontSize:12,color:T.muted}}>
+            <div style={{padding:"10px 14px",borderRadius:8,background:T.raised,border:`1px solid ${T.border}`,fontSize:12,color:T.muted}}>
               Duration: <strong style={{color:T.text}}>{calcHrs(patForm.s,patForm.e)} hours</strong>
             </div>
             <div style={{display:"flex",gap:8}}>
@@ -3393,10 +3726,10 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
       )}
 
       {/* Mode toggle */}
-      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:20}}>
+      <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4,width:"fit-content",marginBottom:20}}>
         {[{k:"single",l:"Single Shift"},{k:"bulk",l:"Bulk Upload"}].map(m=>(
           <button key={m.k} onClick={()=>setMode(m.k)}
-            style={{padding:"8px 22px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+            style={{padding:"8px 22px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
               background:mode===m.k?T.white:"transparent",color:mode===m.k?T.navy:T.muted,
               boxShadow:mode===m.k?"0 1px 4px rgba(0,0,0,0.1)":"none"}}>
             {m.l}
@@ -3409,7 +3742,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,maxWidth:860,alignItems:"start"}}>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             <Card style={{padding:24}}>
-              <h3 style={{fontWeight:700,fontSize:14,marginBottom:18}}>Shift Details</h3>
+              <h3 style={{fontWeight:560,fontSize:14,marginBottom:18}}>Shift Details</h3>
               <Select label="Role Required" value={form.role} onChange={v=>set("role",v)} options={["RGN","RMN","HCA","Senior Carer","Deputy Manager"]} required/>
               <Input label="Date" type="date" value={form.date} onChange={v=>set("date",v)} required/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -3417,10 +3750,10 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                 <Input label="End Time"   type="time" value={form.timeEnd}   onChange={v=>set("timeEnd",v)}/>
               </div>
               <div style={{marginBottom:4}}>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Urgency</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Urgency</label>
                 <div style={{display:"flex",gap:8}}>
                   {["normal","high","urgent"].map(u=>(
-                    <button key={u} onClick={()=>set("urgency",u)} style={{flex:1,padding:"8px",borderRadius:8,border:`1.5px solid ${form.urgency===u?urgencyColor(u):T.border}`,background:form.urgency===u?"rgba(0,0,0,0.03)":T.white,color:form.urgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:"Syne,sans-serif"}}>
+                    <button key={u} onClick={()=>set("urgency",u)} style={{flex:1,padding:"8px",borderRadius:8,border:`1px solid ${form.urgency===u?urgencyColor(u):T.border}`,background:form.urgency===u?"rgba(0,0,0,0.03)":T.white,color:form.urgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:FONT}}>
                       <UrgDot u={u}/>{u}
                     </button>
                   ))}
@@ -3428,23 +3761,23 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
               </div>
             </Card>
             <Card style={{padding:24}}>
-              <h3 style={{fontWeight:700,fontSize:14,marginBottom:14}}>Notes</h3>
-              <textarea value={form.notes} onChange={e=>set("notes",e.target.value)} placeholder="Specific requirements, access codes…" style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",minHeight:90,resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
+              <h3 style={{fontWeight:560,fontSize:14,marginBottom:14}}>Notes</h3>
+              <textarea value={form.notes} onChange={e=>set("notes",e.target.value)} placeholder="Specific requirements, access codes…" style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,minHeight:90,resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
             </Card>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             <Card style={{padding:24}}>
-              <h3 style={{fontWeight:700,fontSize:14,marginBottom:4}}>Publish To</h3>
+              <h3 style={{fontWeight:560,fontSize:14,marginBottom:4}}>Publish To</h3>
               <p style={{fontSize:12,color:T.muted,marginBottom:16,lineHeight:1.5}}>Choose who receives this shift first.</p>
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 {BROADCAST_OPTIONS.map(opt=>{
                   const sel=form.broadcastTo===opt.key;
                   return(
                     <button key={opt.key} onClick={()=>set("broadcastTo",opt.key)}
-                      style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:12,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",width:"100%"}}>
-                      <div style={{width:36,height:36,borderRadius:10,background:sel?opt.color:T.border+"44",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{opt.icon}</div>
+                      style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:14,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:FONT,width:"100%"}}>
+                      <div style={{width:36,height:36,borderRadius:10,background:sel?opt.color:T.sunken,color:sel?"#fff":T.muted,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{renderIcon(opt.icon,18)}</div>
                       <div style={{flex:1}}>
-                        <div style={{fontWeight:700,fontSize:13,color:sel?opt.color:T.text,marginBottom:3}}>{opt.label}</div>
+                        <div style={{fontWeight:560,fontSize:13,color:sel?opt.color:T.text,marginBottom:3}}>{opt.label}</div>
                         <div style={{fontSize:11,color:T.muted,lineHeight:1.5}}>{opt.desc}</div>
                       </div>
                     </button>
@@ -3454,8 +3787,8 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
             </Card>
             <Card style={{padding:24}}>
               <div style={{background:T.amberBg,borderRadius:8,padding:"14px 16px",marginBottom:16}}>
-                <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Estimated Cost</div>
-                <div style={{fontSize:26,fontWeight:800,color:T.amberText}}>£{singleCost}</div>
+                <div style={{fontSize:11,fontWeight:560,color:T.amberText,marginBottom:4}}>Estimated Cost</div>
+                <div style={{fontSize:26,fontWeight:600,color:T.amberText}}>£{singleCost}</div>
                 <div style={{fontSize:11,color:T.amberText,marginTop:4,display:"flex",gap:12}}>
                   <span>{singleRateLabel}: £{singleRate}{"/hr"}</span>
                   <span>·</span>
@@ -3464,11 +3797,11 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
               </div>
               {form.broadcastTo==="bank_first"&&(
                 <div style={{padding:"10px 12px",borderRadius:8,background:T.tealBg,border:`1px solid #5eead4`,marginBottom:14,fontSize:11,color:T.teal,lineHeight:1.5}}>
-                  🏦 <strong>Bank rate shown.</strong> If unclaimed after 2hrs, agency rate of £{getAgencyRate(form.role)}{"/hr"} applies.
+                  <strong>Bank rate shown.</strong> If unclaimed after 2hrs, agency rate of £{getAgencyRate(form.role)}{"/hr"} applies.
                 </div>
               )}
               <Btn full onClick={()=>form.date?setSubmitted(true):alert("Please select a date")}>
-                {selectedBroadcast?.icon} Publish Shift →
+                Publish Shift →
               </Btn>
             </Card>
           </div>
@@ -3485,15 +3818,15 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
             {/* Template */}
             <Card style={{padding:20}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                <h3 style={{fontWeight:700,fontSize:14,margin:0}}>Shift Template</h3>
+                <h3 style={{fontWeight:560,fontSize:14,margin:0}}>Shift Template</h3>
                 <span style={{fontSize:12,color:T.muted}}>Applies to all shifts below</span>
               </div>
 
               {/* Role */}
               <div style={{marginBottom:14}}>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Role</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Role</label>
                 <select value={bRole} onChange={e=>setBRole(e.target.value)}
-                  style={{width:"100%",padding:"9px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none"}}>
+                  style={{width:"100%",padding:"9px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none"}}>
                   {["RGN","RMN","HCA","Senior Carer","Deputy Manager"].map(r=><option key={r}>{r}</option>)}
                 </select>
               </div>
@@ -3501,9 +3834,9 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
               {/* Shift Pattern — with manage link */}
               <div style={{marginBottom:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <label style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em"}}>Shift Pattern</label>
+                  <label style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Shift Pattern</label>
                   <button onClick={openAddPat}
-                    style={{fontSize:11,fontWeight:700,color:T.blue,background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"Syne,sans-serif"}}>
+                    style={{fontSize:11,fontWeight:560,color:T.blue,background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:FONT}}>
                     + Add pattern
                   </button>
                 </div>
@@ -3513,18 +3846,18 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                   {patterns.map(p=>{
                     const sel = bPattern===p.id;
                     return (
-                      <div key={p.id} style={{display:"flex",alignItems:"center",gap:0,borderRadius:20,border:`1.5px solid ${sel?T.navy:T.border}`,background:sel?T.navy:"#f8fafc",overflow:"hidden"}}>
+                      <div key={p.id} style={{display:"flex",alignItems:"center",gap:0,borderRadius:20,border:`1px solid ${sel?T.navy:T.border}`,background:sel?T.navy:T.raised,overflow:"hidden"}}>
                         <button onClick={()=>setBPattern(p.id)}
-                          style={{padding:"5px 12px",background:"transparent",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:sel?T.white:T.text,fontFamily:"Syne,sans-serif"}}>
+                          style={{padding:"5px 12px",background:"transparent",border:"none",cursor:"pointer",fontSize:12,fontWeight:560,color:sel?T.white:T.text,fontFamily:FONT}}>
                           {p.l}
                           <span style={{fontSize:10,fontWeight:400,marginLeft:5,color:sel?"rgba(255,255,255,0.7)":T.muted}}>{p.s}{"–"}{p.e}</span>
                         </button>
                         <button onClick={()=>openEditPat(p)}
-                          style={{padding:"5px 7px",background:"transparent",border:"none",borderLeft:`1px solid ${sel?"rgba(255,255,255,0.2)":T.border}`,cursor:"pointer",fontSize:11,color:sel?"rgba(255,255,255,0.7)":T.muted,fontFamily:"Syne,sans-serif"}}>
+                          style={{padding:"5px 7px",background:"transparent",border:"none",borderLeft:`1px solid ${sel?"rgba(255,255,255,0.2)":T.border}`,cursor:"pointer",fontSize:11,color:sel?"rgba(255,255,255,0.7)":T.muted,fontFamily:FONT}}>
                           ✎
                         </button>
                         <button onClick={()=>deletePat(p.id)}
-                          style={{padding:"5px 7px",background:"transparent",border:"none",borderLeft:`1px solid ${sel?"rgba(255,255,255,0.2)":T.border}`,cursor:"pointer",fontSize:12,color:sel?"rgba(255,255,255,0.7)":T.muted,fontFamily:"Syne,sans-serif"}}>
+                          style={{padding:"5px 7px",background:"transparent",border:"none",borderLeft:`1px solid ${sel?"rgba(255,255,255,0.2)":T.border}`,cursor:"pointer",fontSize:12,color:sel?"rgba(255,255,255,0.7)":T.muted,fontFamily:FONT}}>
                           ×
                         </button>
                       </div>
@@ -3532,7 +3865,7 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                   })}
                   {/* Custom option */}
                   <button onClick={()=>setBPattern("custom")}
-                    style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${bPattern==="custom"?T.navy:T.border}`,background:bPattern==="custom"?T.navy:"#f8fafc",cursor:"pointer",fontSize:12,fontWeight:700,color:bPattern==="custom"?T.white:T.muted,fontFamily:"Syne,sans-serif"}}>
+                    style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${bPattern==="custom"?T.navy:T.border}`,background:bPattern==="custom"?T.navy:T.raised,cursor:"pointer",fontSize:12,fontWeight:560,color:bPattern==="custom"?T.white:T.muted,fontFamily:FONT}}>
                     Custom ✎
                   </button>
                 </div>
@@ -3553,10 +3886,10 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
               {/* Urgency */}
               <div>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Urgency</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Urgency</label>
                 <div style={{display:"flex",gap:8}}>
                   {["normal","high","urgent"].map(u=>(
-                    <button key={u} onClick={()=>setBUrgency(u)} style={{flex:1,padding:"7px",borderRadius:8,border:`1.5px solid ${bUrgency===u?urgencyColor(u):T.border}`,background:bUrgency===u?"rgba(0,0,0,0.03)":T.white,color:bUrgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:"Syne,sans-serif"}}>
+                    <button key={u} onClick={()=>setBUrgency(u)} style={{flex:1,padding:"7px",borderRadius:8,border:`1px solid ${bUrgency===u?urgencyColor(u):T.border}`,background:bUrgency===u?"rgba(0,0,0,0.03)":T.white,color:bUrgency===u?urgencyColor(u):T.muted,fontWeight:600,fontSize:12,cursor:"pointer",textTransform:"capitalize",fontFamily:FONT}}>
                       <UrgDot u={u}/>{u}
                     </button>
                   ))}
@@ -3574,17 +3907,17 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
                     <div key={row.id} style={{display:"grid",gridTemplateColumns:"1fr 36px",gap:10,alignItems:"center"}}>
                       <div style={{position:"relative"}}>
                         <input type="date" value={row.date} onChange={e=>setBRowDate(row.id,e.target.value)}
-                          style={{width:"100%",padding:"9px 12px",border:`1.5px solid ${row.date?T.green:T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",boxSizing:"border-box",
-                            background:row.date?"#f0fdf4":T.white,color:T.text}}/>
+                          style={{width:"100%",padding:"9px 12px",border:`1px solid ${row.date?T.green:T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,outline:"none",boxSizing:"border-box",
+                            background:row.date?T.greenBg:T.white,color:T.text}}/>
                         {row.date && <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:14,color:T.green}}>✓</span>}
                       </div>
                       <button onClick={()=>removeBRow(row.id)} disabled={bRows.length===1}
-                        style={{width:34,height:34,borderRadius:7,border:`1.5px solid ${T.border}`,background:"#f8fafc",cursor:bRows.length===1?"not-allowed":"pointer",fontSize:16,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                        style={{width:34,height:34,borderRadius:8,border:`1px solid ${T.border}`,background:T.raised,cursor:bRows.length===1?"not-allowed":"pointer",fontSize:16,color:T.muted,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
                     </div>
                   ))}
                 </div>
                 <button onClick={addBRow}
-                  style={{marginTop:12,width:"100%",padding:"9px",borderRadius:8,border:`1.5px dashed ${T.border}`,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:"Syne,sans-serif",fontWeight:600}}>
+                  style={{marginTop:12,width:"100%",padding:"9px",borderRadius:8,border:`1.5px dashed ${T.border}`,background:"transparent",cursor:"pointer",fontSize:13,color:T.muted,fontFamily:FONT,fontWeight:600}}>
                   + Add another date
                 </button>
               </div>
@@ -3592,9 +3925,9 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
             {/* Notes */}
             <Card style={{padding:20}}>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Notes (applies to all)</label>
+              <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Notes (applies to all)</label>
               <textarea value={bNotes} onChange={e=>setBNotes(e.target.value)} placeholder="Specific requirements, floor, access codes…"
-                style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",minHeight:72,resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
+                style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,minHeight:72,resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
             </Card>
           </div>
 
@@ -3603,16 +3936,16 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
             {/* Broadcast */}
             <Card style={{padding:20}}>
-              <div style={{fontSize:12,fontWeight:700,color:T.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.07em"}}>Publish To</div>
+              <div style={{fontSize:12,fontWeight:560,color:T.muted,marginBottom:12,letterSpacing:"-0.006em"}}>Publish To</div>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {BROADCAST_OPTIONS.map(opt=>{
                   const sel=bBroadcast===opt.key;
                   return(
                     <button key={opt.key} onClick={()=>setBBroadcast(opt.key)}
-                      style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",width:"100%"}}>
-                      <span style={{fontSize:18}}>{opt.icon}</span>
+                      style={{display:"flex",gap:10,alignItems:"center",padding:"10px 12px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:FONT,width:"100%"}}>
+                      <span style={{display:"flex"}}>{renderIcon(opt.icon,17)}</span>
                       <div style={{flex:1}}>
-                        <div style={{fontWeight:700,fontSize:12,color:sel?opt.color:T.text}}>{opt.label}</div>
+                        <div style={{fontWeight:560,fontSize:12,color:sel?opt.color:T.text}}>{opt.label}</div>
                         <div style={{fontSize:10,color:T.muted}}>{opt.tag}</div>
                       </div>
                       <div style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.color:"transparent",flexShrink:0}}/>
@@ -3624,28 +3957,28 @@ const RequestShift = ({user, navigate, rateCards, bankRates, shiftPatterns, setS
 
             {/* Live cost summary */}
             <Card style={{padding:20}}>
-              <div style={{fontSize:12,fontWeight:700,color:T.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.07em"}}>Cost Summary</div>
+              <div style={{fontSize:12,fontWeight:560,color:T.muted,marginBottom:12,letterSpacing:"-0.006em"}}>Cost Summary</div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:13}}>
                 <span style={{color:T.muted}}>Shifts</span>
-                <span style={{fontWeight:700}}>{validBRows.length}</span>
+                <span style={{fontWeight:560}}>{validBRows.length}</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:13}}>
                 <span style={{color:T.muted}}>Hours each</span>
-                <span style={{fontWeight:700}}>{bHrs}h</span>
+                <span style={{fontWeight:560}}>{bHrs}h</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:13}}>
                 <span style={{color:T.muted}}>{rateLabel}</span>
-                <span style={{fontWeight:700}}>£{bRate}{"/hr"}</span>
+                <span style={{fontWeight:560}}>£{bRate}{"/hr"}</span>
               </div>
               {bBroadcast==="bank_first" && (
-                <div style={{fontSize:11,color:T.teal,background:T.tealBg,padding:"6px 10px",borderRadius:7,marginBottom:6,lineHeight:1.5}}>
-                  🏦 If escalated to agency: £{getAgencyRate(bRole)}{"/hr"} applies
+                <div style={{fontSize:11,color:T.teal,background:T.tealBg,padding:"6px 10px",borderRadius:8,marginBottom:6,lineHeight:1.5}}>
+                  If escalated to agency: £{getAgencyRate(bRole)}{"/hr"} applies
                 </div>
               )}
               <div style={{borderTop:`1px solid ${T.border}`,marginTop:10,paddingTop:12}}>
                 <div style={{background:T.amberBg,borderRadius:8,padding:"12px 14px"}}>
-                  <div style={{fontSize:11,fontWeight:700,color:T.amberText,marginBottom:4}}>Est. Total</div>
-                  <div style={{fontSize:26,fontWeight:800,color:T.amberText}}>£{bTotalCost.toLocaleString()}</div>
+                  <div style={{fontSize:11,fontWeight:560,color:T.amberText,marginBottom:4}}>Est. Total</div>
+                  <div style={{fontSize:26,fontWeight:600,color:T.amberText}}>£{bTotalCost.toLocaleString()}</div>
                   <div style={{fontSize:10,color:T.amberText,marginTop:3}}>{validBRows.length} &times; {bHrs}h &times; £{bRate}{"/hr"}</div>
                 </div>
               </div>
@@ -3711,14 +4044,14 @@ const CareHomeMyShifts = ({user}) => {
   ];
 
   return (
-    <Page title="My Shifts" sub="Sunrise Care" icon="📋">
+    <Page title="My Shifts" sub="Sunrise Care" icon="clipboard">
 
       {/* Tier push modal */}
       {tierModal && (
         <Modal title="Push Shift to Different Tier" onClose={()=>setTierModal(null)}>
-          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{padding:"12px 16px",background:T.raised,borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
             <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:4}}>SHIFT</div>
-            <div style={{fontWeight:800,fontSize:15}}>{tierModal.role} — {tierModal.date}</div>
+            <div style={{fontWeight:600,fontSize:15}}>{tierModal.role} — {tierModal.date}</div>
             <div style={{fontSize:12,color:T.muted}}>{tierModal.time} · {tierModal.carehome}</div>
             <div style={{marginTop:8,display:"flex",gap:8,alignItems:"center"}}>
               <span style={{fontSize:12,color:T.muted}}>Currently broadcasting to:</span>
@@ -3727,18 +4060,18 @@ const CareHomeMyShifts = ({user}) => {
           </div>
           <Alert type="warning">Pushing to a different tier will notify those agencies immediately. This cannot be undone.</Alert>
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Push to which tier?</div>
+            <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Push to which tier?</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {TIERS.map(opt=>{
                 const isActive=newTier===opt.v; const col=tierColor(opt.v); const bg=tierBg(opt.v);
                 return (
                   <label key={opt.v} onClick={()=>setNewTier(opt.v)}
-                    style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:9,border:`1.5px solid ${isActive?col:T.border}`,background:isActive?bg:"#fafafa",cursor:"pointer"}}>
+                    style={{display:"flex",alignItems:"flex-start",gap:12,padding:"12px 14px",borderRadius:10,border:`1px solid ${isActive?col:T.border}`,background:isActive?bg:T.raised,cursor:"pointer"}}>
                     <input type="radio" checked={isActive} onChange={()=>setNewTier(opt.v)} style={{marginTop:3,accentColor:col}}/>
                     <div style={{flex:1}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                        <span style={{fontWeight:800,fontSize:13,color:isActive?col:T.text}}>{opt.v}</span>
-                        <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:20,background:isActive?col+"22":"#f1f5f9",color:isActive?col:T.muted}}>{opt.delay}</span>
+                        <span style={{fontWeight:600,fontSize:13,color:isActive?col:T.text}}>{opt.v}</span>
+                        <span style={{fontSize:10,fontWeight:560,padding:"2px 7px",borderRadius:20,background:isActive?col+"22":T.sunken,color:isActive?col:T.muted}}>{opt.delay}</span>
                       </div>
                       <div style={{fontSize:12,color:T.muted,lineHeight:1.5}}>{opt.desc}</div>
                     </div>
@@ -3757,9 +4090,9 @@ const CareHomeMyShifts = ({user}) => {
       {/* Cancel/Withdraw modal */}
       {actionModal && (
         <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
-          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{padding:"12px 16px",background:T.raised,borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
             <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
-            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.date}</div>
+            <div style={{fontWeight:600,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.date}</div>
             <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.time}</div>
             {actionModal.type==="cancel" && <div style={{marginTop:6,fontSize:12}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
             {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
@@ -3770,10 +4103,10 @@ const CareHomeMyShifts = ({user}) => {
               : "This will withdraw the worker and reopen the shift. The agency and Nexus RPO will be notified."}
           </Alert>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Reason (optional)</label>
             <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
               placeholder="e.g. Worker called in sick, agency can no longer fill…"
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,fontFamily:FONT,resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
           </div>
           <div style={{display:"flex",gap:8}}>
             <Btn variant="danger" onClick={doAction}>
@@ -3793,16 +4126,16 @@ const CareHomeMyShifts = ({user}) => {
       </Grid>
 
       {/* Tabs */}
-      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
+      <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4,width:"fit-content",marginBottom:4}}>
         {tabDefs.map(t=>{
           const active = tab===t.k;
           return (
             <button key={t.k} onClick={()=>setTab(t.k)}
-              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
                 background:active?T.white:"transparent",color:active?T.navy:T.muted,
                 boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:7}}>
               {t.l}
-              <span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,
+              <span style={{fontSize:11,fontWeight:560,padding:"2px 7px",borderRadius:20,
                 background:active?t.color+"18":"transparent",color:active?t.color:T.muted}}>
                 {t.count}
               </span>
@@ -3825,17 +4158,17 @@ const CareHomeMyShifts = ({user}) => {
               rows={visibleShifts.map(s=>{
                 const pushInfo=pushed[s.id];
                 return (
-                  <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&tab==="unfilled"?"#fffbeb":"transparent"}}>
+                  <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&tab==="unfilled"?T.amberBg:"transparent"}}>
                     <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
                     <Td bold>{s.date}</Td>
                     <Td style={{color:T.muted,fontSize:12}}>{s.time}</Td>
-                    <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                    <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
                     <Td><SBadge s={s.status}/></Td>
                     {tab==="expired"
                       ? <Td style={{fontSize:12,color:T.muted}}>{s.notes||"—"}</Td>
                       : <>
                           <Td>{s.agency||<span style={{color:T.muted,fontSize:12}}>Awaiting</span>}</Td>
-                          <Td>{s.worker||<span style={{color:"#94a3b8",fontSize:12}}>TBC</span>}</Td>
+                          <Td>{s.worker||<span style={{color:T.ghost,fontSize:12}}>TBC</span>}</Td>
                           <Td>
                             {pushInfo
                               ? <div><Badge label={pushInfo.tier} color={tierColor(pushInfo.tier)} bg={tierBg(pushInfo.tier)}/><div style={{fontSize:10,color:T.muted,marginTop:3}}>Pushed ✓</div></div>
@@ -3903,19 +4236,19 @@ const CareHomeCalendar = () => {
   const open    = monthShifts.filter(s=>s.status==="open").length;
 
   return (
-    <Page title="Shift Calendar" sub={`${monthNames[month]} ${year}`} icon="📅">
+    <Page title="Shift Calendar" sub={`${monthNames[month]} ${year}`} icon="calendar">
       {/* Controls */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <Btn small variant="secondary" onClick={prevMonth}>← Prev</Btn>
-          <span style={{fontWeight:800,fontSize:16,color:T.navy,minWidth:160,textAlign:"center"}}>{monthNames[month]} {year}</span>
+          <span style={{fontWeight:600,fontSize:16,color:T.navy,minWidth:160,textAlign:"center"}}>{monthNames[month]} {year}</span>
           <Btn small variant="secondary" onClick={nextMonth}>Next →</Btn>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <Badge label={`${filled} Filled`} color={T.green} bg={T.greenBg} dot/>
           <Badge label={`${pending} Pending`} color={T.yellow} bg={T.yellowBg} dot/>
           <Badge label={`${open} Open`} color={T.blue} bg={T.blueBg} dot/>
-          <Badge label={`${monthShifts.length} Total`} color={T.muted} bg="#f1f5f9"/>
+          <Badge label={`${monthShifts.length} Total`} color={T.muted} bg={T.sunken}/>
         </div>
       </div>
 
@@ -3924,7 +4257,7 @@ const CareHomeCalendar = () => {
           {/* Day headers */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",borderBottom:`2px solid ${T.border}`}}>
             {dayNames.map((d,i)=>(
-              <div key={i} style={{padding:"10px 6px",textAlign:"center",fontSize:11,fontWeight:700,color:i>=5?T.purple:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",background:"#f8fafc",borderRight:i<6?`1px solid ${T.border}`:"none"}}>
+              <div key={i} style={{padding:"10px 6px",textAlign:"center",fontSize:11,fontWeight:560,color:i>=5?T.purple:T.muted,letterSpacing:"-0.006em",background:T.raised,borderRight:i<6?`1px solid ${T.border}`:"none"}}>
                 {d}
               </div>
             ))}
@@ -3947,17 +4280,17 @@ const CareHomeCalendar = () => {
                     padding:"6px 8px",
                     borderRight:col<6?`1px solid ${T.border}`:"none",
                     borderBottom:!isLast?`1px solid ${T.border}`:"none",
-                    background:isSelected?"#eff6ff":isTod?"#fffbeb":!cell.cur?"#f9fafb":T.white,
+                    background:isSelected?T.accentBg:isTod?T.amberBg:!cell.cur?"#f9fafb":T.white,
                     cursor:cell.cur?"pointer":"default",
                     transition:"background 0.1s",
                   }}>
                   <div style={{
                     fontSize:12,fontWeight:isTod?800:cell.cur?500:400,
-                    color:isTod?T.amber:cell.cur?T.text:"#cbd5e1",
+                    color:isTod?T.amber:cell.cur?T.text:T.border,
                     marginBottom:5,display:"flex",alignItems:"center",gap:4,
                   }}>
                     {isTod
-                      ? <span style={{width:22,height:22,borderRadius:"50%",background:T.amber,color:T.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800}}>{cell.day}</span>
+                      ? <span style={{width:22,height:22,borderRadius:"50%",background:T.amber,color:T.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600}}>{cell.day}</span>
                       : cell.day}
                   </div>
                   {shifts.slice(0,3).map(s=>(
@@ -3965,7 +4298,7 @@ const CareHomeCalendar = () => {
                       background:s.status==="filled"?T.greenBg:s.status==="pending"?T.yellowBg:T.blueBg,
                       borderLeft:`3px solid ${s.status==="filled"?T.green:s.status==="pending"?T.yellow:T.blue}`,
                       borderRadius:"0 4px 4px 0",padding:"2px 5px",marginBottom:3,
-                      fontSize:9,fontWeight:700,
+                      fontSize:9,fontWeight:560,
                       color:s.status==="filled"?T.green:s.status==="pending"?T.yellow:T.blue,
                       whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                     }}>
@@ -3985,14 +4318,14 @@ const CareHomeCalendar = () => {
         {selectedDay && (
           <Card style={{padding:18}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-              <h3 style={{fontWeight:800,fontSize:15}}>{monthNames[month]} {selectedDay}, {year}</h3>
+              <h3 style={{fontWeight:600,fontSize:15}}>{monthNames[month]} {selectedDay}, {year}</h3>
               <Btn small variant="secondary" onClick={()=>setSelectedDay(null)}>✕ Close</Btn>
             </div>
             {selectedShifts.length===0
               ? <p style={{color:T.muted,fontSize:13}}>No shifts on this day.</p>
               : <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {selectedShifts.map(s=>(
-                    <div key={s.id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 16px",borderRadius:10,border:`1.5px solid ${s.status==="filled"?T.green+"44":s.status==="pending"?T.yellow+"44":T.blue+"44"}`,background:s.status==="filled"?T.greenBg:s.status==="pending"?T.yellowBg:T.blueBg}}>
+                    <div key={s.id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 16px",borderRadius:10,border:`1px solid ${s.status==="filled"?T.green+"44":s.status==="pending"?T.yellow+"44":T.blue+"44"}`,background:s.status==="filled"?T.greenBg:s.status==="pending"?T.yellowBg:T.blueBg}}>
                       <div style={{flex:1}}>
                         <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
                           <Badge label={s.role} color={T.purple} bg={T.purpleBg}/>
@@ -4002,7 +4335,7 @@ const CareHomeCalendar = () => {
                         <div style={{fontSize:12,color:T.muted,marginTop:2}}>{s.agency||"Unassigned"}{s.worker?` · ${s.worker}`:""}</div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:800,fontSize:15,color:T.navy}}>£{s.rate}{"/hr"}</div>
+                        <div style={{fontWeight:600,fontSize:15,color:T.navy}}>£{s.rate}{"/hr"}</div>
                         <div style={{fontSize:11,color:T.muted}}>Est. £{s.rate*12}{"/shift"}</div>
                       </div>
                     </div>
@@ -4020,13 +4353,13 @@ const CareHomeInvoices = () => {
   const [viewInv, setViewInv] = useState(null);
   const myInvoices = INVOICES.filter(i=>["First Choice","ProCare"].includes(i.agency));
   return (
-  <Page title="Invoices" sub="Your billing history from Nexus RPO" icon="📄">
+  <Page title="Invoices" sub="Your billing history from Nexus RPO" icon="document">
     {viewInv && (
       <Modal title={`Invoice ${viewInv.id}`} onClose={()=>setViewInv(null)}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
           {[["Agency",viewInv.agency],["Period",viewInv.period],["Shifts",viewInv.shifts],["Amount",`£${viewInv.amount?.toLocaleString()}`],["Issued",viewInv.issued||"—"],["Due",viewInv.due]].map(([k,v])=>(
-            <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-              <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+            <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
               <div style={{fontSize:13,fontWeight:600}}>{v}</div>
             </div>
           ))}
@@ -4044,7 +4377,7 @@ const CareHomeInvoices = () => {
         headers={["Invoice","Period","Shifts Used","Amount","Due Date","Status","Action"]}
         rows={myInvoices.map(inv=>(
           <tr key={inv.id} style={{borderBottom:`1px solid ${T.border}`}}>
-            <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700}}>{inv.id}</span></Td>
+            <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:560}}>{inv.id}</span></Td>
             <Td>{inv.period}</Td>
             <Td>{inv.shifts}</Td>
             <Td bold>£{inv.amount.toLocaleString()}</Td>
@@ -4065,7 +4398,7 @@ const CareHomeInvoices = () => {
 };
 
 const CareHomeWorkers = () => (
-  <Page title="Worker Profiles" sub="Verified workers who have been placed with you" icon="👥">
+  <Page title="Worker Profiles" sub="Verified workers who have been placed with you" icon="users">
     <Card>
       <Table
         headers={["Worker","Role","Agency","DBS","NMC/PIN","Last Placed","Compliance"]}
@@ -4075,12 +4408,12 @@ const CareHomeWorkers = () => (
             <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
             <Td><span style={{fontSize:12,color:T.muted}}>{w.agency}</span></Td>
             <Td><SBadge s={w.dbs}/></Td>
-            <Td>{w.pin?<Badge label="✓ Verified" color={T.green} bg={T.greenBg}/>:<Badge label="N/A" color={T.muted} bg="#f1f5f9"/>}</Td>
+            <Td>{w.pin?<Badge label="✓ Verified" color={T.green} bg={T.greenBg}/>:<Badge label="N/A" color={T.muted} bg={T.sunken}/>}</Td>
             <Td>{SHIFTS.find(s=>s.worker===w.name)?.date||"—"}</Td>
             <Td>
               <div style={{display:"flex",alignItems:"center",gap:8,minWidth:80}}>
                 <ProgressBar value={w.compliance} color={T.green}/>
-                <span style={{fontSize:11,fontWeight:700,color:T.green}}>{w.compliance}%</span>
+                <span style={{fontSize:11,fontWeight:560,color:T.green}}>{w.compliance}%</span>
               </div>
             </Td>
           </tr>
@@ -4096,13 +4429,13 @@ const AgencyDashboard = ({user, navigate}) => {
   const [claimed, setClaimed] = useState([]);
   const [claimModal, setClaimModal] = useState(null);
   return (
-    <Page title={`Hello, ${user.name.split(" ")[0]}`} sub="First Choice Nursing — Your dashboard" icon="◈">
+    <Page title={`Hello, ${user.name.split(" ")[0]}`} sub="First Choice Nursing — Your dashboard" icon="grid">
       {claimModal && (
         <Modal title={`Claim Shift — ${claimModal.carehome}`} onClose={()=>setClaimModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
             {[["Role",claimModal.role],["Date",claimModal.date],["Time",claimModal.time],["Rate",`£${claimModal.rate}{"/hr"}`],["Urgency",claimModal.urgency],["Care Home",claimModal.carehome]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600,textTransform:"capitalize"}}>{v}</div>
               </div>
             ))}
@@ -4118,7 +4451,7 @@ const AgencyDashboard = ({user, navigate}) => {
         <Stat label="Available Shifts" value={SHIFTS.filter(s=>s.status==="open").length} sub="Broadcast now" accent/>
         <Stat label="Filled (MTD)" value={myShifts.filter(s=>s.status==="filled").length} trend="94% fill rate" trendUp={true}/>
         <Stat label="Workers on Platform" value={WORKERS.filter(w=>w.agency==="First Choice").length} sub="All active"/>
-        <Stat label="Compliance Score" value="98%" trend="↑ 2% this month" trendUp={true}/>
+        <Stat label="Compliance Score" value="98%" trend="2% this month" trendUp={true}/>
       </Grid>
       <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18}}>
         <Card>
@@ -4132,7 +4465,7 @@ const AgencyDashboard = ({user, navigate}) => {
                 <Td>{s.date}</Td>
                 <Td>{s.time}</Td>
                 <Td bold>£{s.rate}{"/hr"}</Td>
-                <Td><span style={{fontSize:12,color:urgencyColor(s.urgency)}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                <Td><span style={{fontSize:12,color:urgencyColor(s.urgency)}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
                 <Td>{claimed.includes(s.id)?<Badge label="✓ Claimed" color={T.green} bg={T.greenBg}/>:<Btn small onClick={()=>setClaimModal(s)}>Claim</Btn>}</Td>
               </tr>
             ))}
@@ -4140,22 +4473,22 @@ const AgencyDashboard = ({user, navigate}) => {
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Card>
-            <CardHead title="My Performance" icon="⭐"/>
+            <CardHead title="My Performance" icon="star"/>
             <div style={{padding:14}}>
               {[["Fill Rate","94%",T.green],["Avg Response","18 min",T.blue],["Tier Status","Tier 1",tierColor("Tier 1")],["Compliance","98%",T.green]].map(([k,v,c])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${T.border}`,fontSize:13}}>
                   <span style={{color:T.muted}}>{k}</span>
-                  <span style={{fontWeight:700,color:c}}>{v}</span>
+                  <span style={{fontWeight:560,color:c}}>{v}</span>
                 </div>
               ))}
             </div>
           </Card>
           <Card>
-            <CardHead title="Compliance Alerts" icon="⚠️"/>
+            <CardHead title="Compliance Alerts" icon="warning"/>
             <div style={{padding:12}}>
               {WORKERS.filter(w=>w.agency==="First Choice"&&w.compliance<90).map(w=>(
-                <div key={w.id} style={{background:T.yellowBg,borderRadius:7,padding:"8px 10px",marginBottom:7,fontSize:12,borderLeft:`3px solid ${T.yellow}`}}>
-                  <div style={{fontWeight:700,color:T.yellow}}>{w.name}</div>
+                <div key={w.id} style={{background:T.yellowBg,borderRadius:8,padding:"8px 10px",marginBottom:7,fontSize:12,borderLeft:`3px solid ${T.yellow}`}}>
+                  <div style={{fontWeight:560,color:T.yellow}}>{w.name}</div>
                   <div style={{color:T.muted,marginTop:2}}>{w.dbs==="expiring"?"DBS expiring soon":w.training!=="valid"?"Training needs renewal":"Review needed"}</div>
                 </div>
               ))}
@@ -4208,22 +4541,22 @@ const AvailableShifts = () => {
   const hasFilters = filterGroup !== "all" || filterHome !== "all" || filterRole !== "all" || filterDate || filterUrgency !== "all";
 
   const selStyle = (active) => ({
-    padding:"8px 12px", border:`1.5px solid ${active?T.amber:T.border}`,
-    borderRadius:8, fontSize:12, fontFamily:"Syne,sans-serif",
+    padding:"8px 12px", border:`1px solid ${active?T.amber:T.border}`,
+    borderRadius:8, fontSize:12, fontFamily:FONT,
     color:T.text, background:active?T.amberBg:T.white, cursor:"pointer",
     fontWeight:active?700:400, outline:"none", minWidth:0,
   });
 
   return (
-    <Page title="Available Shifts" sub="Shifts broadcast to First Choice Nursing by Nexus RPO" icon="📋">
+    <Page title="Available Shifts" sub="Shifts broadcast to First Choice Nursing by Nexus RPO" icon="clipboard">
       {modal && (
         <Modal title={`Submit Worker — ${modal.carehome} (${modal.role})`} onClose={()=>setModal(null)}>
           <p style={{fontSize:13,color:T.muted,marginBottom:14}}>Select a compliant worker to submit for this shift.</p>
           <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:18}}>
             {WORKERS.filter(w=>w.agency==="First Choice"&&w.compliance>=80&&(w.role===modal.role||w.role==="RGN")).map(w=>(
-              <button key={w.id} onClick={()=>{setClaimed(c=>[...c,modal.id]);setModal(null);}} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderRadius:9,border:`1.5px solid ${T.border}`,background:T.white,cursor:"pointer",fontFamily:"Syne,sans-serif",textAlign:"left"}}>
+              <button key={w.id} onClick={()=>{setClaimed(c=>[...c,modal.id]);setModal(null);}} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",borderRadius:10,border:`1px solid ${T.border}`,background:T.white,cursor:"pointer",fontFamily:FONT,textAlign:"left"}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:13,color:T.text}}>{w.name}</div>
+                  <div style={{fontWeight:560,fontSize:13,color:T.text}}>{w.name}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>{w.role} · Compliance: {w.compliance}% · {w.available?"Available":"Currently placed"}</div>
                 </div>
                 <Badge label={`${w.compliance}%`} color={w.compliance>=95?T.green:T.yellow} bg={w.compliance>=95?T.greenBg:T.yellowBg}/>
@@ -4235,7 +4568,7 @@ const AvailableShifts = () => {
       )}
 
       {urgent > 0 && (
-        <Alert type="error">🚨 {urgent} urgent shift{urgent>1?"s need":"needs"} immediate filling. Respond within 30 minutes to maintain Tier 1 status.</Alert>
+        <Alert type="error">{urgent} urgent shift{urgent>1?"s need":"needs"} immediate filling. Respond within 30 minutes to maintain Tier 1 status.</Alert>
       )}
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
@@ -4244,7 +4577,7 @@ const AvailableShifts = () => {
 
           {/* Group owner */}
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Group Owner</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Group Owner</label>
             <select value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setFilterHome("all");}} style={selStyle(filterGroup!=="all")}>
               <option value="all">All Groups</option>
               {groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
@@ -4253,7 +4586,7 @@ const AvailableShifts = () => {
 
           {/* Care home — scoped to group */}
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Care Home</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Care Home</label>
             <select value={filterHome} onChange={e=>setFilterHome(e.target.value)} style={selStyle(filterHome!=="all")} disabled={homesInGroup.length===0}>
               <option value="all">{filterGroup==="all"?"All Homes":"All in Group"}</option>
               {homesInGroup.map(h=><option key={h} value={h}>{h}</option>)}
@@ -4262,7 +4595,7 @@ const AvailableShifts = () => {
 
           {/* Role */}
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Role</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Role</label>
             <select value={filterRole} onChange={e=>setFilterRole(e.target.value)} style={selStyle(filterRole!=="all")}>
               <option value="all">All Roles</option>
               {roles.map(r=><option key={r} value={r}>{r}</option>)}
@@ -4271,13 +4604,13 @@ const AvailableShifts = () => {
 
           {/* Date */}
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Date</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Date</label>
             <input type="date" value={filterDate} onChange={e=>setFilterDate(e.target.value)} style={{...selStyle(!!filterDate),padding:"7px 10px"}}/>
           </div>
 
           {/* Urgency */}
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Urgency</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Urgency</label>
             <select value={filterUrgency} onChange={e=>setFilterUrgency(e.target.value)} style={selStyle(filterUrgency!=="all")}>
               <option value="all">Any</option>
               <option value="urgent">Urgent</option>
@@ -4288,9 +4621,9 @@ const AvailableShifts = () => {
 
           {/* Reset */}
           <div style={{paddingBottom:1}}>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:"transparent",marginBottom:5}}>_</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:"transparent",marginBottom:5}}>_</label>
             <button onClick={resetFilters} disabled={!hasFilters}
-              style={{padding:"8px 12px",borderRadius:8,border:`1.5px solid ${hasFilters?T.red:T.border}`,background:hasFilters?T.redBg:"transparent",color:hasFilters?T.red:T.muted,fontSize:12,fontWeight:700,cursor:hasFilters?"pointer":"default",fontFamily:"Syne,sans-serif"}}>
+              style={{padding:"8px 12px",borderRadius:8,border:`1px solid ${hasFilters?T.red:T.border}`,background:hasFilters?T.redBg:"transparent",color:hasFilters?T.red:T.muted,fontSize:12,fontWeight:560,cursor:hasFilters?"pointer":"default",fontFamily:FONT}}>
               {hasFilters?"✕ Clear":"Filters"}
             </button>
           </div>
@@ -4299,11 +4632,11 @@ const AvailableShifts = () => {
         {/* Active filter pills */}
         {hasFilters && (
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`}}>
-            {filterGroup!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.amberBg,color:T.amberText}}>Group: {groups.find(g=>g.id===filterGroup)?.name}</span>}
-            {filterHome!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.amberBg,color:T.amberText}}>Home: {filterHome}</span>}
-            {filterRole!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.purpleBg,color:T.purple}}>Role: {filterRole}</span>}
-            {filterDate&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:"#dbeafe",color:T.blue}}>Date: {filterDate}</span>}
-            {filterUrgency!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.redBg,color:T.red,textTransform:"capitalize"}}>Urgency: {filterUrgency}</span>}
+            {filterGroup!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.amberBg,color:T.amberText}}>Group: {groups.find(g=>g.id===filterGroup)?.name}</span>}
+            {filterHome!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.amberBg,color:T.amberText}}>Home: {filterHome}</span>}
+            {filterRole!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.purpleBg,color:T.purple}}>Role: {filterRole}</span>}
+            {filterDate&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.accentBg,color:T.blue}}>Date: {filterDate}</span>}
+            {filterUrgency!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.redBg,color:T.red,textTransform:"capitalize"}}>Urgency: {filterUrgency}</span>}
             <span style={{fontSize:11,color:T.muted,padding:"3px 6px"}}>{filtered.length} shift{filtered.length!==1?"s":""} shown</span>
           </div>
         )}
@@ -4319,7 +4652,7 @@ const AvailableShifts = () => {
             const grp = groupForHome(s.carehome);
             const hrs = 12;
             return (
-              <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"?"#fff9f9":"transparent"}}>
+              <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"?T.redBg:"transparent"}}>
                 <Td><UrgDot u={s.urgency}/></Td>
                 <Td><span style={{fontSize:11,color:T.muted,fontWeight:600}}>{grp?.name||"—"}</span></Td>
                 <Td bold>{s.carehome}</Td>
@@ -4327,8 +4660,8 @@ const AvailableShifts = () => {
                 <Td>{s.date}</Td>
                 <Td>{s.time}</Td>
                 <Td bold>£{s.rate}</Td>
-                <Td><span style={{fontWeight:700,color:T.green}}>£{s.rate*hrs}</span></Td>
-                <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),display:"flex",alignItems:"center",gap:4}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                <Td><span style={{fontWeight:560,color:T.green}}>£{s.rate*hrs}</span></Td>
+                <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),display:"flex",alignItems:"center",gap:4}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
                 <Td>
                   {isClaimed
                     ? <Badge label="Submitted ✓" color={T.green} bg={T.greenBg} dot/>
@@ -4349,7 +4682,7 @@ const AgencyWorkers = ({navigate}) => {
   const [editForm,setEditForm] = useState({});
   const openEdit = (w) => { setEditForm({...w}); setEditModal(w); };
   return (
-    <Page title="My Workers" sub="Compliance status for all First Choice Nursing staff" icon="👥">
+    <Page title="My Workers" sub="Compliance status for all First Choice Nursing staff" icon="users">
       {editModal && (
         <Modal title={`Edit Worker — ${editModal.name}`} onClose={()=>setEditModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -4386,10 +4719,10 @@ const AgencyWorkers = ({navigate}) => {
               <Td>
                 <div style={{display:"flex",alignItems:"center",gap:6,minWidth:70}}>
                   <ProgressBar value={w.compliance} color={w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}/>
-                  <span style={{fontSize:11,fontWeight:700,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
+                  <span style={{fontSize:11,fontWeight:560,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span>
                 </div>
               </Td>
-              <Td>{w.available?<Badge label="Available" color={T.green} bg={T.greenBg}/>:<Badge label="On Shift" color={T.muted} bg="#f1f5f9"/>}</Td>
+              <Td>{w.available?<Badge label="Available" color={T.green} bg={T.greenBg}/>:<Badge label="On Shift" color={T.muted} bg={T.sunken}/>}</Td>
               <Td>
                 <div style={{display:"flex",gap:4}}>
                   <Btn small variant="secondary" onClick={()=>navigate&&navigate("documents")}>Docs</Btn>
@@ -4410,10 +4743,10 @@ const WorkerOnboarding = ({navigate}) => {
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   const steps = ["Personal Details","Credentials","Documents","Review"];
   if(step>4) return (
-    <Page title="Worker Registered" icon="✅">
-      <div style={{maxWidth:440,background:T.white,borderRadius:16,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
-        <div style={{fontSize:52,marginBottom:12}}>🎉</div>
-        <h2 style={{fontFamily:"Instrument Serif,serif",fontSize:22,marginBottom:8}}>Worker Registered!</h2>
+    <Page title="Worker Registered" icon="checkCircle">
+      <div style={{maxWidth:440,background:T.white,borderRadius:18,border:`1px solid ${T.border}`,padding:40,textAlign:"center"}}>
+        <div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="sparkle" size={46} stroke={1.5}/></div>
+        <h2 style={{fontFamily:FONT,fontSize:22,marginBottom:8}}>Worker Registered!</h2>
         <p style={{color:T.muted,fontSize:13,lineHeight:1.7,marginBottom:24}}><strong>{form.firstName} {form.lastName}</strong> has been added to your worker register. Once documents are verified by Nexus RPO, they'll be available for shift placement.</p>
         <div style={{display:"flex",gap:10,justifyContent:"center"}}>
           <Btn onClick={()=>{setStep(1);setForm({firstName:"",lastName:"",email:"",phone:"",role:"RGN",pin:"",dob:"",address:"",dbsDate:"",trainingDate:"",notes:""});}}>Register Another</Btn>
@@ -4423,11 +4756,11 @@ const WorkerOnboarding = ({navigate}) => {
     </Page>
   );
   return (
-    <Page title="Register New Worker" sub="Add a worker to your First Choice Nursing register" icon="➕">
+    <Page title="Register New Worker" sub="Add a worker to your First Choice Nursing register" icon="plus">
       <div style={{maxWidth:620}}>
         <div style={{display:"flex",gap:0,marginBottom:24,background:T.white,borderRadius:10,border:`1px solid ${T.border}`,overflow:"hidden"}}>
           {steps.map((s,i)=>(
-            <div key={i} style={{flex:1,padding:"10px",textAlign:"center",background:step===i+1?T.navy:step>i+1?T.amberBg:"transparent",color:step===i+1?T.white:step>i+1?T.amberText:T.muted,fontSize:11,fontWeight:700,borderRight:i<3?`1px solid ${T.border}`:"none",transition:"all 0.2s"}}>
+            <div key={i} style={{flex:1,padding:"10px",textAlign:"center",background:step===i+1?T.navy:step>i+1?T.amberBg:"transparent",color:step===i+1?T.white:step>i+1?T.amberText:T.muted,fontSize:11,fontWeight:560,borderRight:i<3?`1px solid ${T.border}`:"none",transition:"all 0.2s"}}>
               {step>i+1?"✓ ":""}{s}
             </div>
           ))}
@@ -4449,18 +4782,18 @@ const WorkerOnboarding = ({navigate}) => {
             <Input label="DBS Issue Date" type="date" value={form.dbsDate} onChange={v=>set("dbsDate",v)}/>
             <Input label="Last Mandatory Training Date" type="date" value={form.trainingDate} onChange={v=>set("trainingDate",v)}/>
             <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:4}}>
-              <div style={{fontSize:12,fontWeight:700,color:T.text,marginBottom:12}}>Right to Work</div>
+              <div style={{fontSize:12,fontWeight:560,color:T.text,marginBottom:12}}>Right to Work</div>
               <div style={{marginBottom:12}}>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>RTW Document Type *</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>RTW Document Type *</label>
                 <select value={form.rtwType||"pending"} onChange={e=>set("rtwType",e.target.value)}
-                  style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",color:T.text,background:T.white}}>
+                  style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,color:T.text,background:T.white}}>
                   {RTW_TYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
                 {(()=>{
                   const selType = RTW_TYPES.find(t=>t.value===(form.rtwType||"pending"));
                   if(!selType||selType.value==="pending") return null;
-                  return <div style={{marginTop:6,padding:"8px 12px",background:selType.restricted?"#ede9fe":selType.restricted===false?T.greenBg:"#f8fafc",borderRadius:6,fontSize:12,color:selType.restricted?"#6d28d9":selType.restricted===false?T.green:T.muted}}>
-                    {selType.restricted&&"⚠️ "}{selType.restricted===false&&"✅ "}{selType.desc}
+                  return <div style={{marginTop:6,padding:"8px 12px",background:selType.restricted?T.purpleBg:selType.restricted===false?T.greenBg:T.raised,borderRadius:8,fontSize:12,color:selType.restricted?T.purple:selType.restricted===false?T.green:T.muted}}>
+                    {selType.restricted&&""}{selType.restricted===false&&""}{selType.desc}
                     {selType.restricted&&<strong> 20hr/week restriction will be applied.</strong>}
                   </div>;
                 })()}
@@ -4475,7 +4808,7 @@ const WorkerOnboarding = ({navigate}) => {
           {step===3 && <>
             <p style={{fontSize:13,color:T.muted,marginBottom:16,lineHeight:1.6}}>Upload required compliance documents. The neutral vendor will verify these before activating the worker.</p>
             {[{label:"DBS Certificate",req:true},{label:"Proof of ID (Passport/Driving Licence)",req:true},{label:"NMC Certificate (if applicable)",req:false},{label:"Mandatory Training Certificate",req:true},{label:"Right to Work documentation",req:true}].map((doc,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",border:`1.5px dashed ${T.border}`,borderRadius:8,marginBottom:8,cursor:"pointer",background:"#fafbfd"}}>
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",border:`1.5px dashed ${T.border}`,borderRadius:8,marginBottom:8,cursor:"pointer",background:T.raised}}>
                 <div>
                   <div style={{fontSize:13,fontWeight:600,color:T.text}}>{doc.label}{doc.req&&<span style={{color:T.red}}> *</span>}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>Click to upload PDF, JPG or PNG (max 5MB)</div>
@@ -4486,7 +4819,7 @@ const WorkerOnboarding = ({navigate}) => {
           </>}
           {step===4 && <>
             <Alert type="success">Ready to register <strong>{form.firstName||"this"} {form.lastName||"worker"}</strong> as a <strong>{form.role}</strong>.</Alert>
-            <div style={{background:"#f8fafc",borderRadius:8,padding:14,marginBottom:16}}>
+            <div style={{background:T.raised,borderRadius:8,padding:14,marginBottom:16}}>
               {[["Full Name",`${form.firstName} ${form.lastName}`||"—"],["Email",form.email||"—"],["Phone",form.phone||"—"],["Role",form.role],["NMC/PIN",form.pin||"N/A"]].map(([k,v])=>(
                 <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${T.border}`,fontSize:13}}>
                   <span style={{color:T.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span>
@@ -4510,15 +4843,15 @@ const AgencyDocuments = () => {
   const [viewModal,setViewModal] = useState(null);
   const myDocs = DOCS.filter(d=>WORKERS.find(w=>w.name===d.worker&&w.agency==="First Choice"));
   return (
-  <Page title="Compliance Documents" sub="Manage documents for First Choice Nursing workers" icon="📁" action={<Btn onClick={()=>setUploadModal(true)}>Upload Document</Btn>}>
+  <Page title="Compliance Documents" sub="Manage documents for First Choice Nursing workers" icon="folder" action={<Btn onClick={()=>setUploadModal(true)}>Upload Document</Btn>}>
     {uploadModal && (
       <Modal title="Upload Document" onClose={()=>setUploadModal(false)}>
         <Select label="Worker" value="" onChange={()=>{}} options={WORKERS.filter(w=>w.agency==="First Choice").map(w=>w.name)}/>
         <Select label="Document Type" value="" onChange={()=>{}} options={["DBS Certificate","Mandatory Training","Right to Work","NMC PIN","Passport"]}/>
-        <div style={{border:`2px dashed ${T.border}`,borderRadius:8,padding:"28px",textAlign:"center",cursor:"pointer",background:"#f8fafc",marginBottom:12}}>
-          <div style={{fontSize:28,marginBottom:8}}>📎</div>
+        <div style={{border:`2px dashed ${T.border}`,borderRadius:8,padding:"28px",textAlign:"center",cursor:"pointer",background:T.raised,marginBottom:12}}>
+          <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="paperclip" size={26} stroke={1.5}/></div>
           <div style={{fontSize:13,color:T.muted}}>Drag & drop or click to browse</div>
-          <div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>PDF, JPG, PNG — max 10MB</div>
+          <div style={{fontSize:11,color:T.ghost,marginTop:4}}>PDF, JPG, PNG — max 10MB</div>
         </div>
         <Input label="Expiry Date" type="date" value="" onChange={()=>{}}/>
         <div style={{display:"flex",gap:8}}>
@@ -4531,8 +4864,8 @@ const AgencyDocuments = () => {
       <Modal title={`${viewModal.type} — ${viewModal.worker}`} onClose={()=>setViewModal(null)}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
           {[["Worker",viewModal.worker],["Type",viewModal.type],["Uploaded",viewModal.uploaded],["Expires",viewModal.expires]].map(([k,v])=>(
-            <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-              <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+            <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
               <div style={{fontSize:13,fontWeight:600}}>{v}</div>
             </div>
           ))}
@@ -4549,7 +4882,7 @@ const AgencyDocuments = () => {
       <Table
         headers={["Worker","Document Type","Upload Date","Expiry Date","Status","Actions"]}
         rows={myDocs.map((d,i)=>(
-          <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:d.status==="expired"?T.redBg:d.status==="expiring"?"#fffbeb":"transparent"}}>
+          <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:d.status==="expired"?T.redBg:d.status==="expiring"?T.amberBg:"transparent"}}>
             <Td bold>{d.worker}</Td>
             <Td>{d.type}</Td>
             <Td>{d.uploaded}</Td>
@@ -4573,13 +4906,13 @@ const AgencyInvoices = () => {
   const [viewInv,setViewInv] = useState(null);
   const myInvoices = INVOICES.filter(i=>i.agency==="First Choice");
   return (
-  <Page title="My Invoices" sub="Payment history from Nexus RPO" icon="📄">
+  <Page title="My Invoices" sub="Payment history from Nexus RPO" icon="document">
     {viewInv && (
       <Modal title={`Invoice ${viewInv.id}`} onClose={()=>setViewInv(null)}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
           {[["Period",viewInv.period],["Shifts",viewInv.shifts],["Amount",`£${viewInv.amount?.toLocaleString()}`],["Due",viewInv.due]].map(([k,v])=>(
-            <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-              <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+            <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+              <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
               <div style={{fontSize:13,fontWeight:600}}>{v}</div>
             </div>
           ))}
@@ -4601,7 +4934,7 @@ const AgencyInvoices = () => {
         headers={["Invoice","Period","Shifts","Amount","Due Date","Status","Action"]}
         rows={myInvoices.map(inv=>(
           <tr key={inv.id} style={{borderBottom:`1px solid ${T.border}`}}>
-            <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700}}>{inv.id}</span></Td>
+            <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:560}}>{inv.id}</span></Td>
             <Td>{inv.period}</Td>
             <Td>{inv.shifts}</Td>
             <Td bold>£{inv.amount.toLocaleString()}</Td>
@@ -4627,7 +4960,7 @@ const BankStaffManagement = () => {
   const [selected,setSelected]=useState(null);
   const [windowMins,setWindowMins]=useState(120);
   return (
-    <Page title="Bank Staff" sub="Internal workforce with first-refusal on shifts before agencies" icon="🏦" action={<Btn onClick={()=>setModal(true)}>+ Add Bank Worker</Btn>}>
+    <Page title="Bank Staff" sub="Internal workforce with first-refusal on shifts before agencies" icon="bank" action={<Btn onClick={()=>setModal(true)}>+ Add Bank Worker</Btn>}>
       {modal&&(
         <Modal title="Add Bank Staff Member" onClose={()=>setModal(false)}>
           <Input label="Full Name" value="" onChange={()=>{}} placeholder="e.g. Diane Foster" required/>
@@ -4637,8 +4970,8 @@ const BankStaffManagement = () => {
           </div>
           <Input label="Email" type="email" value="" onChange={()=>{}} placeholder="name@internal.co.uk"/>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Eligible Care Homes</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CARE_HOMES.map(c=><button key={c.id} style={{padding:"5px 12px",borderRadius:6,border:`1.5px solid ${T.border}`,background:"#f8fafc",fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif",color:T.muted}}>{c.name}</button>)}</div>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Eligible Care Homes</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CARE_HOMES.map(c=><button key={c.id} style={{padding:"5px 12px",borderRadius:8,border:`1px solid ${T.border}`,background:T.raised,fontSize:12,cursor:"pointer",fontFamily:FONT,color:T.muted}}>{c.name}</button>)}</div>
           </div>
           <Alert type="info">An invite email will be sent so they can access their bank staff portal.</Alert>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}><Btn variant="secondary" onClick={()=>setModal(false)}>Cancel</Btn><Btn onClick={()=>setModal(false)}>Add & Send Invite</Btn></div>
@@ -4647,29 +4980,29 @@ const BankStaffManagement = () => {
       {selected&&(
         <Modal title="Bank Staff Profile" onClose={()=>setSelected(null)}>
           <div style={{textAlign:"center",marginBottom:20}}>
-            <div style={{width:60,height:60,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:T.white,fontWeight:700,margin:"0 auto 10px"}}>{selected.name.split(" ").map(n=>n[0]).join("")}</div>
-            <div style={{fontSize:16,fontWeight:700}}>{selected.name}</div>
+            <div style={{width:60,height:60,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,color:T.white,fontWeight:560,margin:"0 auto 10px"}}>{selected.name.split(" ").map(n=>n[0]).join("")}</div>
+            <div style={{fontSize:16,fontWeight:560}}>{selected.name}</div>
             <div style={{fontSize:12,color:T.muted,marginTop:2}}>{selected.role} · Bank Staff</div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
             {[["Email",selected.email],["Phone",selected.phone],["DBS Expiry",selected.dbsExpiry],["Training Expiry",selected.trainingExpiry],["Hours (MTD)",`${selected.hoursThisMonth}hrs`],["Earnings YTD",`£${selected.earningsYTD.toLocaleString()}`]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:7,padding:"10px 12px"}}><div style={{fontSize:10,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div><div style={{fontSize:12,fontWeight:600,color:T.text}}>{v}</div></div>
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}><div style={{fontSize:10,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div><div style={{fontSize:12,fontWeight:600,color:T.text}}>{v}</div></div>
             ))}
           </div>
-          <div style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Eligible Homes</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{selected.contracts.map(c=><Badge key={c} label={c} color={T.teal} bg={T.tealBg}/>)}</div></div>
-          <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>Compliance</div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{flex:1}}><ProgressBar value={selected.compliance} color={selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}/></div><span style={{fontWeight:800,color:selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}}>{selected.compliance}%</span></div></div>
+          <div style={{marginBottom:12}}><div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>Eligible Homes</div><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{selected.contracts.map(c=><Badge key={c} label={c} color={T.teal} bg={T.tealBg}/>)}</div></div>
+          <div style={{marginBottom:16}}><div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:4}}>Compliance</div><div style={{display:"flex",alignItems:"center",gap:10}}><div style={{flex:1}}><ProgressBar value={selected.compliance} color={selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}/></div><span style={{fontWeight:600,color:selected.compliance>=95?T.green:selected.compliance>=75?T.yellow:T.red}}>{selected.compliance}%</span></div></div>
           <Btn full variant="secondary" onClick={()=>setSelected(null)}>Close</Btn>
         </Modal>
       )}
-      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:12,padding:"16px 20px",marginBottom:20,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:14,padding:"16px 20px",marginBottom:20,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
-          <div style={{fontWeight:700,fontSize:14,color:T.teal,marginBottom:4}}>🏦 Bank Priority Window</div>
+          <div style={{fontWeight:560,fontSize:14,color:T.teal,marginBottom:4}}>Bank Priority Window</div>
           <div style={{fontSize:13,color:T.text}}>Bank staff have <strong>{windowMins} minutes</strong> to claim a shift before it's broadcast to agencies. Lower the window to increase agency response; raise it to maximise bank fill rate.</div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:12,color:T.muted,fontWeight:600}}>Window:</span>
           {[30,60,120,240].map(m=>(
-            <button key={m} onClick={()=>setWindowMins(m)} style={{padding:"6px 12px",borderRadius:7,border:`1.5px solid ${windowMins===m?T.teal:T.border}`,background:windowMins===m?T.tealBg:T.white,color:windowMins===m?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>{m}m</button>
+            <button key={m} onClick={()=>setWindowMins(m)} style={{padding:"6px 12px",borderRadius:8,border:`1px solid ${windowMins===m?T.teal:T.border}`,background:windowMins===m?T.tealBg:T.white,color:windowMins===m?T.teal:T.muted,fontWeight:560,fontSize:12,cursor:"pointer",fontFamily:FONT}}>{m}m</button>
           ))}
         </div>
       </div>
@@ -4683,22 +5016,22 @@ const BankStaffManagement = () => {
         <Table
           headers={["Staff Member","Role","DBS","Training","Compliance","Hours (MTD)","Earnings YTD","Eligible Homes","Actions"]}
           rows={BANK_STAFF.map(w=>(
-            <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<75?"#fffbeb":"transparent"}}>
-              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.white,flexShrink:0}}>{w.name.split(" ").map(n=>n[0]).join("")}</div><span style={{fontWeight:600,fontSize:13}}>{w.name}</span></div></Td>
+            <tr key={w.id} style={{borderBottom:`1px solid ${T.border}`,background:w.compliance<75?T.amberBg:"transparent"}}>
+              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:30,height:30,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:560,color:T.white,flexShrink:0}}>{w.name.split(" ").map(n=>n[0]).join("")}</div><span style={{fontWeight:600,fontSize:13}}>{w.name}</span></div></Td>
               <Td><Badge label={w.role} color={T.teal} bg={T.tealBg}/></Td>
               <Td><SBadge s={w.dbs}/></Td>
               <Td><SBadge s={w.training}/></Td>
-              <Td><div style={{display:"flex",alignItems:"center",gap:6,minWidth:80}}><div style={{flex:1}}><ProgressBar value={w.compliance} color={w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}/></div><span style={{fontSize:11,fontWeight:700,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span></div></Td>
+              <Td><div style={{display:"flex",alignItems:"center",gap:6,minWidth:80}}><div style={{flex:1}}><ProgressBar value={w.compliance} color={w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}/></div><span style={{fontSize:11,fontWeight:560,color:w.compliance>=95?T.green:w.compliance>=75?T.yellow:T.red}}>{w.compliance}%</span></div></Td>
               <Td>{w.hoursThisMonth}hrs</Td>
               <Td bold>£{w.earningsYTD.toLocaleString()}</Td>
-              <Td><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{w.contracts.slice(0,2).map(c=><Badge key={c} label={c.split(" ")[0]} color={T.teal} bg={T.tealBg}/>)}{w.contracts.length>2&&<Badge label={`+${w.contracts.length-2}`} color={T.muted} bg="#f1f5f9"/>}</div></Td>
+              <Td><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{w.contracts.slice(0,2).map(c=><Badge key={c} label={c.split(" ")[0]} color={T.teal} bg={T.tealBg}/>)}{w.contracts.length>2&&<Badge label={`+${w.contracts.length-2}`} color={T.muted} bg={T.sunken}/>}</div></Td>
               <Td><div style={{display:"flex",gap:5}}><Btn small onClick={()=>setSelected(w)}>Profile</Btn><Btn small variant="secondary" onClick={()=>setSelected(w)}>Edit</Btn></div></Td>
             </tr>
           ))}
         />
       </Card>
       <Card>
-        <CardHead title="Bank Shift Activity" sub="Shifts in priority window + claimed" icon="📋"/>
+        <CardHead title="Bank Shift Activity" sub="Shifts in priority window + claimed" icon="clipboard"/>
         <Table
           headers={["Care Home","Role","Date","Time","Rate","Status","Claimed By","Action"]}
           rows={BANK_SHIFTS.map(s=>(
@@ -4708,8 +5041,8 @@ const BankStaffManagement = () => {
               <Td>{s.date}</Td>
               <Td>{s.time}</Td>
               <Td bold>£{s.rate}{"/hr"}</Td>
-              <Td>{s.status==="bank-claimed"?<Badge label="Claimed" color={T.green} bg={T.greenBg} dot/>:<span style={{display:"flex",alignItems:"center",gap:5}}><Badge label="Bank Window" color={T.teal} bg={T.tealBg} dot/>{s.bankWindowMins>0&&<span style={{fontSize:10,color:T.teal,fontWeight:700}}>{s.bankWindowMins}m left</span>}</span>}</Td>
-              <Td>{s.claimedBy||<span style={{color:"#94a3b8",fontSize:12,fontStyle:"italic"}}>Awaiting claim</span>}</Td>
+              <Td>{s.status==="bank-claimed"?<Badge label="Claimed" color={T.green} bg={T.greenBg} dot/>:<span style={{display:"flex",alignItems:"center",gap:5}}><Badge label="Bank Window" color={T.teal} bg={T.tealBg} dot/>{s.bankWindowMins>0&&<span style={{fontSize:10,color:T.teal,fontWeight:560}}>{s.bankWindowMins}m left</span>}</span>}</Td>
+              <Td>{s.claimedBy||<span style={{color:T.ghost,fontSize:12,fontStyle:"italic"}}>Awaiting claim</span>}</Td>
               <Td><Btn small variant="secondary" onClick={()=>alert(`Shift: ${s.carehome} · ${s.role}\nDate: ${s.date} · ${s.time}\nRate: £${s.rate}{"/hr"}\nStatus: ${s.status}\nClaimed by: ${s.claimedBy||"Unclaimed"}`)}>View</Btn></Td>
             </tr>
           ))}
@@ -4724,10 +5057,10 @@ const BankDashboard = ({user}) => {
   const me = BANK_STAFF.find(w=>w.name===user.name)||BANK_STAFF[0];
   const open = BANK_SHIFTS.filter(s=>s.status==="bank-open");
   return (
-    <Page title={`Hello, ${(user.name||"").split(" ")[0]}`} sub="Your bank staff dashboard — shift picks, earnings & compliance" icon="◈">
-      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:12,padding:"16px 20px",marginBottom:20,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+    <Page title={`Hello, ${(user.name||"").split(" ")[0]}`} sub="Your bank staff dashboard — shift picks, earnings & compliance" icon="grid">
+      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:14,padding:"16px 20px",marginBottom:20,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
         <div>
-          <div style={{fontSize:14,fontWeight:700,color:T.teal,marginBottom:4}}>🏦 You have first pick on new shifts</div>
+          <div style={{fontSize:14,fontWeight:560,color:T.teal,marginBottom:4}}>You have first pick on new shifts</div>
           <div style={{fontSize:13,color:T.text,lineHeight:1.6}}>As bank staff, you see shifts <strong>before agencies</strong>. Each shift has a countdown — claim it before the window closes or it goes to agencies.</div>
         </div>
         {open.length>0?<Badge label={`${open.length} shifts open now`} color={T.teal} bg={T.tealBg} dot/>:<Badge label="All caught up" color={T.green} bg={T.greenBg} dot/>}
@@ -4735,7 +5068,7 @@ const BankDashboard = ({user}) => {
       <Grid cols={4}>
         <Stat label="Available to Claim" value={open.length} sub="In your window" accent/>
         <Stat label="My Shifts (MTD)" value={me.hoursThisMonth>0?Math.ceil(me.hoursThisMonth/12):0} sub="Confirmed"/>
-        <Stat label="Hours This Month" value={`${me.hoursThisMonth}hrs`} trend="↑ vs last month" trendUp={true}/>
+        <Stat label="Hours This Month" value={`${me.hoursThisMonth}hrs`} trend="vs last month" trendUp={true}/>
         <Stat label="Earnings (MTD)" value={`£${(me.hoursThisMonth*(me.role==="RGN"?32:me.role==="RMN"?35:16)).toLocaleString()}`}/>
       </Grid>
       <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18}}>
@@ -4749,7 +5082,7 @@ const BankDashboard = ({user}) => {
                   <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
                   <Td>{s.date}</Td><Td>{s.time}</Td>
                   <Td bold>£{s.rate}{"/hr"}</Td>
-                  <Td><div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:11,fontWeight:700,color:s.bankWindowMins<60?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:40,height:4,background:T.border,borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:s.bankWindowMins<60?T.red:T.teal}}/></div></div></Td>
+                  <Td><div style={{display:"flex",alignItems:"center",gap:5}}><span style={{fontSize:11,fontWeight:560,color:s.bankWindowMins<60?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:40,height:4,background:T.border,borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:s.bankWindowMins<60?T.red:T.teal}}/></div></div></Td>
                   <Td><Btn small onClick={()=>claim(s.id)}>Claim</Btn></Td>
                 </tr>
               ))}
@@ -4758,10 +5091,10 @@ const BankDashboard = ({user}) => {
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Card>
-            <CardHead title="My Compliance" icon="🛡"/>
+            <CardHead title="My Compliance" icon="shield"/>
             <div style={{padding:16}}>
               <div style={{textAlign:"center",marginBottom:12}}>
-                <div style={{fontSize:30,fontWeight:800,color:me.compliance>=95?T.green:me.compliance>=75?T.yellow:T.red}}>{me.compliance}%</div>
+                <div style={{fontSize:30,fontWeight:600,color:me.compliance>=95?T.green:me.compliance>=75?T.yellow:T.red}}>{me.compliance}%</div>
                 <ProgressBar value={me.compliance} color={me.compliance>=95?T.green:me.compliance>=75?T.yellow:T.red}/>
               </div>
               {[["DBS",me.dbs],["Training",me.training],["PIN",me.pinStatus?"valid":"missing"]].map(([k,v])=>(
@@ -4772,7 +5105,7 @@ const BankDashboard = ({user}) => {
             </div>
           </Card>
           <Card>
-            <CardHead title="Eligible Care Homes" icon="🏥"/>
+            <CardHead title="Eligible Care Homes" icon="hospital"/>
             <div style={{padding:12}}>
               {me.contracts.map(c=>(
                 <div key={c} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:12}}>
@@ -4817,16 +5150,16 @@ const BankAvailableShifts = ({user}) => {
   const roles = [...new Set(shifts.filter(s=>s.status==="bank-open").map(s=>s.role))];
 
   const selStyle = (active) => ({
-    padding:"8px 12px", border:`1.5px solid ${active?T.teal:T.border}`,
-    borderRadius:8, fontSize:12, fontFamily:"Syne,sans-serif",
+    padding:"8px 12px", border:`1px solid ${active?T.teal:T.border}`,
+    borderRadius:8, fontSize:12, fontFamily:FONT,
     color:T.text, background:active?T.tealBg:T.white, cursor:"pointer",
     fontWeight:active?700:400, outline:"none", minWidth:0,
   });
 
   return (
-    <Page title="Available Shifts" sub="Your priority window — claim before it goes to agencies" icon="📋">
-      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:12,padding:"13px 18px",marginBottom:16,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-        <span style={{fontSize:18}}>⏱</span>
+    <Page title="Available Shifts" sub="Your priority window — claim before it goes to agencies" icon="clipboard">
+      <div style={{background:`linear-gradient(135deg,${T.teal}18,${T.tealBg})`,borderRadius:14,padding:"13px 18px",marginBottom:16,border:`1px solid ${T.teal}44`,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <span style={{fontSize:18}}><Icon name="timer" size={15}/></span>
         <span style={{fontSize:13,color:T.text}}><strong style={{color:T.teal}}>First refusal is yours.</strong> These shifts expire from your window soon — once the timer hits zero they're sent to all agencies automatically.</span>
       </div>
 
@@ -4834,46 +5167,46 @@ const BankAvailableShifts = ({user}) => {
       <Card style={{padding:"14px 16px"}}>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr auto",gap:10,alignItems:"end"}}>
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Group Owner</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Group Owner</label>
             <select value={filterGroup} onChange={e=>{setFilterGroup(e.target.value);setFilterHome("all");}} style={selStyle(filterGroup!=="all")}>
               <option value="all">All Groups</option>
               {groups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Care Home</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Care Home</label>
             <select value={filterHome} onChange={e=>setFilterHome(e.target.value)} style={selStyle(filterHome!=="all")} disabled={homesInGroup.length===0}>
               <option value="all">{filterGroup==="all"?"All Homes":"All in Group"}</option>
               {homesInGroup.map(h=><option key={h} value={h}>{h}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Role</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Role</label>
             <select value={filterRole} onChange={e=>setFilterRole(e.target.value)} style={selStyle(filterRole!=="all")}>
               <option value="all">All Roles</option>
               {roles.map(r=><option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div style={{paddingBottom:1}}>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:"transparent",marginBottom:5}}>_</label>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:"transparent",marginBottom:5}}>_</label>
             <button onClick={()=>{setFilterGroup("all");setFilterHome("all");setFilterRole("all");}} disabled={!hasFilters}
-              style={{padding:"8px 12px",borderRadius:8,border:`1.5px solid ${hasFilters?T.red:T.border}`,background:hasFilters?T.redBg:"transparent",color:hasFilters?T.red:T.muted,fontSize:12,fontWeight:700,cursor:hasFilters?"pointer":"default",fontFamily:"Syne,sans-serif"}}>
+              style={{padding:"8px 12px",borderRadius:8,border:`1px solid ${hasFilters?T.red:T.border}`,background:hasFilters?T.redBg:"transparent",color:hasFilters?T.red:T.muted,fontSize:12,fontWeight:560,cursor:hasFilters?"pointer":"default",fontFamily:FONT}}>
               {hasFilters?"✕ Clear":"Filters"}
             </button>
           </div>
         </div>
         {hasFilters&&(
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10,paddingTop:10,borderTop:`1px solid ${T.border}`}}>
-            {filterGroup!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Group: {groups.find(g=>g.id===filterGroup)?.name}</span>}
-            {filterHome!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Home: {filterHome}</span>}
-            {filterRole!=="all"&&<span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Role: {filterRole}</span>}
+            {filterGroup!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Group: {groups.find(g=>g.id===filterGroup)?.name}</span>}
+            {filterHome!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Home: {filterHome}</span>}
+            {filterRole!=="all"&&<span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,background:T.tealBg,color:T.teal}}>Role: {filterRole}</span>}
             <span style={{fontSize:11,color:T.muted,padding:"3px 6px"}}>{available.length} shift{available.length!==1?"s":""} shown</span>
           </div>
         )}
       </Card>
 
       {available.length===0?(
-        <Card style={{padding:40,textAlign:"center"}}><div style={{fontSize:32,marginBottom:12}}>🎉</div><div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{hasFilters?"No shifts match those filters":"No shifts in window right now"}</div><p style={{color:T.muted,fontSize:13}}>{hasFilters?"Try adjusting or clearing your filters.":"You'll be notified when new shifts are published. Check back soon."}</p></Card>
+        <Card style={{padding:40,textAlign:"center"}}><div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="sparkle" size={30} stroke={1.5}/></div><div style={{fontWeight:560,fontSize:15,marginBottom:6}}>{hasFilters?"No shifts match those filters":"No shifts in window right now"}</div><p style={{color:T.muted,fontSize:13}}>{hasFilters?"Try adjusting or clearing your filters.":"You'll be notified when new shifts are published. Check back soon."}</p></Card>
       ):(
         <Card>
           <Table headers={["","Group","Care Home","Role","Date","Time","Rate","Est. Pay","Window","Action"]}
@@ -4889,8 +5222,8 @@ const BankAvailableShifts = ({user}) => {
                   <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
                   <Td>{s.date}</Td><Td>{s.time}</Td>
                   <Td bold>£{s.rate}{"/hr"}</Td>
-                  <Td><span style={{fontWeight:700,color:T.green}}>£{s.rate*hrs}</span></Td>
-                  <Td><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:700,fontSize:12,color:urgent?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:52,height:5,background:T.border,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:urgent?T.red:T.teal,borderRadius:3}}/></div></div></Td>
+                  <Td><span style={{fontWeight:560,color:T.green}}>£{s.rate*hrs}</span></Td>
+                  <Td><div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontWeight:560,fontSize:12,color:urgent?T.red:T.teal,minWidth:36}}>{s.bankWindowMins}m</span><div style={{width:52,height:5,background:T.border,borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(s.bankWindowMins/240)*100)}%`,background:urgent?T.red:T.teal,borderRadius:3}}/></div></div></Td>
                   <Td><Btn small onClick={()=>claim(s.id)}>Claim ✓</Btn></Td>
                 </tr>
               );
@@ -4901,13 +5234,13 @@ const BankAvailableShifts = ({user}) => {
       {claimed.length>0&&(
         <div style={{marginTop:20}}>
           <Card>
-            <CardHead title="Shifts I've Claimed" icon="✅"/>
+            <CardHead title="Shifts I've Claimed" icon="checkCircle"/>
             <Table headers={["Care Home","Role","Date","Time","Rate","Pay","Status"]}
               rows={claimed.map(s=>(
                 <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`}}>
                   <Td bold>{s.carehome}</Td><Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
                   <Td>{s.date}</Td><Td>{s.time}</Td><Td bold>£{s.rate}{"/hr"}</Td>
-                  <Td><span style={{fontWeight:700,color:T.green}}>£{s.rate*12}</span></Td>
+                  <Td><span style={{fontWeight:560,color:T.green}}>£{s.rate*12}</span></Td>
                   <Td><Badge label="Confirmed" color={T.green} bg={T.greenBg} dot/></Td>
                 </tr>
               ))}
@@ -4932,13 +5265,13 @@ const BankMyShifts = ({user}) => {
   const [detailModal,setDetailModal]=useState(null);
   const cancelShift=(id)=>setShifts(ss=>ss.map(s=>s.id===id?{...s,status:"cancelled"}:s));
   return (
-    <Page title="My Shifts" sub="Confirmed and completed shifts" icon="✅">
+    <Page title="My Shifts" sub="Confirmed and completed shifts" icon="checkCircle">
       {detailModal&&(
         <Modal title={`Shift Details — ${detailModal.carehome}`} onClose={()=>setDetailModal(null)}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
             {[["Care Home",detailModal.carehome],["Role",detailModal.role],["Date",detailModal.date],["Time",detailModal.time],["Rate",`£${detailModal.rate}{"/hr"}`],["Pay",`£${detailModal.rate*12}`]].map(([k,v])=>(
-              <div key={k} style={{background:"#f8fafc",borderRadius:8,padding:"10px 12px"}}>
-                <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3}}>{k}</div>
+              <div key={k} style={{background:T.raised,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{fontSize:11,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:3}}>{k}</div>
                 <div style={{fontSize:13,fontWeight:600}}>{v}</div>
               </div>
             ))}
@@ -4953,12 +5286,12 @@ const BankMyShifts = ({user}) => {
       <Grid cols={3}>
         <Stat label="Upcoming" value={shifts.filter(s=>s.status==="confirmed").length} accent/>
         <Stat label="Completed (MTD)" value={shifts.filter(s=>s.status==="completed").length}/>
-        <Stat label="Hours Worked" value={`${me.hoursThisMonth}hrs`} trend="↑ vs last month" trendUp={true}/>
+        <Stat label="Hours Worked" value={`${me.hoursThisMonth}hrs`} trend="vs last month" trendUp={true}/>
       </Grid>
       <Card>
         <Table headers={["Care Home","Role","Date","Time","Rate","Pay","Status","Action"]}
           rows={shifts.filter(s=>s.status!=="cancelled").map(s=>(
-            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.status==="completed"?"#f8fafc":"transparent"}}>
+            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.status==="completed"?T.raised:"transparent"}}>
               <Td bold>{s.carehome}</Td>
               <Td><Badge label={s.role} color={T.teal} bg={T.tealBg}/></Td>
               <Td>{s.date}</Td><Td>{s.time}</Td>
@@ -4981,17 +5314,17 @@ const BankAvailability = () => {
   const days=["Mon 11","Tue 12","Wed 13","Thu 14","Fri 15","Sat 16","Sun 17","Mon 18","Tue 19","Wed 20","Thu 21","Fri 22","Sat 23","Sun 24"];
   const [avail,setAvail]=useState({"Mon 11":"day","Tue 12":"both","Wed 13":"unavailable","Thu 14":"day","Fri 15":"both","Sat 16":"unavailable","Sun 17":"unavailable","Mon 18":"day","Tue 19":"day","Wed 20":"night","Thu 21":"both","Fri 22":"day","Sat 23":"unavailable","Sun 24":"unavailable"});
   const toggle=(d)=>setAvail(a=>({...a,[d]:a[d]==="unavailable"?"day":a[d]==="day"?"night":a[d]==="night"?"both":"unavailable"}));
-  const cm={day:{bg:T.tealBg,color:T.teal,label:"Day"},night:{bg:T.purpleBg,color:T.purple,label:"Night"},both:{bg:T.greenBg,color:T.green,label:"Day & Night"},unavailable:{bg:"#f1f5f9",color:"#94a3b8",label:"Unavailable"}};
+  const cm={day:{bg:T.tealBg,color:T.teal,label:"Day"},night:{bg:T.purpleBg,color:T.purple,label:"Night"},both:{bg:T.greenBg,color:T.green,label:"Day & Night"},unavailable:{bg:T.sunken,color:T.ghost,label:"Unavailable"}};
   return (
-    <Page title="Set My Availability" sub="Shifts will only be offered to you on days you mark as available" icon="📅">
+    <Page title="Set My Availability" sub="Shifts will only be offered to you on days you mark as available" icon="calendar">
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <span style={{fontSize:12,color:T.muted,fontWeight:600}}>Click a day to cycle:</span>
-        {Object.entries(cm).map(([k,v])=><span key={k} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:6,background:v.bg,fontSize:11,fontWeight:700,color:v.color}}>{v.label}</span>)}
+        {Object.entries(cm).map(([k,v])=><span key={k} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:8,background:v.bg,fontSize:11,fontWeight:560,color:v.color}}>{v.label}</span>)}
       </div>
       <Card>
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=><div key={i} style={{padding:"8px",textAlign:"center",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:`1px solid ${T.border}`,background:"#f8fafc",borderRight:i<6?`1px solid ${T.border}`:"none"}}>{d}</div>)}
-          {days.map((d,i)=>{const c=cm[avail[d]||"unavailable"];return(<div key={i} onClick={()=>toggle(d)} style={{minHeight:80,padding:10,borderRight:i%7<6?`1px solid ${T.border}`:"none",borderBottom:i<7?`1px solid ${T.border}`:"none",cursor:"pointer",background:c.bg,transition:"background 0.15s",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}><span style={{fontSize:12,fontWeight:700,color:T.text}}>{d.split(" ")[1]}</span><span style={{fontSize:10,fontWeight:700,color:c.color,textTransform:"uppercase",letterSpacing:"0.05em"}}>{c.label}</span></div>);})}
+          {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d,i)=><div key={i} style={{padding:"8px",textAlign:"center",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",borderBottom:`1px solid ${T.border}`,background:T.raised,borderRight:i<6?`1px solid ${T.border}`:"none"}}>{d}</div>)}
+          {days.map((d,i)=>{const c=cm[avail[d]||"unavailable"];return(<div key={i} onClick={()=>toggle(d)} style={{minHeight:80,padding:10,borderRight:i%7<6?`1px solid ${T.border}`:"none",borderBottom:i<7?`1px solid ${T.border}`:"none",cursor:"pointer",background:c.bg,transition:"background 0.15s",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}><span style={{fontSize:12,fontWeight:560,color:T.text}}>{d.split(" ")[1]}</span><span style={{fontSize:10,fontWeight:560,color:c.color,letterSpacing:"-0.006em"}}>{c.label}</span></div>);})}
         </div>
       </Card>
       <div style={{marginTop:16,display:"flex",gap:10}}>
@@ -5013,35 +5346,35 @@ const BankEarnings = ({user}) => {
     {id:"PS-0021",period:"Dec 2025",shifts:2,hours:24,gross:24*rate,status:"paid"},
   ];
   return (
-    <Page title="My Earnings" sub="Payslips, hours and YTD summary" icon="💷">
+    <Page title="My Earnings" sub="Payslips, hours and YTD summary" icon="pound">
       <Grid cols={3}>
         <Stat label="Earnings YTD" value={`£${me.earningsYTD.toLocaleString()}`} accent/>
-        <Stat label="Hours YTD" value={`${me.hoursYTD}hrs`} trend="↑ 12hrs vs last year" trendUp={true}/>
+        <Stat label="Hours YTD" value={`${me.hoursYTD}hrs`} trend="12hrs vs last year" trendUp={true}/>
         <Stat label="This Month" value={`£${(me.hoursThisMonth*rate).toLocaleString()}`} sub="Pending payroll"/>
       </Grid>
       <div style={{display:"grid",gridTemplateColumns:"3fr 2fr",gap:18,marginBottom:18}}>
         <Card>
-          <CardHead title="Monthly Earnings" icon="📈"/>
+          <CardHead title="Monthly Earnings" icon="trendingUp"/>
           <div style={{padding:"12px 4px"}}>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={BANK_EARNINGS} barSize={28}>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false} tickFormatter={v=>`£${v}`}/>
-                <Tooltip formatter={v=>[`£${v}`,"Earnings"]} contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} tickFormatter={v=>`£${v}`}/>
+                <Tooltip formatter={v=>[`£${v}`,"Earnings"]} contentStyle={TOOLTIP_STYLE}/>
                 <Bar dataKey="pay" fill={T.teal} radius={[4,4,0,0]}/>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
         <Card>
-          <CardHead title="Hours per Month" icon="⏱"/>
+          <CardHead title="Hours per Month" icon="timer"/>
           <div style={{padding:"12px 4px"}}>
             <ResponsiveContainer width="100%" height={180}>
               <AreaChart data={BANK_EARNINGS}>
                 <defs><linearGradient id="tg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.teal} stopOpacity={0.3}/><stop offset="95%" stopColor={T.teal} stopOpacity={0}/></linearGradient></defs>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-                <YAxis tick={{fontSize:11,fill:T.muted}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{borderRadius:8,border:`1px solid ${T.border}`,fontSize:12}}/>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={TOOLTIP_STYLE}/>
                 <Area type="monotone" dataKey="hrs" stroke={T.teal} strokeWidth={2} fill="url(#tg)"/>
               </AreaChart>
             </ResponsiveContainer>
@@ -5053,7 +5386,7 @@ const BankEarnings = ({user}) => {
         <Table headers={["Payslip","Period","Shifts","Hours","Rate/hr","Gross","Status","Download"]}
           rows={payslips.map(p=>(
             <tr key={p.id} style={{borderBottom:`1px solid ${T.border}`}}>
-              <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:700}}>{p.id}</span></Td>
+              <Td><span style={{fontFamily:"monospace",fontSize:12,fontWeight:560}}>{p.id}</span></Td>
               <Td>{p.period}</Td><Td>{p.shifts}</Td><Td>{p.hours}hrs</Td>
               <Td>£{rate}{"/hr"}</Td><Td bold>£{p.gross.toLocaleString()}</Td>
               <Td><SBadge s={p.status}/></Td>
@@ -5070,20 +5403,20 @@ const BankEarnings = ({user}) => {
 const BankProfile = ({user}) => {
   const me=BANK_STAFF.find(w=>w.name===user.name)||BANK_STAFF[0];
   return (
-    <Page title="My Profile" sub="Compliance documents and personal details" icon="👤">
+    <Page title="My Profile" sub="Compliance documents and personal details" icon="user">
       <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:18,maxWidth:860}}>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Card style={{padding:22,textAlign:"center"}}>
-            <div style={{width:68,height:68,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:T.white,fontWeight:700,margin:"0 auto 10px"}}>{me.name.split(" ").map(n=>n[0]).join("")}</div>
-            <div style={{fontSize:15,fontWeight:700}}>{me.name}</div>
+            <div style={{width:68,height:68,borderRadius:"50%",background:`linear-gradient(135deg,${T.teal},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,color:T.white,fontWeight:560,margin:"0 auto 10px"}}>{me.name.split(" ").map(n=>n[0]).join("")}</div>
+            <div style={{fontSize:15,fontWeight:560}}>{me.name}</div>
             <div style={{fontSize:12,color:T.muted,marginTop:3}}>{me.role} · Bank Staff</div>
             <div style={{marginTop:10}}><Badge label="Active" color={T.green} bg={T.greenBg} dot/></div>
-            <div style={{marginTop:14,fontSize:26,fontWeight:800,color:me.compliance>=95?T.green:me.compliance>=75?T.yellow:T.red}}>{me.compliance}%</div>
+            <div style={{marginTop:14,fontSize:26,fontWeight:600,color:me.compliance>=95?T.green:me.compliance>=75?T.yellow:T.red}}>{me.compliance}%</div>
             <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Compliance score</div>
             <ProgressBar value={me.compliance} color={me.compliance>=95?T.green:T.yellow}/>
           </Card>
           <Card>
-            <CardHead title="Eligible Care Homes" icon="🏥"/>
+            <CardHead title="Eligible Care Homes" icon="hospital"/>
             <div style={{padding:12}}>
               {me.contracts.map(c=><div key={c} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${T.border}`,fontSize:12}}><span style={{color:T.teal}}>✓</span><span style={{fontWeight:500}}>{c}</span></div>)}
             </div>
@@ -5091,7 +5424,7 @@ const BankProfile = ({user}) => {
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:14}}>
           <Card style={{padding:20}}>
-            <h3 style={{fontWeight:700,fontSize:14,marginBottom:14}}>Personal Details</h3>
+            <h3 style={{fontWeight:560,fontSize:14,marginBottom:14}}>Personal Details</h3>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <Input label="Full Name" value={me.name} onChange={()=>{}}/>
               <Input label="Role" value={me.role} onChange={()=>{}}/>
@@ -5101,14 +5434,14 @@ const BankProfile = ({user}) => {
             <Btn variant="secondary" onClick={()=>alert("Details updated successfully.")}>Update Details</Btn>
           </Card>
           <Card>
-            <CardHead title="Compliance Documents" icon="📁"/>
+            <CardHead title="Compliance Documents" icon="folder"/>
             <div style={{padding:14}}>
               {[
                 {type:"DBS Certificate",expiry:me.dbsExpiry,status:me.dbs},
                 {type:"Mandatory Training",expiry:me.trainingExpiry,status:me.training},
                 {type:"NMC / PIN",expiry:"—",status:me.pinStatus?"valid":"expired"},
               ].map((doc,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",border:`1.5px solid ${doc.status==="valid"?T.border:doc.status==="expiring"?T.yellow:T.red}`,borderRadius:8,marginBottom:8,background:doc.status==="expired"?T.redBg:doc.status==="expiring"?"#fffbeb":T.white}}>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",border:`1px solid ${doc.status==="valid"?T.border:doc.status==="expiring"?T.yellow:T.red}`,borderRadius:8,marginBottom:8,background:doc.status==="expired"?T.redBg:doc.status==="expiring"?T.amberBg:T.white}}>
                   <div><div style={{fontSize:13,fontWeight:600,color:T.text}}>{doc.type}</div><div style={{fontSize:11,color:T.muted,marginTop:2}}>Expires: {doc.expiry}</div></div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}><SBadge s={doc.status}/><Btn small variant="secondary" onClick={()=>alert(`Upload started for ${doc.type}. Select a file from your device.`)}>Upload</Btn></div>
                 </div>
@@ -5122,7 +5455,7 @@ const BankProfile = ({user}) => {
 };
 
 /* ─── TIMESHEET: SHARED HELPERS ──────────────────────────────────────────────── */
-const tsStatusColor = s => s==="approved"?{c:T.green,bg:T.greenBg}:s==="pending"?{c:T.blue,bg:T.blueBg}:s==="disputed"?{c:T.red,bg:T.redBg}:s==="invoiced"?{c:T.amber,bg:T.amberBg}:{c:T.muted,bg:"#f1f5f9"};
+const tsStatusColor = s => s==="approved"?{c:T.green,bg:T.greenBg}:s==="pending"?{c:T.blue,bg:T.blueBg}:s==="disputed"?{c:T.red,bg:T.redBg}:s==="invoiced"?{c:T.amber,bg:T.amberBg}:{c:T.muted,bg:T.sunken};
 
 const TsBadge = ({s}) => { const {c,bg}=tsStatusColor(s); return <Badge label={s.charAt(0).toUpperCase()+s.slice(1)} color={c} bg={bg} dot/>; };
 
@@ -5211,11 +5544,11 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
   const disputed=mySubmitted.filter(t=>t.status==="disputed");
 
   return (
-    <Page title="Timesheets" sub="Review completed shifts and confirm hours — care homes are notified to approve before invoicing" icon="🕐">
+    <Page title="Timesheets" sub="Review completed shifts and confirm hours — care homes are notified to approve before invoicing" icon="clock">
 
       {disputed.length>0&&(
         <Alert type="error" style={{marginBottom:14}}>
-          ⚠️ {disputed.length} timesheet{disputed.length>1?"s have":" has"} been disputed by the care home. Review below and resubmit.
+          {disputed.length} timesheet{disputed.length>1?"s have":" has"} been disputed by the care home. Review below and resubmit.
         </Alert>
       )}
 
@@ -5223,14 +5556,14 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
       <div style={{display:"flex",gap:8,marginBottom:18,flexWrap:"wrap",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",gap:8}}>
           {[["unsubmitted",`Awaiting Submission (${unsubmitted.length})`],["submitted","Submitted"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setFilterStatus(v)} style={{padding:"8px 16px",borderRadius:8,border:"none",background:filterStatus===v?T.navy:"#eef1f6",color:filterStatus===v?T.white:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+            <button key={v} onClick={()=>setFilterStatus(v)} style={{padding:"8px 16px",borderRadius:8,border:"none",background:filterStatus===v?T.navy:T.sunken,color:filterStatus===v?T.white:T.muted,fontWeight:560,fontSize:12,cursor:"pointer",fontFamily:FONT}}>
               {l}
             </button>
           ))}
         </div>
-        <div style={{display:"flex",gap:4,background:"#eef1f6",padding:3,borderRadius:8}}>
-          {[["list","☰ List"],["week","📅 Week"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setTsView(v)} style={{padding:"6px 14px",borderRadius:6,border:"none",background:tsView===v?T.white:"transparent",color:tsView===v?T.navy:T.muted,fontWeight:700,fontSize:11,cursor:"pointer",fontFamily:"Syne,sans-serif",boxShadow:tsView===v?"0 1px 3px rgba(0,0,0,0.1)":"none",transition:"all 0.15s"}}>
+        <div style={{display:"flex",gap:4,background:T.sunken,padding:3,borderRadius:8}}>
+          {[["list","☰ List"],["week","Week"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setTsView(v)} style={{padding:"6px 14px",borderRadius:8,border:"none",background:tsView===v?T.white:"transparent",color:tsView===v?T.navy:T.muted,fontWeight:560,fontSize:11,cursor:"pointer",fontFamily:FONT,boxShadow:tsView===v?"0 1px 3px rgba(0,0,0,0.1)":"none",transition:"all 0.15s"}}>
               {l}
             </button>
           ))}
@@ -5250,25 +5583,25 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
           <>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
               <Btn small variant="secondary" onClick={prevWeek}>← Prev</Btn>
-              <span style={{fontWeight:700,fontSize:14,color:T.navy,minWidth:200,textAlign:"center"}}>{weekLabel}</span>
+              <span style={{fontWeight:560,fontSize:14,color:T.navy,minWidth:200,textAlign:"center"}}>{weekLabel}</span>
               <Btn small variant="secondary" onClick={nextWeek}>Next →</Btn>
             </div>
             {workerNames.length===0
-              ? <Card style={{padding:32,textAlign:"center"}}><div style={{fontSize:28,marginBottom:8}}>📅</div><div style={{fontWeight:700}}>No shifts this week</div><p style={{color:T.muted,fontSize:13,marginTop:4}}>Navigate to a different week.</p></Card>
+              ? <Card style={{padding:32,textAlign:"center"}}><div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="calendar" size={26} stroke={1.5}/></div><div style={{fontWeight:560}}>No shifts this week</div><p style={{color:T.muted,fontSize:13,marginTop:4}}>Navigate to a different week.</p></Card>
               : <Card style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
                     <thead>
-                      <tr style={{background:"#f8fafc",borderBottom:`2px solid ${T.border}`}}>
-                        <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",minWidth:130,borderRight:`1px solid ${T.border}`}}>Worker</th>
+                      <tr style={{background:T.raised,borderBottom:`2px solid ${T.border}`}}>
+                        <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",minWidth:130,borderRight:`1px solid ${T.border}`}}>Worker</th>
                         {weekDays.map((date,i)=>{
                           const isToday=date==="2026-03-10";
-                          return <th key={date} style={{padding:"8px 6px",textAlign:"center",fontSize:10,fontWeight:700,color:isToday?T.amber:i>=5?T.purple:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?"#fffbeb":"transparent",minWidth:86}}>
+                          return <th key={date} style={{padding:"8px 6px",textAlign:"center",fontSize:10,fontWeight:560,color:isToday?T.amber:i>=5?T.purple:T.muted,letterSpacing:"-0.006em",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?T.amberBg:"transparent",minWidth:86}}>
                             <div>{dayLabels[i]}</div>
-                            <div style={{fontSize:14,fontWeight:800,color:isToday?T.amber:T.text,marginTop:2}}>{new Date(date).getDate()}</div>
+                            <div style={{fontSize:14,fontWeight:600,color:isToday?T.amber:T.text,marginTop:2}}>{new Date(date).getDate()}</div>
                           </th>;
                         })}
-                        <th style={{padding:"10px 8px",textAlign:"center",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",borderLeft:`2px solid ${T.border}`,minWidth:80}}>Total Hrs</th>
-                        <th style={{padding:"10px 8px",textAlign:"center",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",minWidth:80}}>Total Pay</th>
+                        <th style={{padding:"10px 8px",textAlign:"center",fontSize:10,fontWeight:560,color:T.muted,borderLeft:`2px solid ${T.border}`,minWidth:80}}>Total Hrs</th>
+                        <th style={{padding:"10px 8px",textAlign:"center",fontSize:10,fontWeight:560,color:T.muted,minWidth:80}}>Total Pay</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -5278,8 +5611,8 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                         const totalPay=weekDays.reduce((acc,date)=>{const s=ws.find(s=>s.date===date);if(!s)return acc;const ts=timesheets.find(t=>t.shiftId===s.id);const hrs=ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0);return acc+(hrs*s.rate);},0);
                         return (
                           <tr key={worker} style={{borderBottom:`1px solid ${T.border}`}}>
-                            <td style={{padding:"12px 14px",borderRight:`1px solid ${T.border}`,background:"#fafbfd"}}>
-                              <div style={{fontWeight:700,fontSize:13}}>{worker}</div>
+                            <td style={{padding:"12px 14px",borderRight:`1px solid ${T.border}`,background:T.raised}}>
+                              <div style={{fontWeight:560,fontSize:13}}>{worker}</div>
                               {ws[0]?.role&&<Badge label={ws[0].role} color={T.purple} bg={T.purpleBg}/>}
                             </td>
                             {weekDays.map((date,i)=>{
@@ -5288,40 +5621,40 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                               const submitted=s?(submittedShiftIds.has(s.id)||submittedIds.has(s.id)):false;
                               const row=s?rowData[s.id]:null;
                               const isToday=date==="2026-03-10";
-                              if(!s) return <td key={date} style={{padding:"10px 6px",textAlign:"center",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?"#fffbeb22":"transparent"}}><span style={{fontSize:12,color:"#e2e8f0"}}>—</span></td>;
+                              if(!s) return <td key={date} style={{padding:"10px 6px",textAlign:"center",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?"#fffbeb22":"transparent"}}><span style={{fontSize:12,color:T.border}}>—</span></td>;
                               const hrs=ts?ts.hoursWorked:parseFloat(row?.hoursWorked||0);
                               return (
-                                <td key={date} style={{padding:"6px 5px",textAlign:"center",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?"#fffbeb44":ts?.status==="disputed"?T.redBg:submitted?"#f0fff4":"transparent",verticalAlign:"middle"}}>
+                                <td key={date} style={{padding:"6px 5px",textAlign:"center",borderRight:i<6?`1px solid ${T.border}`:"none",background:isToday?"#fffbeb44":ts?.status==="disputed"?T.redBg:submitted?T.greenBg:"transparent",verticalAlign:"middle"}}>
                                   <div style={{fontSize:9,color:T.muted,marginBottom:2}}>{s.time.split("–")[0]}</div>
                                   {submitted||ts
-                                    ? <div><span style={{fontWeight:800,fontSize:15,color:ts?.status==="disputed"?T.red:T.green}}>{hrs}h</span><div style={{marginTop:2}}>{ts?<TsBadge s={ts.status}/>:<Badge label="✓" color={T.green} bg={T.greenBg}/>}</div></div>
+                                    ? <div><span style={{fontWeight:600,fontSize:15,color:ts?.status==="disputed"?T.red:T.green}}>{hrs}h</span><div style={{marginTop:2}}>{ts?<TsBadge s={ts.status}/>:<Badge label="✓" color={T.green} bg={T.greenBg}/>}</div></div>
                                     : <div>
                                         <input type="number" step="0.25" min="0" max="24" value={row?.hoursWorked||""} onChange={e=>setRow(s.id,"hoursWorked",e.target.value)}
-                                          style={{width:54,padding:"5px 6px",borderRadius:6,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",fontWeight:700,outline:"none",textAlign:"center"}}/>
+                                          style={{width:54,padding:"5px 6px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,fontWeight:560,outline:"none",textAlign:"center"}}/>
                                         <div style={{marginTop:4}}>
-                                          <button onClick={()=>submitOne(s.id)} style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:5,background:T.navy,color:T.white,border:"none",cursor:"pointer",fontFamily:"Syne,sans-serif"}}>Submit</button>
+                                          <button onClick={()=>submitOne(s.id)} style={{fontSize:9,fontWeight:560,padding:"2px 7px",borderRadius:5,background:T.navy,color:T.white,border:"none",cursor:"pointer",fontFamily:FONT}}>Submit</button>
                                         </div>
                                       </div>
                                   }
                                 </td>
                               );
                             })}
-                            <td style={{padding:"12px 8px",textAlign:"center",borderLeft:`2px solid ${T.border}`,background:"#f8fafc"}}><span style={{fontWeight:800,fontSize:16,color:T.navy}}>{totalHrs.toFixed(1)}h</span></td>
-                            <td style={{padding:"12px 8px",textAlign:"center",background:"#f8fafc"}}><span style={{fontWeight:800,fontSize:14,color:T.green}}>£{totalPay.toFixed(0)}</span></td>
+                            <td style={{padding:"12px 8px",textAlign:"center",borderLeft:`2px solid ${T.border}`,background:T.raised}}><span style={{fontWeight:600,fontSize:16,color:T.navy}}>{totalHrs.toFixed(1)}h</span></td>
+                            <td style={{padding:"12px 8px",textAlign:"center",background:T.raised}}><span style={{fontWeight:600,fontSize:14,color:T.green}}>£{totalPay.toFixed(0)}</span></td>
                           </tr>
                         );
                       })}
                       {/* Totals footer */}
-                      <tr style={{background:"#f0f4f8",borderTop:`2px solid ${T.border}`}}>
-                        <td style={{padding:"10px 14px",fontWeight:800,fontSize:11,color:T.muted,textTransform:"uppercase",borderRight:`1px solid ${T.border}`}}>Daily Totals</td>
+                      <tr style={{background:T.sunken,borderTop:`2px solid ${T.border}`}}>
+                        <td style={{padding:"10px 14px",fontWeight:600,fontSize:11,color:T.muted,borderRight:`1px solid ${T.border}`}}>Daily Totals</td>
                         {weekDays.map((date,i)=>{
                           const hrs=allWeekShifts.filter(s=>s.date===date).reduce((acc,s)=>{const ts=timesheets.find(t=>t.shiftId===s.id);return acc+(ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0));},0);
                           return <td key={date} style={{padding:"10px 6px",textAlign:"center",borderRight:i<6?`1px solid ${T.border}`:"none"}}>
-                            {hrs>0?<span style={{fontWeight:700,fontSize:13,color:T.navy}}>{hrs.toFixed(1)}h</span>:<span style={{fontSize:12,color:"#e2e8f0"}}>—</span>}
+                            {hrs>0?<span style={{fontWeight:560,fontSize:13,color:T.navy}}>{hrs.toFixed(1)}h</span>:<span style={{fontSize:12,color:T.border}}>—</span>}
                           </td>;
                         })}
-                        <td style={{padding:"10px 8px",textAlign:"center",borderLeft:`2px solid ${T.border}`,background:"#e8edf4"}}><span style={{fontWeight:800,fontSize:15,color:T.navy}}>{allWeekShifts.reduce((acc,s)=>{const ts=timesheets.find(t=>t.shiftId===s.id);return acc+(ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0));},0).toFixed(1)}h</span></td>
-                        <td style={{padding:"10px 8px",textAlign:"center",background:"#e8edf4"}}><span style={{fontWeight:800,fontSize:14,color:T.green}}>£{allWeekShifts.reduce((acc,s)=>{const ts=timesheets.find(t=>t.shiftId===s.id);const hrs=ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0);return acc+(hrs*s.rate);},0).toFixed(0)}</span></td>
+                        <td style={{padding:"10px 8px",textAlign:"center",borderLeft:`2px solid ${T.border}`,background:T.sunken}}><span style={{fontWeight:600,fontSize:15,color:T.navy}}>{allWeekShifts.reduce((acc,s)=>{const ts=timesheets.find(t=>t.shiftId===s.id);return acc+(ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0));},0).toFixed(1)}h</span></td>
+                        <td style={{padding:"10px 8px",textAlign:"center",background:T.sunken}}><span style={{fontWeight:600,fontSize:14,color:T.green}}>£{allWeekShifts.reduce((acc,s)=>{const ts=timesheets.find(t=>t.shiftId===s.id);const hrs=ts?ts.hoursWorked:parseFloat(rowData[s.id]?.hoursWorked||0);return acc+(hrs*s.rate);},0).toFixed(0)}</span></td>
                       </tr>
                     </tbody>
                   </table>
@@ -5336,16 +5669,16 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
         <>
           {unsubmitted.length===0?(
             <Card style={{padding:40,textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:10}}>✅</div>
-              <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>All shifts submitted</div>
+              <div style={{marginBottom:10,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="checkCircle" size={30} stroke={1.5}/></div>
+              <div style={{fontWeight:560,fontSize:15,marginBottom:6}}>All shifts submitted</div>
               <p style={{color:T.muted,fontSize:13}}>No completed shifts are awaiting timesheet submission. Switch to "Submitted" to track approvals.</p>
             </Card>
           ):(
             <>
               {/* Info banner */}
-              <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}44`,borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+              <div style={{background:T.accentBg,border:`1px solid ${T.blue}44`,borderRadius:14,padding:"14px 18px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:13,color:T.blue,marginBottom:3}}>📋 {unsubmitted.length} completed shift{unsubmitted.length>1?"s":""} ready to submit</div>
+                  <div style={{fontWeight:560,fontSize:13,color:T.blue,marginBottom:3}}>{unsubmitted.length} completed shift{unsubmitted.length>1?"s":""} ready to submit</div>
                   <div style={{fontSize:12,color:T.muted}}>Worker and shift details are pre-filled from the booking. Just confirm the hours worked and break taken, then submit for care home approval.</div>
                 </div>
                 {bulkSelect.size>0&&(
@@ -5358,12 +5691,12 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                 <div style={{overflowX:"auto"}}>
                   <table style={{width:"100%",borderCollapse:"collapse"}}>
                     <thead>
-                      <tr style={{background:"#f8fafc",borderBottom:`2px solid ${T.border}`}}>
+                      <tr style={{background:T.raised,borderBottom:`2px solid ${T.border}`}}>
                         <th style={{padding:"10px 12px",textAlign:"left"}}>
                           <input type="checkbox" checked={bulkSelect.size===unsubmitted.length&&unsubmitted.length>0} onChange={toggleAll} style={{cursor:"pointer"}}/>
                         </th>
                         {["Worker","Role","Care Home","Date","Shift Time","Sched. Hrs","Hrs Worked","Break (min)","Rate","Total","Notes","Action"].map(h=>(
-                          <th key={h} style={{padding:"10px 8px",textAlign:"left",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em",whiteSpace:"nowrap"}}>{h}</th>
+                          <th key={h} style={{padding:"10px 8px",textAlign:"left",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",whiteSpace:"nowrap"}}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -5376,13 +5709,13 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                         const schedHrs=(()=>{const [st,en]=s.time.split("–");const[sh,sm]=st.split(":").map(Number);const[eh,em]=en.split(":").map(Number);let d=(eh*60+em)-(sh*60+sm);if(d<0)d+=1440;return+(d/60).toFixed(1);})();
                         const hrsDiff=parseFloat(row.hoursWorked)-schedHrs;
                         return(
-                          <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:justSubmitted?"#f0fff4":selected?"#f0f7ff":"transparent",transition:"background 0.15s"}}>
+                          <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:justSubmitted?T.greenBg:selected?T.accentBg:"transparent",transition:"background 0.15s"}}>
                             <td style={{padding:"10px 12px"}}>
                               {justSubmitted
                                 ?<span style={{color:T.green,fontSize:16}}>✓</span>
                                 :<input type="checkbox" checked={selected} onChange={()=>toggleBulk(s.id)} style={{cursor:"pointer"}}/>}
                             </td>
-                            <td style={{padding:"10px 8px",fontWeight:700,fontSize:13,whiteSpace:"nowrap"}}>{s.worker}</td>
+                            <td style={{padding:"10px 8px",fontWeight:560,fontSize:13,whiteSpace:"nowrap"}}>{s.worker}</td>
                             <td style={{padding:"10px 8px"}}><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></td>
                             <td style={{padding:"10px 8px",fontSize:13,color:T.muted,whiteSpace:"nowrap"}}>{s.carehome}</td>
                             <td style={{padding:"10px 8px",fontSize:12,whiteSpace:"nowrap"}}>{s.date}</td>
@@ -5390,16 +5723,16 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                             <td style={{padding:"10px 8px",fontSize:12,color:T.muted,textAlign:"center"}}>{schedHrs}h</td>
                             <td style={{padding:"6px 4px",minWidth:72}}>
                               {justSubmitted
-                                ?<span style={{fontWeight:700,color:T.green}}>{row.hoursWorked}h</span>
+                                ?<span style={{fontWeight:560,color:T.green}}>{row.hoursWorked}h</span>
                                 :<div style={{position:"relative"}}>
                                   <input
                                     type="number" step="0.25" min="0" max="24"
                                     value={row.hoursWorked}
                                     onChange={e=>setRow(s.id,"hoursWorked",e.target.value)}
-                                    style={{width:68,padding:"6px 8px",borderRadius:7,border:`1.5px solid ${hrsDiff<-0.5||hrsDiff>0?T.yellow:T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",fontWeight:700,outline:"none",textAlign:"center",background:hrsDiff<-0.5||hrsDiff>0?"#fffbeb":T.white}}
+                                    style={{width:68,padding:"6px 8px",borderRadius:8,border:`1px solid ${hrsDiff<-0.5||hrsDiff>0?T.yellow:T.border}`,fontSize:13,fontFamily:FONT,fontWeight:560,outline:"none",textAlign:"center",background:hrsDiff<-0.5||hrsDiff>0?T.amberBg:T.white}}
                                   />
                                   {(hrsDiff<-0.5||hrsDiff>0.01)&&(
-                                    <div style={{position:"absolute",top:-18,left:"50%",transform:"translateX(-50%)",background:T.yellow,color:T.white,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:4,whiteSpace:"nowrap"}}>
+                                    <div style={{position:"absolute",top:-18,left:"50%",transform:"translateX(-50%)",background:T.yellow,color:T.white,fontSize:9,fontWeight:560,padding:"1px 5px",borderRadius:4,whiteSpace:"nowrap"}}>
                                       {hrsDiff>0?"+":""}{hrsDiff.toFixed(1)}h vs booked
                                     </div>
                                   )}
@@ -5412,12 +5745,12 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                                   type="number" step="5" min="0" max="60"
                                   value={row.breakMins}
                                   onChange={e=>setRow(s.id,"breakMins",e.target.value)}
-                                  style={{width:58,padding:"6px 8px",borderRadius:7,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",textAlign:"center"}}
+                                  style={{width:58,padding:"6px 8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",textAlign:"center"}}
                                 />}
                             </td>
                             <td style={{padding:"10px 8px",fontSize:12,fontWeight:600}}>£{s.rate}{"/hr"}</td>
                             <td style={{padding:"10px 8px"}}>
-                              <span style={{fontWeight:800,color:T.green,fontSize:14}}>£{total.toLocaleString()}</span>
+                              <span style={{fontWeight:600,color:T.green,fontSize:14}}>£{total.toLocaleString()}</span>
                             </td>
                             <td style={{padding:"6px 4px",minWidth:120}}>
                               {justSubmitted
@@ -5426,7 +5759,7 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
                                   value={row.notes}
                                   onChange={e=>setRow(s.id,"notes",e.target.value)}
                                   placeholder="Optional note…"
-                                  style={{width:120,padding:"6px 8px",borderRadius:7,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}
+                                  style={{width:120,padding:"6px 8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,fontFamily:FONT,outline:"none"}}
                                 />}
                             </td>
                             <td style={{padding:"6px 8px"}}>
@@ -5466,15 +5799,15 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
             <Table
               headers={["ID","Worker","Care Home","Date","Hrs Booked","Hrs Submitted","Rate","Total","Status","Submitted","Action"]}
               rows={mySubmitted.map(ts=>(
-                <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="disputed"?T.redBg:ts.status==="approved"?"#f0fff4":"transparent"}}>
-                  <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:T.navy}}>{ts.id}</span></Td>
+                <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="disputed"?T.redBg:ts.status==="approved"?T.greenBg:"transparent"}}>
+                  <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:560,color:T.navy}}>{ts.id}</span></Td>
                   <Td bold>{ts.worker}</Td>
                   <Td>{ts.carehome}</Td>
                   <Td>{ts.date}</Td>
                   <Td style={{color:T.muted}}>{ts.scheduledHrs}h</Td>
                   <Td bold>{ts.hoursWorked}h</Td>
                   <Td>£{ts.rate}{"/hr"}</Td>
-                  <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
+                  <Td><span style={{fontWeight:600,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
                   <Td><TsBadge s={ts.status}/></Td>
                   <Td style={{fontSize:11,color:T.muted}}>{ts.submittedAt}</Td>
                   <Td>
@@ -5490,15 +5823,15 @@ const AgencyTimesheets = ({timesheets,setTimesheets}) => {
             />
           </Card>
           {disputed.length>0&&(
-            <Card style={{marginTop:16,border:`1.5px solid ${T.red}55`}}>
-              <CardHead title="Disputes Raised" icon="⚠️" sub="Care home queries — correct and resubmit"/>
+            <Card style={{marginTop:16,border:`1px solid ${T.red}55`}}>
+              <CardHead title="Disputes Raised" icon="warning" sub="Care home queries — correct and resubmit"/>
               {disputed.map(ts=>(
-                <div key={ts.id} style={{margin:"10px 14px",padding:"14px 16px",background:T.redBg,borderRadius:8,border:`1.5px solid ${T.red}33`}}>
+                <div key={ts.id} style={{margin:"10px 14px",padding:"14px 16px",background:T.redBg,borderRadius:8,border:`1px solid ${T.red}33`}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
-                    <span style={{fontWeight:700,fontSize:13}}>{ts.worker} — {ts.carehome} ({ts.date})</span>
+                    <span style={{fontWeight:560,fontSize:13}}>{ts.worker} — {ts.carehome} ({ts.date})</span>
                     <span style={{fontFamily:"monospace",fontSize:11,color:T.muted}}>{ts.id}</span>
                   </div>
-                  <div style={{fontSize:12,color:T.red,fontWeight:600,marginBottom:10}}>🚩 "{ts.disputeReason}"</div>
+                  <div style={{fontSize:12,color:T.red,fontWeight:600,marginBottom:10}}>"{ts.disputeReason}"</div>
                   <div style={{display:"flex",gap:8}}>
                     <Btn small onClick={()=>setTimesheets(prev=>prev.map(t=>t.id===ts.id?{...t,status:"pending",disputeReason:null}:t))}>Correct & Resubmit</Btn>
                     <Btn small variant="secondary" onClick={()=>alert(`Message sent to ${ts.carehome} regarding timesheet ${ts.id}. They will respond within 1 working day.`)}>Contact Care Home</Btn>
@@ -5566,16 +5899,16 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
   };
 
   return (
-    <Page title="Timesheets" sub="Review and approve agency-submitted hours before invoices are generated" icon="🕐">
+    <Page title="Timesheets" sub="Review and approve agency-submitted hours before invoices are generated" icon="clock">
       {disputeModal&&(
         <Modal title="Raise a Dispute" onClose={()=>setDisputeModal(null)}>
-          <div style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",marginBottom:14,fontSize:13}}>
-            <div style={{fontWeight:700,marginBottom:4}}>{disputeModal.worker} — {disputeModal.role}</div>
+          <div style={{background:T.raised,borderRadius:8,padding:"12px 14px",marginBottom:14,fontSize:13}}>
+            <div style={{fontWeight:560,marginBottom:4}}>{disputeModal.worker} — {disputeModal.role}</div>
             <div style={{color:T.muted}}>{disputeModal.date} · {disputeModal.time} · {disputeModal.hoursWorked}hrs · £{disputeModal.total}</div>
           </div>
           <div style={{marginBottom:14}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason for Dispute *</label>
-            <textarea value={disputeText} onChange={e=>setDisputeText(e.target.value)} rows={3} placeholder="e.g. Worker arrived 45 minutes late, hours should be 11.25 not 12…" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.red}`,fontSize:13,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none"}}/>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Reason for Dispute *</label>
+            <textarea value={disputeText} onChange={e=>setDisputeText(e.target.value)} rows={3} placeholder="e.g. Worker arrived 45 minutes late, hours should be 11.25 not 12…" style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.red}`,fontSize:13,fontFamily:FONT,resize:"vertical",outline:"none"}}/>
           </div>
           <Alert type="warn">The agency will be notified and asked to correct and resubmit the timesheet.</Alert>
           <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
@@ -5586,9 +5919,9 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
       )}
 
       {pending.length>0&&(
-        <div style={{background:`linear-gradient(135deg,${T.blue}18,${T.blueBg})`,borderRadius:12,padding:"14px 18px",marginBottom:18,border:`1px solid ${T.blue}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+        <div style={{background:`linear-gradient(135deg,${T.blue}18,${T.blueBg})`,borderRadius:14,padding:"14px 18px",marginBottom:18,border:`1px solid ${T.blue}44`,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
           <div>
-            <div style={{fontWeight:700,fontSize:14,color:T.blue,marginBottom:4}}>✋ {pending.length} timesheet{pending.length>1?"s":""}  awaiting your approval</div>
+            <div style={{fontWeight:560,fontSize:14,color:T.blue,marginBottom:4}}>{pending.length} timesheet{pending.length>1?"s":""}  awaiting your approval</div>
             <div style={{fontSize:13,color:T.text}}>Review hours submitted by agencies. Approving will trigger invoice generation. Disputes are sent back to the agency.</div>
           </div>
           <Badge label={`£${pending.reduce((a,t)=>a+t.total,0).toLocaleString()} to approve`} color={T.blue} bg={T.blueBg}/>
@@ -5604,21 +5937,21 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
 
       {pending.length>0&&(
         <Card style={{marginBottom:18,border:`2px solid ${T.blue}55`}}>
-          <CardHead title="Pending Your Approval" icon="⏳" sub="Review each entry carefully before approving"/>
+          <CardHead title="Pending Your Approval" icon="hourglass" sub="Review each entry carefully before approving"/>
           {pending.map(ts=>(
-            <div key={ts.id} style={{margin:"0 14px 12px",padding:"16px 18px",background:"#f8fbff",borderRadius:10,border:`1.5px solid ${T.blue}33`}}>
+            <div key={ts.id} style={{margin:"0 14px 12px",padding:"16px 18px",background:"#f8fbff",borderRadius:10,border:`1px solid ${T.blue}33`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12,flexWrap:"wrap",gap:8}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:3}}>{ts.worker} <span style={{color:T.muted,fontWeight:400}}>·</span> <Badge label={ts.role} color={T.purple} bg={T.purpleBg}/></div>
+                  <div style={{fontWeight:560,fontSize:14,color:T.text,marginBottom:3}}>{ts.worker} <span style={{color:T.muted,fontWeight:400}}>·</span> <Badge label={ts.role} color={T.purple} bg={T.purpleBg}/></div>
                   <div style={{fontSize:12,color:T.muted}}>{ts.agency} · {ts.date} · {ts.time}</div>
                 </div>
                 <span style={{fontFamily:"monospace",fontSize:11,color:T.muted,background:"#eef2f7",padding:"3px 8px",borderRadius:5}}>{ts.id}</span>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
                 {[["Hours Worked",`${ts.hoursWorked}hrs`],["Break",`${ts.breakMins} mins`],["Rate",`£${ts.rate}{"/hr"}`],["Total Payable",`£${ts.total.toLocaleString()}`]].map(([k,v],i)=>(
-                  <div key={i} style={{background:T.white,borderRadius:7,padding:"10px 12px",border:`1px solid ${T.border}`,textAlign:"center"}}>
-                    <div style={{fontSize:10,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:4}}>{k}</div>
-                    <div style={{fontSize:i===3?16:14,fontWeight:800,color:i===3?T.green:T.text}}>{v}</div>
+                  <div key={i} style={{background:T.white,borderRadius:8,padding:"10px 12px",border:`1px solid ${T.border}`,textAlign:"center"}}>
+                    <div style={{fontSize:10,color:T.muted,fontWeight:560,letterSpacing:"-0.006em",marginBottom:4}}>{k}</div>
+                    <div style={{fontSize:i===3?16:14,fontWeight:600,color:i===3?T.green:T.text}}>{v}</div>
                   </div>
                 ))}
               </div>
@@ -5637,13 +5970,13 @@ const CareHomeTimesheets = ({timesheets,setTimesheets,user,invoices,setInvoices}
         <Table
           headers={["ID","Worker","Agency","Date","Hours","Total","Status","Approved By","Action"]}
           rows={mySheets.map(ts=>(
-            <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="disputed"?T.redBg:ts.status==="approved"?"#f0fff4":"transparent"}}>
-              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:700}}>{ts.id}</span></Td>
+            <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="disputed"?T.redBg:ts.status==="approved"?T.greenBg:"transparent"}}>
+              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:560}}>{ts.id}</span></Td>
               <Td bold>{ts.worker}</Td>
               <Td><span style={{fontSize:12,color:T.muted}}>{ts.agency}</span></Td>
               <Td>{ts.date}</Td>
               <Td bold>{ts.hoursWorked}hrs</Td>
-              <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
+              <Td><span style={{fontWeight:600,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
               <Td><TsBadge s={ts.status}/></Td>
               <Td><span style={{fontSize:12,color:T.muted}}>{ts.approvedBy||"—"}</span></Td>
               <Td>
@@ -5715,31 +6048,31 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
   };
 
   const tsExports = [
-    {icon:"📋",label:"All Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets.csv",
+    {icon:"clipboard",label:"All Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets.csv",
       ["ID","Agency","Location","Worker","Role","Date","Hours","Rate (£)","Total (£)","Status"],
       timesheets.map(t=>[t.id,t.agency,t.carehome,t.worker,t.role,t.date,t.hoursWorked,t.rate,t.total,t.status]))},
-    {icon:"✅",label:"Approved Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets-approved.csv",
+    {icon:"checkCircle",label:"Approved Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets-approved.csv",
       ["ID","Agency","Location","Worker","Role","Date","Hours","Total (£)","Approved By"],
       timesheets.filter(t=>t.status==="approved").map(t=>[t.id,t.agency,t.carehome,t.worker,t.role,t.date,t.hoursWorked,t.total,t.approvedBy]))},
-    {icon:"⚠️",label:"Disputed Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets-disputed.csv",
+    {icon:"warning",label:"Disputed Timesheets — CSV",fn:()=>exportCSV("fcc-timesheets-disputed.csv",
       ["ID","Agency","Location","Worker","Role","Date","Hours","Total (£)","Dispute Reason"],
       timesheets.filter(t=>t.status==="disputed").map(t=>[t.id,t.agency,t.carehome,t.worker,t.role,t.date,t.hoursWorked,t.total,t.disputeReason]))},
-    {icon:"🖨️",label:"Full Timesheet Report — PDF",fn:()=>exportHTML("Timesheet Report","All timesheets — Nexus RPO",
+    {icon:"printer",label:"Full Timesheet Report — PDF",fn:()=>exportHTML("Timesheet Report","All timesheets — Nexus RPO",
       buildTable(["ID","Agency","Location","Worker","Role","Date","Hours","Total","Status"],
         timesheets.map(t=>[t.id,t.agency,t.carehome,t.worker,t.role,t.date,t.hoursWorked,`£${t.total}`,t.status.toUpperCase()])))},
   ];
 
   return (
-    <Page title="Timesheets" sub="Approval pipeline — approved timesheets are auto-grouped into invoices by agency" icon="🕐" action={<ExportMenu exports={tsExports}/>}>
+    <Page title="Timesheets" sub="Approval pipeline — approved timesheets are auto-grouped into invoices by agency" icon="clock" action={<ExportMenu exports={tsExports}/>}>
 
       {/* Confirmation modal */}
       {confirmedInv && (
-        <Modal title="✅ Invoice Finalised" onClose={()=>setConfirmedInv(null)}>
+        <Modal title="Invoice Finalised" onClose={()=>setConfirmedInv(null)}>
           <div style={{textAlign:"center",padding:"20px 0"}}>
-            <div style={{fontSize:40,marginBottom:12}}>🧾</div>
-            <div style={{fontSize:22,fontWeight:800,color:T.navy,marginBottom:4}}>{confirmedInv.id}</div>
+            <div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="receipt" size={36} stroke={1.5}/></div>
+            <div style={{fontSize:22,fontWeight:600,color:T.navy,marginBottom:4}}>{confirmedInv.id}</div>
             <div style={{fontSize:14,color:T.muted,marginBottom:20}}>{confirmedInv.agency} · {confirmedInv.count} timesheets</div>
-            <div style={{fontSize:36,fontWeight:800,color:T.green,marginBottom:6}}>£{confirmedInv.total.toLocaleString()}</div>
+            <div style={{fontSize:36,fontWeight:600,color:T.green,marginBottom:6}}>£{confirmedInv.total.toLocaleString()}</div>
             <div style={{fontSize:12,color:T.muted,marginBottom:24}}>Payment due {confirmedInv.due} · Invoice sent to {confirmedInv.agency}</div>
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
               <Btn onClick={()=>exportHTML(confirmedInv.id,`${confirmedInv.agency} · Invoice`,buildTable(["Invoice ID","Agency","Timesheets","Total","Due"],[[confirmedInv.id,confirmedInv.agency,confirmedInv.count,`£${confirmedInv.total.toLocaleString()}`,confirmedInv.due]]))}>Download PDF</Btn>
@@ -5761,8 +6094,8 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
       {draftGroups.length>0 && (
         <div style={{marginBottom:20}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-            <h3 style={{fontWeight:800,fontSize:14,color:T.text}}>🧾 Draft Invoices</h3>
-            <span style={{fontSize:11,color:T.muted,background:"#f0f4f8",padding:"2px 8px",borderRadius:20,fontWeight:600}}>
+            <h3 style={{fontWeight:600,fontSize:14,color:T.text}}>Draft Invoices</h3>
+            <span style={{fontSize:11,color:T.muted,background:T.sunken,padding:"2px 8px",borderRadius:20,fontWeight:600}}>
               Auto-grouped when care homes approve timesheets
             </span>
           </div>
@@ -5770,12 +6103,12 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
             {draftGroups.map(group=>{
               const isExpanded = expandedInv===group.agency;
               return (
-                <Card key={group.agency} style={{overflow:"hidden",border:`1.5px solid ${T.green}55`}}>
+                <Card key={group.agency} style={{overflow:"hidden",border:`1px solid ${T.green}55`}}>
                   {/* Group header */}
-                  <div style={{padding:"16px 20px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",background:"#f0fff4"}}>
+                  <div style={{padding:"16px 20px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",background:T.greenBg}}>
                     <div style={{flex:1,minWidth:200}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                        <span style={{fontWeight:800,fontSize:15,color:T.navy}}>{group.agency}</span>
+                        <span style={{fontWeight:600,fontSize:15,color:T.navy}}>{group.agency}</span>
                         <Badge label="Draft" color={T.green} bg={T.greenBg} dot/>
                         <span style={{fontSize:11,color:T.muted,background:"#e8f5e9",padding:"2px 8px",borderRadius:20,fontWeight:600}}>
                           {group.sheets.length} approved timesheet{group.sheets.length!==1?"s":""}
@@ -5788,7 +6121,7 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
                     </div>
                     <div style={{display:"flex",alignItems:"center",gap:14,flexShrink:0}}>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:24,fontWeight:800,color:T.green}}>£{group.total.toLocaleString()}</div>
+                        <div style={{fontSize:24,fontWeight:600,color:T.green}}>£{group.total.toLocaleString()}</div>
                         <div style={{fontSize:11,color:T.muted}}>Total value</div>
                       </div>
                       <div style={{display:"flex",gap:8}}>
@@ -5805,36 +6138,36 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
                     <div style={{borderTop:`1px solid ${T.border}`}}>
                       <table style={{width:"100%",borderCollapse:"collapse"}}>
                         <thead>
-                          <tr style={{background:"#f8fafc"}}>
+                          <tr style={{background:T.raised}}>
                             {["Timesheet","Worker","Role","Care Home","Date","Hours","Rate","Total","Approved By"].map(h=>(
-                              <th key={h} style={{padding:"8px 12px",fontSize:10,fontWeight:700,color:T.muted,textAlign:"left",textTransform:"uppercase",letterSpacing:"0.06em",borderBottom:`1px solid ${T.border}`}}>{h}</th>
+                              <th key={h} style={{padding:"8px 12px",fontSize:10,fontWeight:560,color:T.muted,textAlign:"left",letterSpacing:"-0.006em",borderBottom:`1px solid ${T.border}`}}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           {group.sheets.map(ts=>(
                             <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`}}>
-                              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:700,color:T.navy}}>{ts.id}</span></Td>
+                              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:560,color:T.navy}}>{ts.id}</span></Td>
                               <Td bold>{ts.worker}</Td>
                               <Td><Badge label={ts.role} color={T.purple} bg={T.purpleBg}/></Td>
                               <Td>{ts.carehome}</Td>
                               <Td>{ts.date}</Td>
                               <Td>{ts.hoursWorked}h</Td>
                               <Td>£{ts.rate}{"/hr"}</Td>
-                              <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
+                              <Td><span style={{fontWeight:600,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
                               <Td><span style={{fontSize:11,color:T.green}}>✓ {ts.approvedBy}</span></Td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
-                          <tr style={{background:"#f0fff4",borderTop:`2px solid ${T.green}44`}}>
-                            <td colSpan={7} style={{padding:"12px 14px",fontWeight:800,fontSize:13,color:T.text}}>Total</td>
-                            <td style={{padding:"12px 14px",fontWeight:800,fontSize:16,color:T.green}}>£{group.total.toLocaleString()}</td>
+                          <tr style={{background:T.greenBg,borderTop:`2px solid ${T.green}44`}}>
+                            <td colSpan={7} style={{padding:"12px 14px",fontWeight:600,fontSize:13,color:T.text}}>Total</td>
+                            <td style={{padding:"12px 14px",fontWeight:600,fontSize:16,color:T.green}}>£{group.total.toLocaleString()}</td>
                             <td/>
                           </tr>
                         </tfoot>
                       </table>
-                      <div style={{padding:"12px 16px",display:"flex",justifyContent:"flex-end",background:"#f8fafc",borderTop:`1px solid ${T.border}`}}>
+                      <div style={{padding:"12px 16px",display:"flex",justifyContent:"flex-end",background:T.raised,borderTop:`1px solid ${T.border}`}}>
                         <Btn onClick={()=>finaliseInvoice(group)}>Finalise & Send Invoice →</Btn>
                       </div>
                     </div>
@@ -5847,11 +6180,11 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
       )}
 
       {draftGroups.length===0 && approved.length===0 && (
-        <Card style={{padding:28,marginBottom:18,background:"#f0fff4",border:`1px solid ${T.green}44`}}>
+        <Card style={{padding:28,marginBottom:18,background:T.greenBg,border:`1px solid ${T.green}44`}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <span style={{fontSize:28}}>✅</span>
+            <span style={{fontSize:28}}><Icon name="checkCircle" size={15}/></span>
             <div>
-              <div style={{fontWeight:700,fontSize:14,color:T.green}}>All caught up</div>
+              <div style={{fontWeight:560,fontSize:14,color:T.green}}>All caught up</div>
               <div style={{fontSize:12,color:T.muted}}>No approved timesheets waiting — invoices will appear here automatically as care homes approve hours.</div>
             </div>
           </div>
@@ -5872,22 +6205,22 @@ const AdminTimesheets = ({timesheets,setTimesheets,invoices,setInvoices}) => {
         <Table
           headers={["ID","Agency","Worker","Care Home","Date","Hours","Rate","Total","Status","Approved By","Invoice"]}
           rows={filtered.map(ts=>(
-            <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="approved"?"#f0fff4":ts.status==="disputed"?T.redBg:ts.status==="invoiced"?"#fffbeb":"transparent"}}>
-              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:700}}>{ts.id}</span></Td>
+            <tr key={ts.id} style={{borderBottom:`1px solid ${T.border}`,background:ts.status==="approved"?T.greenBg:ts.status==="disputed"?T.redBg:ts.status==="invoiced"?T.amberBg:"transparent"}}>
+              <Td><span style={{fontFamily:"monospace",fontSize:11,fontWeight:560}}>{ts.id}</span></Td>
               <Td><span style={{fontSize:12,fontWeight:600}}>{ts.agency}</span></Td>
               <Td bold>{ts.worker}</Td>
               <Td>{ts.carehome}</Td>
               <Td>{ts.date}</Td>
               <Td>{ts.hoursWorked}h</Td>
               <Td>£{ts.rate}{"/hr"}</Td>
-              <Td><span style={{fontWeight:800,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
+              <Td><span style={{fontWeight:600,color:T.green}}>£{ts.total.toLocaleString()}</span></Td>
               <Td><TsBadge s={ts.status}/></Td>
               <Td><span style={{fontSize:11,color:ts.approvedBy?T.green:T.muted}}>{ts.approvedBy||"Pending"}</span></Td>
               <Td>
                 {ts.invoiceId
-                  ? <span style={{fontFamily:"monospace",fontSize:11,color:T.amber,fontWeight:700}}>{ts.invoiceId}</span>
+                  ? <span style={{fontFamily:"monospace",fontSize:11,color:T.amber,fontWeight:560}}>{ts.invoiceId}</span>
                   : ts.status==="approved"
-                    ? <span style={{fontSize:10,color:T.green,fontWeight:700,background:T.greenBg,padding:"2px 7px",borderRadius:20}}>In draft</span>
+                    ? <span style={{fontSize:10,color:T.green,fontWeight:560,background:T.greenBg,padding:"2px 7px",borderRadius:20}}>In draft</span>
                     : <span style={{fontSize:11,color:T.muted}}>—</span>}
               </Td>
             </tr>
@@ -5906,9 +6239,9 @@ const UsersAndPermissions = ({users,setUsers}) => {
   const [invite,setInvite]         = useState({name:"",email:"",role:"carehome",org:""});
   const [search,setSearch]         = useState("");
 
-  const roleColors = {admin:{c:T.amber,bg:T.amberBg},carehome:{c:T.blue,bg:T.blueBg},agency:{c:T.purple,bg:T.purpleBg},bank:{c:T.teal,bg:T.tealBg}};
-  const roleLabels = {admin:"Admin",carehome:"Care Home",agency:"Agency",bank:"Bank Staff"};
-  const statusColor= {active:{c:T.green,bg:T.greenBg},inactive:{c:T.muted,bg:"#f1f5f9"},suspended:{c:T.red,bg:T.redBg}};
+  const roleColors = {admin:{c:T.amber,bg:T.amberBg},clientadmin:{c:T.accentText,bg:T.accentBg},carehome:{c:T.accent,bg:T.accentBg},agency:{c:T.purple,bg:T.purpleBg},bank:{c:T.teal,bg:T.tealBg}};
+  const roleLabels = {admin:"Admin",clientadmin:"Client Admin",carehome:"Care Home",agency:"Agency",bank:"Bank Staff"};
+  const statusColor= {active:{c:T.green,bg:T.greenBg},inactive:{c:T.muted,bg:T.sunken},suspended:{c:T.red,bg:T.redBg}};
 
   const filtered = users
     .filter(u=>roleFilter==="all"||u.role===roleFilter)
@@ -5935,27 +6268,27 @@ const UsersAndPermissions = ({users,setUsers}) => {
 
   // Toggle chip
   const PermChip = ({on,label,onClick,disabled}) => (
-    <button onClick={disabled?undefined:onClick} style={{padding:"4px 10px",borderRadius:20,border:`1.5px solid ${on?T.green:T.border}`,background:on?T.greenBg:"#f8fafc",color:on?T.green:T.muted,fontSize:11,fontWeight:700,cursor:disabled?"not-allowed":"pointer",fontFamily:"Syne,sans-serif",opacity:disabled?0.5:1,transition:"all 0.15s"}}>
+    <button onClick={disabled?undefined:onClick} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${on?T.green:T.border}`,background:on?T.greenBg:T.raised,color:on?T.green:T.muted,fontSize:11,fontWeight:560,cursor:disabled?"not-allowed":"pointer",fontFamily:FONT,opacity:disabled?0.5:1,transition:"all 0.15s"}}>
       {on?"✓ ":""}{label}
     </button>
   );
 
   return (
-    <Page title="Users & Permissions" sub="Manage who has access to Nexus RPO and what they can see and do" icon="🔐"
+    <Page title="Users & Permissions" sub="Manage who has access to Nexus RPO and what they can see and do" icon="lock"
       action={<Btn onClick={()=>setInviteModal(true)}>+ Invite User</Btn>}>
 
       {/* Invite modal */}
       {inviteModal&&(
         <Modal title="Invite New User" onClose={()=>setInviteModal(false)}>
           <div style={{background:T.amberBg,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:T.amberText,fontWeight:600}}>
-            📧 An invitation email will be sent. The user sets their own password on first login.
+            An invitation email will be sent. The user sets their own password on first login.
           </div>
           <Input label="Full Name *" value={invite.name} onChange={v=>setInvite(p=>({...p,name:v}))} placeholder="e.g. Janet Mills"/>
           <Input label="Email Address *" type="email" value={invite.email} onChange={v=>setInvite(p=>({...p,email:v}))} placeholder="name@organisation.co.uk"/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div>
-              <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Role *</label>
-              <select value={invite.role} onChange={e=>setInvite(p=>({...p,role:e.target.value}))} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}>
+              <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Role *</label>
+              <select value={invite.role} onChange={e=>setInvite(p=>({...p,role:e.target.value}))} style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}>
                 <option value="admin">Admin</option>
                 <option value="carehome">Care Home Manager</option>
                 <option value="agency">Agency Coordinator</option>
@@ -5975,12 +6308,12 @@ const UsersAndPermissions = ({users,setUsers}) => {
       {/* Permission editor modal */}
       {editing&&(
         <Modal title="Edit Permissions" onClose={()=>setEditing(null)}>
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"#f8fafc",borderRadius:8,marginBottom:16}}>
-            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${roleColors[editing.role]?.c||T.navy},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:700,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.raised,borderRadius:8,marginBottom:16}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${roleColors[editing.role]?.c||T.navy},${T.navy})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:560,flexShrink:0}}>
               {editing.name.split(" ").map(n=>n[0]).join("")}
             </div>
             <div>
-              <div style={{fontWeight:700,fontSize:14}}>{editing.name}</div>
+              <div style={{fontWeight:560,fontSize:14}}>{editing.name}</div>
               <div style={{fontSize:12,color:T.muted}}>{editing.email} · {editing.org}</div>
             </div>
             <Badge label={roleLabels[editing.role]} color={roleColors[editing.role]?.c} bg={roleColors[editing.role]?.bg} style={{marginLeft:"auto"}}/>
@@ -5991,12 +6324,12 @@ const UsersAndPermissions = ({users,setUsers}) => {
           )}
 
           <div style={{marginBottom:8}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Section Access</div>
+            <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Section Access</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {(PERM_DEFS[editing.role]||[]).map(p=>{
                 const granted = editing.superAdmin||editing.perms[p.k]!==false;
                 return (
-                  <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?"#f0fff4":"#fafafa",borderRadius:8,border:`1.5px solid ${granted?T.green+"44":T.border}`,transition:"all 0.15s"}}>
+                  <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?T.greenBg:T.raised,borderRadius:8,border:`1px solid ${granted?T.green+"44":T.border}`,transition:"all 0.15s"}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:T.text}}>{p.l}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:1}}>{p.desc}</div>
@@ -6007,7 +6340,7 @@ const UsersAndPermissions = ({users,setUsers}) => {
                         togglePerm(editing.id,p.k);
                         setEditing(prev=>({...prev,perms:{...prev.perms,[p.k]:!prev.perms[p.k]}}));
                       }}
-                      style={{width:42,height:24,borderRadius:12,background:granted?T.green:T.border,border:"none",cursor:editing.superAdmin?"not-allowed":"pointer",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:editing.superAdmin?0.6:1}}>
+                      style={{width:42,height:24,borderRadius:14,background:granted?T.green:T.border,border:"none",cursor:editing.superAdmin?"not-allowed":"pointer",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:editing.superAdmin?0.6:1}}>
                       <div style={{position:"absolute",top:3,left:granted?20:3,width:18,height:18,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                     </button>
                   </div>
@@ -6048,8 +6381,8 @@ const UsersAndPermissions = ({users,setUsers}) => {
       <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:14}}>
         <div style={{flex:1,minWidth:200,position:"relative"}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, email, org…"
-            style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
-          <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",fontSize:14,color:T.muted}}>🔍</span>
+            style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}/>
+          <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",fontSize:14,color:T.muted}}><Icon name="search" size={15}/></span>
         </div>
         {[["all","All"],["admin","Admin"],["carehome","Care Homes"],["agency","Agencies"],["bank","Bank Staff"]].map(([v,l])=>(
           <Pill key={v} label={`${l}${v!=="all"?" ("+users.filter(u=>u.role===v).length+")":""}`} active={roleFilter===v} onClick={()=>setRoleFilter(v)}/>
@@ -6066,14 +6399,14 @@ const UsersAndPermissions = ({users,setUsers}) => {
             const grantedCount=(PERM_DEFS[u.role]||[]).filter(p=>u.superAdmin||u.perms[p.k]!==false).length;
             const totalCount=(PERM_DEFS[u.role]||[]).length;
             return (
-              <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="suspended"?T.redBg:u.status==="invited"?"#fffbeb":"transparent"}}>
+              <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="suspended"?T.redBg:u.status==="invited"?T.amberBg:"transparent"}}>
                 <Td>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
-                    <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${rc?.c||T.navy}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.white,flexShrink:0}}>
+                    <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${rc?.c||T.navy}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:560,color:T.white,flexShrink:0}}>
                       {u.name.split(" ").map(n=>n[0]).join("")}
                     </div>
                     <div>
-                      <div style={{fontWeight:700,fontSize:13}}>{u.name}{u.superAdmin&&<span style={{marginLeft:5,fontSize:9,background:T.amber,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:700}}>SUPER</span>}</div>
+                      <div style={{fontWeight:560,fontSize:13}}>{u.name}{u.superAdmin&&<span style={{marginLeft:5,fontSize:9,background:T.amber,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:560}}>SUPER</span>}</div>
                       <div style={{fontSize:11,color:T.muted}}>{u.email}</div>
                     </div>
                   </div>
@@ -6082,7 +6415,7 @@ const UsersAndPermissions = ({users,setUsers}) => {
                 <Td><span style={{fontSize:13}}>{u.org}</span></Td>
                 <Td>
                   <select value={u.status} onChange={e=>toggleStatus(u.id,e.target.value)}
-                    style={{padding:"4px 8px",borderRadius:6,border:`1.5px solid ${sc.c}44`,background:sc.bg,color:sc.c,fontSize:11,fontWeight:700,fontFamily:"Syne,sans-serif",cursor:"pointer",outline:"none"}}>
+                    style={{padding:"4px 8px",borderRadius:8,border:`1px solid ${sc.c}44`,background:sc.bg,color:sc.c,fontSize:11,fontWeight:560,fontFamily:FONT,cursor:"pointer",outline:"none"}}>
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                     <option value="suspended">Suspended</option>
@@ -6113,7 +6446,7 @@ const UsersAndPermissions = ({users,setUsers}) => {
       {/* Role permission overview matrix */}
       <div style={{marginTop:20}}>
         <Card>
-          <CardHead title="Default Permission Templates" sub="These are the baseline permissions applied when new users are invited. Customise per-user above." icon="📋"/>
+          <CardHead title="Default Permission Templates" sub="These are the baseline permissions applied when new users are invited. Customise per-user above." icon="clipboard"/>
           <div style={{overflowX:"auto",padding:"0 14px 14px"}}>
             {["admin","carehome","agency","bank"].map(role=>{
               const rc=roleColors[role];
@@ -6125,7 +6458,7 @@ const UsersAndPermissions = ({users,setUsers}) => {
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {(PERM_DEFS[role]||[]).map(p=>(
-                      <span key={p.k} style={{padding:"4px 10px",borderRadius:20,background:T.greenBg,border:`1.5px solid ${T.green}44`,fontSize:11,fontWeight:600,color:T.green}} title={p.desc}>
+                      <span key={p.k} style={{padding:"4px 10px",borderRadius:20,background:T.greenBg,border:`1px solid ${T.green}44`,fontSize:11,fontWeight:600,color:T.green}} title={p.desc}>
                         ✓ {p.l}
                       </span>
                     ))}
@@ -6163,11 +6496,11 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
   }));
 
   return (
-    <Page title="Site Allocation" sub="Control which care home staff can access which locations" icon="📍"
+    <Page title="Site Allocation" sub="Control which care home staff can access which locations" icon="pin"
       action={
         <div style={{display:"flex",gap:8}}>
           {[["users","By User"],["sites","By Site"]].map(([v,l])=>(
-            <button key={v} onClick={()=>setViewMode(v)} style={{padding:"8px 16px",borderRadius:8,border:"none",background:viewMode===v?T.navy:"#eef1f6",color:viewMode===v?T.white:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>
+            <button key={v} onClick={()=>setViewMode(v)} style={{padding:"8px 16px",borderRadius:8,border:"none",background:viewMode===v?T.navy:T.sunken,color:viewMode===v?T.white:T.muted,fontWeight:560,fontSize:12,cursor:"pointer",fontFamily:FONT}}>
               {l}
             </button>
           ))}
@@ -6177,36 +6510,36 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
       {/* Edit sites modal */}
       {editingUser&&(
         <Modal title={`Edit Site Access — ${editingUser.name}`} onClose={()=>setEditingUser(null)}>
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"#f8fafc",borderRadius:8,marginBottom:16}}>
-            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:700,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.raised,borderRadius:8,marginBottom:16}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:560,flexShrink:0}}>
               {editingUser.name.split(" ").map(n=>n[0]).join("")}
             </div>
             <div>
-              <div style={{fontWeight:700,fontSize:14}}>{editingUser.name}</div>
+              <div style={{fontWeight:560,fontSize:14}}>{editingUser.name}</div>
               <div style={{fontSize:12,color:T.muted}}>{editingUser.email}</div>
             </div>
           </div>
 
           <div style={{marginBottom:8}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:12}}>Site Access</div>
+            <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:12}}>Site Access</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {CARE_HOMES.map(ch=>{
                 const granted = draftSites.includes(ch.name);
                 const currentUserCount = careHomeUsers.filter(u=>u.id!==editingUser.id&&(u.sites||[]).includes(ch.name)).length;
                 return (
-                  <div key={ch.id} onClick={()=>toggleSite(ch.name)} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",borderRadius:10,border:`2px solid ${granted?T.navy:T.border}`,background:granted?"#f0f4ff":"#fafafa",cursor:"pointer",transition:"all 0.15s"}}>
-                    <div style={{width:42,height:42,borderRadius:10,background:granted?T.navy:"#e8ecf4",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,transition:"background 0.15s"}}>
-                      🏥
+                  <div key={ch.id} onClick={()=>toggleSite(ch.name)} style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",borderRadius:10,border:`2px solid ${granted?T.navy:T.border}`,background:granted?T.accentBg:T.raised,cursor:"pointer",transition:"all 0.15s"}}>
+                    <div style={{width:42,height:42,borderRadius:10,background:granted?T.navy:T.sunken,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,transition:"background 0.15s"}}>
+                      
                     </div>
                     <div style={{flex:1}}>
-                      <div style={{fontWeight:700,fontSize:13,color:T.text}}>{ch.name}</div>
+                      <div style={{fontWeight:560,fontSize:13,color:T.text}}>{ch.name}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:2}}>{ch.type} · {ch.beds} beds · {ch.contact}</div>
                       <div style={{fontSize:10,color:T.muted,marginTop:2}}>
                         {currentUserCount>0?`${currentUserCount} other manager${currentUserCount>1?"s":""} also have access`:"No other managers assigned"}
                       </div>
                     </div>
-                    <div style={{width:24,height:24,borderRadius:6,background:granted?T.navy:T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>
-                      {granted&&<span style={{color:T.white,fontSize:14,fontWeight:700}}>✓</span>}
+                    <div style={{width:24,height:24,borderRadius:8,background:granted?T.navy:T.border,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.15s"}}>
+                      {granted&&<span style={{color:T.white,fontSize:14,fontWeight:560}}>✓</span>}
                     </div>
                   </div>
                 );
@@ -6215,7 +6548,7 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
           </div>
 
           {draftSites.length===0&&(
-            <Alert type="error" style={{marginTop:12}}>⚠️ This user will have no site access and won't be able to see any data. Assign at least one site.</Alert>
+            <Alert type="error" style={{marginTop:12}}>This user will have no site access and won't be able to see any data. Assign at least one site.</Alert>
           )}
 
           <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:16}}>
@@ -6234,8 +6567,8 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
       </Grid>
 
       {/* Info banner */}
-      <div style={{background:"#f0f7ff",border:`1px solid ${T.blue}44`,borderRadius:12,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
-        <strong style={{color:T.blue}}>📍 How site allocation works:</strong> Care home managers only see shifts, timesheets, invoices and workers for their allocated sites. A relief or regional manager can be given access to multiple sites. Changing allocation takes effect immediately.
+      <div style={{background:T.accentBg,border:`1px solid ${T.blue}44`,borderRadius:14,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
+        <strong style={{color:T.blue}}>How site allocation works:</strong> Care home managers only see shifts, timesheets, invoices and workers for their allocated sites. A relief or regional manager can be given access to multiple sites. Changing allocation takes effect immediately.
       </div>
 
       {viewMode==="users"&&(
@@ -6246,14 +6579,14 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
               const sites = u.sites||[];
               const siteData = CARE_HOMES.filter(c=>sites.includes(c.name));
               return (
-                <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:sites.length===0?T.redBg:u.status==="inactive"?"#f8fafc":"transparent"}}>
+                <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:sites.length===0?T.redBg:u.status==="inactive"?T.raised:"transparent"}}>
                   <Td>
                     <div style={{display:"flex",alignItems:"center",gap:9}}>
-                      <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.white,flexShrink:0}}>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:560,color:T.white,flexShrink:0}}>
                         {u.name.split(" ").map(n=>n[0]).join("")}
                       </div>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13}}>{u.name}</div>
+                        <div style={{fontWeight:560,fontSize:13}}>{u.name}</div>
                         <div style={{fontSize:10,color:T.muted}}>{u.org}</div>
                       </div>
                     </div>
@@ -6261,10 +6594,10 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
                   <Td><span style={{fontSize:12,color:T.muted}}>{u.email}</span></Td>
                   <Td>
                     {sites.length===0
-                      ?<Badge label="⚠ No Sites" color={T.red} bg={T.redBg}/>
+                      ?<Badge label="No Sites" color={T.red} bg={T.redBg}/>
                       :<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                         {sites.map(s=>(
-                          <span key={s} style={{padding:"3px 8px",borderRadius:6,background:T.navy+"11",border:`1px solid ${T.navy}22`,fontSize:10,fontWeight:700,color:T.navy}}>{s}</span>
+                          <span key={s} style={{padding:"3px 8px",borderRadius:8,background:T.navy+"11",border:`1px solid ${T.navy}22`,fontSize:10,fontWeight:560,color:T.navy}}>{s}</span>
                         ))}
                       </div>}
                   </Td>
@@ -6278,7 +6611,7 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
                     <Badge
                       label={u.status.charAt(0).toUpperCase()+u.status.slice(1)}
                       color={u.status==="active"?T.green:u.status==="suspended"?T.red:T.muted}
-                      bg={u.status==="active"?T.greenBg:u.status==="suspended"?T.redBg:"#f1f5f9"}
+                      bg={u.status==="active"?T.greenBg:u.status==="suspended"?T.redBg:T.sunken}
                     />
                   </Td>
                   <Td>
@@ -6296,38 +6629,38 @@ const SiteAllocation = ({users,setUsers,navigate}) => {
           {siteAccessMap.map(ch=>(
             <Card key={ch.id} style={{padding:0,overflow:"hidden"}}>
               <div style={{background:T.navy,padding:"16px 18px",display:"flex",alignItems:"center",gap:12}}>
-                <div style={{fontSize:24}}>🏥</div>
+                <div style={{display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="hospital" size={21} stroke={1.5}/></div>
                 <div>
-                  <div style={{fontFamily:"Instrument Serif,serif",fontSize:16,color:T.white}}>{ch.name}</div>
+                  <div style={{fontFamily:FONT,fontSize:16,color:T.white}}>{ch.name}</div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>{ch.type} · {ch.beds} beds</div>
                 </div>
                 <div style={{marginLeft:"auto",background:"rgba(255,255,255,0.12)",padding:"4px 10px",borderRadius:20}}>
-                  <span style={{fontSize:11,fontWeight:700,color:T.white}}>{ch.managers.length} manager{ch.managers.length!==1?"s":""}</span>
+                  <span style={{fontSize:11,fontWeight:560,color:T.white}}>{ch.managers.length} manager{ch.managers.length!==1?"s":""}</span>
                 </div>
               </div>
               <div style={{padding:"14px 18px"}}>
                 {ch.managers.length===0?(
                   <div style={{padding:"12px",background:T.redBg,borderRadius:8,fontSize:12,color:T.red,fontWeight:600,textAlign:"center"}}>
-                    ⚠️ No managers allocated to this site
+                    No managers allocated to this site
                   </div>
                 ):(
                   ch.managers.map(m=>(
                     <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${T.border}`}}>
-                      <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:T.white,flexShrink:0}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:560,color:T.white,flexShrink:0}}>
                         {m.name.split(" ").map(n=>n[0]).join("")}
                       </div>
                       <div style={{flex:1}}>
-                        <div style={{fontWeight:700,fontSize:12}}>{m.name}</div>
+                        <div style={{fontWeight:560,fontSize:12}}>{m.name}</div>
                         <div style={{fontSize:10,color:T.muted}}>{m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:4,alignItems:"center"}}>
                         {(m.sites||[]).length>1&&(
-                          <span style={{fontSize:9,background:T.amberBg,color:T.amberText,borderRadius:4,padding:"2px 5px",fontWeight:700}}>{(m.sites||[]).length} sites</span>
+                          <span style={{fontSize:9,background:T.amberBg,color:T.amberText,borderRadius:4,padding:"2px 5px",fontWeight:560}}>{(m.sites||[]).length} sites</span>
                         )}
                         <Badge
-                          label={m.status}
+                          label={cap(m.status)}
                           color={m.status==="active"?T.green:T.muted}
-                          bg={m.status==="active"?T.greenBg:"#f1f5f9"}
+                          bg={m.status==="active"?T.greenBg:T.sunken}
                         />
                       </div>
                     </div>
@@ -6359,7 +6692,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
   const [invite, setInvite]         = useState({name:"", email:"", role:"agency"});
   const [search, setSearch]         = useState("");
 
-  const statusColor = {active:{c:T.green,bg:T.greenBg}, inactive:{c:T.muted,bg:"#f1f5f9"}, suspended:{c:T.red,bg:T.redBg}, invited:{c:T.yellow,bg:T.yellowBg}};
+  const statusColor = {active:{c:T.green,bg:T.greenBg}, inactive:{c:T.muted,bg:T.sunken}, suspended:{c:T.red,bg:T.redBg}, invited:{c:T.yellow,bg:T.yellowBg}};
   const permDefs = PERM_DEFS["agency"] || [];
 
   const filtered = myUsers.filter(u =>
@@ -6393,7 +6726,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
   };
 
   return (
-    <Page title="Users & Permissions" sub={`Manage who can access the ${myOrg} portal and what they can do`} icon="🔐"
+    <Page title="Users & Permissions" sub={`Manage who can access the ${myOrg} portal and what they can do`} icon="lock"
       action={isSuperAdmin ? <Btn onClick={()=>setInviteModal(true)}>+ Invite User</Btn> : null}>
 
       {!isSuperAdmin && (
@@ -6404,7 +6737,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
       {inviteModal && (
         <Modal title="Invite Team Member" onClose={()=>setInviteModal(false)}>
           <div style={{background:T.greenBg,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:T.green,fontWeight:600,border:`1px solid ${T.green}44`}}>
-            📧 An invitation email will be sent. They'll set their own password on first login.
+            An invitation email will be sent. They'll set their own password on first login.
           </div>
           <Input label="Full Name *" value={invite.name} onChange={v=>setInvite(p=>({...p,name:v}))} placeholder="e.g. Sam Hughes"/>
           <Input label="Work Email *" type="email" value={invite.email} onChange={v=>setInvite(p=>({...p,email:v}))} placeholder={`name@${myOrg.toLowerCase().replace(/\s/g,"")}.co.uk`}/>
@@ -6419,12 +6752,12 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
       {/* Permission editor modal */}
       {editing && (
         <Modal title="Edit Permissions" onClose={()=>setEditing(null)}>
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"#f8fafc",borderRadius:8,marginBottom:16}}>
-            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.purple}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:700,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.raised,borderRadius:8,marginBottom:16}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.purple}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:560,flexShrink:0}}>
               {editing.name.split(" ").map(n=>n[0]).join("")}
             </div>
             <div>
-              <div style={{fontWeight:700,fontSize:14}}>{editing.name}</div>
+              <div style={{fontWeight:560,fontSize:14}}>{editing.name}</div>
               <div style={{fontSize:12,color:T.muted}}>{editing.email} · {myOrg}</div>
             </div>
             {editing.superAdmin && <Badge label="Admin" color={T.purple} bg={T.purpleBg} style={{marginLeft:"auto"}}/>}
@@ -6439,7 +6772,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
                 // Prevent revoking dashboard
                 const locked = p.k === "dashboard";
                 return (
-                  <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?"#f0fff4":"#fafafa",borderRadius:8,border:`1.5px solid ${granted?T.green+"44":T.border}`,transition:"all 0.15s"}}>
+                  <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?T.greenBg:T.raised,borderRadius:8,border:`1px solid ${granted?T.green+"44":T.border}`,transition:"all 0.15s"}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:600,color:T.text}}>{p.l}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:1}}>{p.desc}</div>
@@ -6450,7 +6783,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
                         setEditing(prev => ({...prev, perms:{...prev.perms,[p.k]:!prev.perms[p.k]}}));
                       }}
                       title={locked?"Dashboard access cannot be revoked":""}
-                      style={{width:42,height:24,borderRadius:12,background:granted?T.green:T.border,border:"none",cursor:locked?"not-allowed":"pointer",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:locked?0.5:1}}>
+                      style={{width:42,height:24,borderRadius:14,background:granted?T.green:T.border,border:"none",cursor:locked?"not-allowed":"pointer",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:locked?0.5:1}}>
                       <div style={{position:"absolute",top:3,left:granted?20:3,width:18,height:18,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                     </button>
                   </div>
@@ -6488,15 +6821,15 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
       </Grid>
 
       {/* Info */}
-      <div style={{background:"#f0fdf4",border:`1px solid ${T.green}44`,borderRadius:12,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
-        <strong style={{color:T.green}}>🔐 How permissions work:</strong> Each team member only sees the sections you grant them. The Dashboard is always visible. Revoking a section removes it from their sidebar immediately.
+      <div style={{background:T.greenBg,border:`1px solid ${T.green}44`,borderRadius:14,padding:"12px 16px",marginBottom:16,fontSize:12,color:T.muted}}>
+        <strong style={{color:T.green}}>How permissions work:</strong> Each team member only sees the sections you grant them. The Dashboard is always visible. Revoking a section removes it from their sidebar immediately.
       </div>
 
       {/* Search */}
       <div style={{position:"relative",marginBottom:14,maxWidth:320}}>
-        <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
+        <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}><Icon name="search" size={15}/></span>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search team members…"
-          style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
+          style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}/>
       </div>
 
       <Card>
@@ -6509,17 +6842,17 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
             const totalCount = permDefs.length;
             const isMe = u.email === user?.email;
             return (
-              <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="suspended"?T.redBg:u.status==="invited"?"#fffbeb":"transparent"}}>
+              <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="suspended"?T.redBg:u.status==="invited"?T.amberBg:"transparent"}}>
                 <Td>
                   <div style={{display:"flex",alignItems:"center",gap:9}}>
-                    <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${T.purple}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:T.white,flexShrink:0}}>
+                    <div style={{width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${T.purple}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:560,color:T.white,flexShrink:0}}>
                       {u.name.split(" ").map(n=>n[0]).join("")}
                     </div>
                     <div>
-                      <div style={{fontWeight:700,fontSize:13}}>
+                      <div style={{fontWeight:560,fontSize:13}}>
                         {u.name}
-                        {u.superAdmin && <span style={{marginLeft:5,fontSize:9,background:T.purple,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:700}}>ADMIN</span>}
-                        {isMe && <span style={{marginLeft:5,fontSize:9,background:T.navy,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:700}}>YOU</span>}
+                        {u.superAdmin && <span style={{marginLeft:5,fontSize:9,background:T.purple,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:560}}>ADMIN</span>}
+                        {isMe && <span style={{marginLeft:5,fontSize:9,background:T.navy,color:T.white,borderRadius:4,padding:"1px 5px",fontWeight:560}}>YOU</span>}
                       </div>
                       <div style={{fontSize:11,color:T.muted}}>{u.email}</div>
                     </div>
@@ -6529,7 +6862,7 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
                 <Td>
                   {isSuperAdmin && !isMe && !u.superAdmin ? (
                     <select value={u.status} onChange={e=>toggleStatus(u.id,e.target.value)}
-                      style={{padding:"4px 8px",borderRadius:6,border:`1.5px solid ${sc.c}44`,background:sc.bg,color:sc.c,fontSize:11,fontWeight:700,fontFamily:"Syne,sans-serif",cursor:"pointer",outline:"none"}}>
+                      style={{padding:"4px 8px",borderRadius:8,border:`1px solid ${sc.c}44`,background:sc.bg,color:sc.c,fontSize:11,fontWeight:560,fontFamily:FONT,cursor:"pointer",outline:"none"}}>
                       <option value="active">Active</option>
                       <option value="inactive">Inactive</option>
                       <option value="suspended">Suspended</option>
@@ -6569,11 +6902,11 @@ const AgencyUsersAndPermissions = ({users, setUsers, user}) => {
       {/* Default permissions reference */}
       <div style={{marginTop:20}}>
         <Card>
-          <CardHead title="Default Permission Template" sub="Permissions applied to all new invites. Contact Nexus RPO to request additional section access." icon="📋"/>
+          <CardHead title="Default Permission Template" sub="Permissions applied to all new invites. Contact Nexus RPO to request additional section access." icon="clipboard"/>
           <div style={{padding:"14px 18px"}}>
             <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
               {permDefs.map(p=>(
-                <span key={p.k} style={{padding:"4px 10px",borderRadius:20,background:T.greenBg,border:`1.5px solid ${T.green}44`,fontSize:11,fontWeight:600,color:T.green}} title={p.desc}>
+                <span key={p.k} style={{padding:"4px 10px",borderRadius:20,background:T.greenBg,border:`1px solid ${T.green}44`,fontSize:11,fontWeight:600,color:T.green}} title={p.desc}>
                   ✓ {p.l}
                 </span>
               ))}
@@ -6642,7 +6975,7 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
 
   const Toggle = ({ on, onToggle, label }) => (
     <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
-      <button onClick={onToggle} style={{ width:42, height:24, borderRadius:12, background:on?T.green:T.border, border:"none", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
+      <button onClick={onToggle} style={{ width:42, height:24, borderRadius:14, background:on?T.green:T.border, border:"none", cursor:"pointer", position:"relative", transition:"background 0.2s", flexShrink:0 }}>
         <div style={{ position:"absolute", top:3, left:on?20:3, width:18, height:18, borderRadius:"50%", background:T.white, transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}/>
       </button>
       <span style={{ fontSize:13, fontWeight:600, color:T.text }}>{label}</span>
@@ -6650,7 +6983,7 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
   );
 
   return (
-    <Page title="Margins & Pricing" sub="Configure platform fees and hourly margins per client" icon="💰">
+    <Page title="Margins & Pricing" sub="Configure platform fees and hourly margins per client" icon="money">
 
       {saved && <Alert type="success">✓ Pricing saved for {clients.find(c=>c.id===selId)?.name}. Applies to all new timesheets and invoices.</Alert>}
 
@@ -6674,13 +7007,13 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
             <button key={c.id} onClick={() => selectClient(c.id)} style={{
               padding:"10px 18px", borderRadius:10, border:`2px solid ${active?T.navy:T.border}`,
               background: active ? T.navy : T.white, color: active ? T.white : T.text,
-              fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"Syne,sans-serif",
+              fontWeight:560, fontSize:13, cursor:"pointer", fontFamily:FONT,
               display:"flex", alignItems:"center", gap:8, transition:"all 0.15s"
             }}>
               {c.name}
               <div style={{ display:"flex", gap:3 }}>
-                {hasFee  && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":"#e0f2fe", color:active?T.white:"#0369a1", fontWeight:700 }}>% fee</span>}
-                {hasHrly && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":T.amberBg, color:active?T.white:T.amberText, fontWeight:700 }}>£/hr</span>}
+                {hasFee  && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":"#e0f2fe", color:active?T.white:T.accentText, fontWeight:560 }}>% fee</span>}
+                {hasHrly && <span style={{ fontSize:10, padding:"2px 6px", borderRadius:20, background:active?"rgba(255,255,255,0.2)":T.amberBg, color:active?T.white:T.amberText, fontWeight:560 }}>£/hr</span>}
               </div>
             </button>
           );
@@ -6691,46 +7024,46 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:18, marginBottom:18 }}>
 
         {/* Platform fee card */}
-        <Card style={{ padding:24, border:`2px solid ${draft.platformFee.enabled ? "#0369a1" : T.border}`, transition:"border-color 0.2s" }}>
+        <Card style={{ padding:24, border:`2px solid ${draft.platformFee.enabled ? T.accentText : T.border}`, transition:"border-color 0.2s" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
             <div>
-              <div style={{ fontWeight:800, fontSize:14, color:T.text, marginBottom:3 }}>Platform Fee</div>
+              <div style={{ fontWeight:600, fontSize:14, color:T.text, marginBottom:3 }}>Platform Fee</div>
               <div style={{ fontSize:11, color:T.muted }}>Charged as a % of total monthly spend put through the system</div>
             </div>
             <Toggle on={draft.platformFee.enabled} onToggle={() => setFee("enabled", !draft.platformFee.enabled)} label=""/>
           </div>
 
           <div style={{ opacity: draft.platformFee.enabled ? 1 : 0.4, pointerEvents: draft.platformFee.enabled ? "auto" : "none", transition:"opacity 0.2s" }}>
-            <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:560, color:T.muted, letterSpacing:"0.07em", marginBottom:8 }}>
               Fee Rate (% of total spend)
             </label>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
               <input type="number" step="0.1" min="0" max="20" value={draft.platformFee.value}
                 onChange={e => setFee("value", parseFloat(e.target.value)||0)}
-                style={{ width:100, padding:"10px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:20, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
-              <span style={{ fontSize:18, fontWeight:700, color:T.muted }}>%</span>
+                style={{ width:100, padding:"10px 12px", borderRadius:8, border:`1px solid ${T.border}`, fontSize:20, fontWeight:600, fontFamily:FONT, outline:"none", textAlign:"center" }}/>
+              <span style={{ fontSize:18, fontWeight:560, color:T.muted }}>%</span>
               <span style={{ fontSize:12, color:T.muted }}>of total spend</span>
             </div>
 
             {/* Preview */}
             <div style={{ background:"#f0f9ff", borderRadius:10, padding:"14px 16px" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"#0369a1", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>Revenue Preview</div>
+              <div style={{ fontSize:11, fontWeight:560, color:T.accentText, letterSpacing:"0.07em", marginBottom:8 }}>Revenue Preview</div>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                 <span style={{ fontSize:12, color:T.muted }}>Est. monthly spend (this client)</span>
                 <span style={{ fontSize:13, fontWeight:600, color:T.text }}>£{estSpend.toLocaleString()}</span>
               </div>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                 <span style={{ fontSize:12, color:T.muted }}>Platform fee ({draft.platformFee.value}%)</span>
-                <span style={{ fontSize:14, fontWeight:800, color:"#0369a1" }}>£{feeRevenue.toFixed(0)}{"/mo"}</span>
+                <span style={{ fontSize:14, fontWeight:600, color:T.accentText }}>£{feeRevenue.toFixed(0)}{"/mo"}</span>
               </div>
-              <div style={{ fontSize:11, color:"#64748b", marginTop:4 }}>
+              <div style={{ fontSize:11, color:T.muted, marginTop:4 }}>
                 Invoiced separately to client — not passed to agencies
               </div>
             </div>
           </div>
 
           {!draft.platformFee.enabled && (
-            <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
+            <div style={{ marginTop:12, padding:"10px 14px", background:T.raised, borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
               Platform fee disabled for this client
             </div>
           )}
@@ -6740,7 +7073,7 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
         <Card style={{ padding:24, border:`2px solid ${draft.hourlyMargin.enabled ? T.amber : T.border}`, transition:"border-color 0.2s" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:18 }}>
             <div>
-              <div style={{ fontWeight:800, fontSize:14, color:T.text, marginBottom:3 }}>Hourly Margin</div>
+              <div style={{ fontWeight:600, fontSize:14, color:T.text, marginBottom:3 }}>Hourly Margin</div>
               <div style={{ fontSize:11, color:T.muted }}>Added to agency rate on every hour billed through the platform</div>
             </div>
             <Toggle on={draft.hourlyMargin.enabled} onToggle={() => setHrly("enabled", !draft.hourlyMargin.enabled)} label=""/>
@@ -6750,14 +7083,14 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
 
             {/* Type toggle */}
             <div style={{ marginBottom:14 }}>
-              <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:7 }}>Charge Type</label>
+              <label style={{ display:"block", fontSize:11, fontWeight:560, color:T.muted, letterSpacing:"0.07em", marginBottom:7 }}>Charge Type</label>
               <div style={{ display:"flex", gap:8 }}>
                 {[["fixed","Fixed £/hr"],["percentage","Percentage (%)"]].map(([v,l]) => (
                   <button key={v} onClick={() => setHrly("type", v)} style={{
-                    flex:1, padding:"9px", borderRadius:8, border:`1.5px solid ${draft.hourlyMargin.type===v?T.navy:T.border}`,
-                    background: draft.hourlyMargin.type===v ? T.navy : "#f8fafc",
+                    flex:1, padding:"9px", borderRadius:8, border:`1px solid ${draft.hourlyMargin.type===v?T.navy:T.border}`,
+                    background: draft.hourlyMargin.type===v ? T.navy : T.raised,
                     color: draft.hourlyMargin.type===v ? T.white : T.muted,
-                    fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"Syne,sans-serif", transition:"all 0.15s"
+                    fontWeight:560, fontSize:12, cursor:"pointer", fontFamily:FONT, transition:"all 0.15s"
                   }}>{l}</button>
                 ))}
               </div>
@@ -6771,29 +7104,29 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
             {/* Global value */}
             {!draft.hourlyMargin.usePerRole && (
               <div style={{ marginBottom:14 }}>
-                <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:560, color:T.muted, letterSpacing:"0.07em", marginBottom:6 }}>
                   Global Margin ({draft.hourlyMargin.type==="fixed" ? "£/hr" : "%"})
                 </label>
                 <input type="number" step="0.25" min="0" max="50" value={draft.hourlyMargin.globalValue}
                   onChange={e => setHrly("globalValue", parseFloat(e.target.value)||0)}
-                  style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:18, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
+                  style={{ width:"100%", padding:"10px 12px", borderRadius:8, border:`1px solid ${T.border}`, fontSize:18, fontWeight:600, fontFamily:FONT, outline:"none", textAlign:"center" }}/>
               </div>
             )}
 
             {/* Per-role values */}
             {draft.hourlyMargin.usePerRole && (
               <div style={{ marginBottom:14 }}>
-                <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:8 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:560, color:T.muted, letterSpacing:"0.07em", marginBottom:8 }}>
                   Per-Role ({draft.hourlyMargin.type==="fixed" ? "£/hr" : "%"})
                 </label>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                   {ROLES.map(role => (
-                    <div key={role} style={{ display:"flex", alignItems:"center", gap:8, background:"#f8fafc", borderRadius:8, padding:"8px 10px" }}>
-                      <span style={{ fontSize:11, fontWeight:700, color:T.muted, flex:1, minWidth:0, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{role}</span>
+                    <div key={role} style={{ display:"flex", alignItems:"center", gap:8, background:T.raised, borderRadius:8, padding:"8px 10px" }}>
+                      <span style={{ fontSize:11, fontWeight:560, color:T.muted, flex:1, minWidth:0, overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis" }}>{role}</span>
                       <input type="number" step="0.25" min="0" max="50"
                         value={draft.hourlyMargin.perRole[role] ?? draft.hourlyMargin.globalValue}
                         onChange={e => setRole(role, e.target.value)}
-                        style={{ width:56, padding:"5px 7px", borderRadius:6, border:`1.5px solid ${T.border}`, fontSize:13, fontWeight:800, fontFamily:"Syne,sans-serif", outline:"none", textAlign:"center" }}/>
+                        style={{ width:56, padding:"5px 7px", borderRadius:8, border:`1px solid ${T.border}`, fontSize:13, fontWeight:600, fontFamily:FONT, outline:"none", textAlign:"center" }}/>
                       <span style={{ fontSize:11, color:T.muted, minWidth:24 }}>{draft.hourlyMargin.type==="fixed"?"£/hr":"%"}</span>
                     </div>
                   ))}
@@ -6803,16 +7136,16 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
 
             {/* Hourly preview */}
             <div style={{ background:T.amberBg, borderRadius:10, padding:"12px 14px" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:T.amberText, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>Est. Monthly Margin Revenue</div>
+              <div style={{ fontSize:11, fontWeight:560, color:T.amberText, letterSpacing:"0.07em", marginBottom:6 }}>Est. Monthly Margin Revenue</div>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                 <span style={{ fontSize:12, color:T.amberText }}>~412 hrs/mo (illustrative)</span>
-                <span style={{ fontSize:16, fontWeight:800, color:T.amberText }}>£{hrlyRevenue.toFixed(0)}{"/mo"}</span>
+                <span style={{ fontSize:16, fontWeight:600, color:T.amberText }}>£{hrlyRevenue.toFixed(0)}{"/mo"}</span>
               </div>
             </div>
           </div>
 
           {!draft.hourlyMargin.enabled && (
-            <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
+            <div style={{ marginTop:12, padding:"10px 14px", background:T.raised, borderRadius:8, fontSize:12, color:T.muted, textAlign:"center" }}>
               Hourly margin disabled for this client
             </div>
           )}
@@ -6822,23 +7155,23 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
       {/* Notes + save */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, marginBottom:18, alignItems:"flex-end" }}>
         <div>
-          <label style={{ display:"block", fontSize:11, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:5 }}>Internal Notes (this client)</label>
+          <label style={{ display:"block", fontSize:11, fontWeight:560, color:T.muted, letterSpacing:"0.07em", marginBottom:5 }}>Internal Notes (this client)</label>
           <textarea value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} rows={2}
             placeholder="e.g. pricing agreed in contract review March 2026…"
-            style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1.5px solid ${T.border}`, fontSize:12, fontFamily:"Syne,sans-serif", resize:"vertical", outline:"none", color:T.muted, boxSizing:"border-box" }}/>
+            style={{ width:"100%", padding:"9px 12px", borderRadius:8, border:`1px solid ${T.border}`, fontSize:12, fontFamily:FONT, resize:"vertical", outline:"none", color:T.muted, boxSizing:"border-box" }}/>
         </div>
         <Btn onClick={save} style={{ whiteSpace:"nowrap", alignSelf:"flex-end" }}>Save Pricing →</Btn>
       </div>
 
       {/* Rate preview table */}
       <Card>
-        <CardHead title="Live Rate Preview" sub={`How rates break down for ${clients.find(c=>c.id===selId)?.name}`} icon="🔍"/>
+        <CardHead title="Live Rate Preview" sub={`How rates break down for ${clients.find(c=>c.id===selId)?.name}`} icon="search"/>
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", borderCollapse:"collapse" }}>
             <thead>
-              <tr style={{ background:"#f8fafc" }}>
+              <tr style={{ background:T.raised }}>
                 {["Role","Agency Rate","Hourly Margin","Client Rate","Platform Fee*","Total Nexus Revenue/hr"].map(h => (
-                  <th key={h} style={{ padding:"9px 12px", fontSize:10, fontWeight:700, color:T.muted, textAlign:"left", textTransform:"uppercase", letterSpacing:"0.07em", borderBottom:`1px solid ${T.border}`, whiteSpace:"nowrap" }}>{h}</th>
+                  <th key={h} style={{ padding:"9px 12px", fontSize:10, fontWeight:560, color:T.muted, textAlign:"left", letterSpacing:"0.07em", borderBottom:`1px solid ${T.border}`, whiteSpace:"nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -6854,19 +7187,19 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
                     <td style={{ padding:"11px 12px", fontSize:13, fontWeight:600, color:T.muted }}>£{r.weekday}{"/hr"}</td>
                     <td style={{ padding:"11px 12px" }}>
                       {draft.hourlyMargin.enabled
-                        ? <span style={{ fontWeight:700, fontSize:13, color:T.green }}>+£{hrlyMargin.toFixed(2)}</span>
+                        ? <span style={{ fontWeight:560, fontSize:13, color:T.green }}>+£{hrlyMargin.toFixed(2)}</span>
                         : <span style={{ fontSize:12, color:T.muted }}>—</span>}
                     </td>
                     <td style={{ padding:"11px 12px" }}>
-                      <span style={{ fontWeight:800, fontSize:14, color:T.navy }}>£{clientRate}{"/hr"}</span>
+                      <span style={{ fontWeight:600, fontSize:14, color:T.navy }}>£{clientRate}{"/hr"}</span>
                     </td>
                     <td style={{ padding:"11px 12px" }}>
                       {draft.platformFee.enabled
-                        ? <span style={{ fontSize:13, fontWeight:600, color:"#0369a1" }}>+£{feePerHour.toFixed(2)}</span>
+                        ? <span style={{ fontSize:13, fontWeight:600, color:T.accentText }}>+£{feePerHour.toFixed(2)}</span>
                         : <span style={{ fontSize:12, color:T.muted }}>—</span>}
                     </td>
                     <td style={{ padding:"11px 12px" }}>
-                      <span style={{ fontWeight:800, fontSize:14, color: totalPerHr > 0 ? T.green : T.muted }}>
+                      <span style={{ fontWeight:600, fontSize:14, color: totalPerHr > 0 ? T.green : T.muted }}>
                         {totalPerHr > 0 ? `£${totalPerHr.toFixed(2)}` : "—"}
                       </span>
                     </td>
@@ -6876,7 +7209,7 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
             </tbody>
           </table>
         </div>
-        <div style={{ marginTop:12, padding:"10px 14px", background:"#f8fafc", borderRadius:8, fontSize:11, color:T.muted }}>
+        <div style={{ marginTop:12, padding:"10px 14px", background:T.raised, borderRadius:8, fontSize:11, color:T.muted }}>
           * Platform fee per hour shown as indicative only — it is charged as a single monthly invoice calculated on total spend, not per-shift.
         </div>
       </Card>
@@ -6901,7 +7234,7 @@ const MarginManager = ({clientPricing, setClientPricing}) => {
 };
 
 /* ─── ADMIN: CLIENT MANAGER ──────────────────────────────────────────────────── */
-const CQC_COLORS = {"Outstanding":{c:"#7c3aed",bg:"#f5f3ff"},"Good":{c:T.green,bg:T.greenBg},"Requires Improvement":{c:T.yellow,bg:T.yellowBg},"Inadequate":{c:T.red,bg:T.redBg},"Not rated":{c:T.muted,bg:"#f1f5f9"}};
+const CQC_COLORS = {"Outstanding":{c:T.purple,bg:T.purpleBg},"Good":{c:T.green,bg:T.greenBg},"Requires Improvement":{c:T.yellow,bg:T.yellowBg},"Inadequate":{c:T.red,bg:T.redBg},"Not rated":{c:T.muted,bg:T.sunken}};
 const HOME_TYPES = ["Residential","Nursing","Dementia","Learning Disabilities","Mental Health","Mixed"];
 const CONTRACT_STATUSES = ["active","pending","expired","terminated"];
 
@@ -7004,7 +7337,7 @@ const ClientManager = ({groups, setGroups}) => {
   const activeGroups = groups.filter(g=>g.status==="active").length;
   const cqcWarnings = groups.reduce((a,g)=>a+g.locations.filter(l=>l.cqcRating==="Requires Improvement"||l.cqcRating==="Inadequate").length,0);
 
-  const statusColor = {active:{c:T.green,bg:T.greenBg},pending:{c:T.yellow,bg:T.yellowBg},expired:{c:T.red,bg:T.redBg},terminated:{c:T.muted,bg:"#f1f5f9"},inactive:{c:T.muted,bg:"#f1f5f9"},suspended:{c:T.red,bg:T.redBg}};
+  const statusColor = {active:{c:T.green,bg:T.greenBg},pending:{c:T.yellow,bg:T.yellowBg},expired:{c:T.red,bg:T.redBg},terminated:{c:T.muted,bg:T.sunken},inactive:{c:T.muted,bg:T.sunken},suspended:{c:T.red,bg:T.redBg}};
 
   return (
     <div>
@@ -7019,14 +7352,14 @@ const ClientManager = ({groups, setGroups}) => {
       </Grid>
 
       {cqcWarnings>0 && (
-        <Alert type="warn">⚠️ {cqcWarnings} location{cqcWarnings>1?"s are":" is"} rated "Requires Improvement" or below. Review and ensure compliance plans are in place.</Alert>
+        <Alert type="warn">{cqcWarnings} location{cqcWarnings>1?"s are":" is"} rated "Requires Improvement" or below. Review and ensure compliance plans are in place.</Alert>
       )}
 
       <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}>
         <div style={{position:"relative",flex:1,minWidth:200,maxWidth:340}}>
-          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}>🔍</span>
+          <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:T.muted,fontSize:13}}><Icon name="search" size={15}/></span>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search groups or locations…"
-            style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:13,fontFamily:"Syne,sans-serif",outline:"none",background:"#fafbfd"}}/>
+            style={{width:"100%",padding:"8px 12px 8px 34px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:13,fontFamily:FONT,outline:"none",background:T.raised}}/>
         </div>
         <Btn onClick={()=>{setEditGroup(blankGroup());setIsNewGroup(true);}}>+ Onboard Client</Btn>
       </div>
@@ -7039,28 +7372,28 @@ const ClientManager = ({groups, setGroups}) => {
           const tab = getTab(group.id);
           const panel = group.panelAgencies || [];
           return (
-            <Card key={group.id} style={{overflow:"hidden",border:contractExpiring?`1.5px solid ${T.yellow}66`:"1.5px solid transparent"}}>
+            <Card key={group.id} style={{overflow:"hidden",border:contractExpiring?`1px solid ${T.yellow}66`:"1px solid transparent"}}>
               {/* Header */}
               <div onClick={()=>setExpanded(isOpen?null:group.id)}
-                style={{padding:"18px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,background:isOpen?"#f8fafc":T.white,borderBottom:isOpen?`1px solid ${T.border}`:"none",transition:"background 0.15s",flexWrap:"wrap"}}>
-                <div style={{width:44,height:44,borderRadius:12,background:`linear-gradient(135deg,${T.navy}22,${T.navy}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🏢</div>
+                style={{padding:"18px 20px",cursor:"pointer",display:"flex",alignItems:"center",gap:16,background:isOpen?T.raised:T.white,borderBottom:isOpen?`1px solid ${T.border}`:"none",transition:"background 0.15s",flexWrap:"wrap"}}>
+                <div style={{width:44,height:44,borderRadius:14,background:`linear-gradient(135deg,${T.navy}22,${T.navy}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}></div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3,flexWrap:"wrap"}}>
-                    <span style={{fontWeight:800,fontSize:15,color:T.navy}}>{group.name}</span>
+                    <span style={{fontWeight:600,fontSize:15,color:T.navy}}>{group.name}</span>
                     <Badge label={group.status.charAt(0).toUpperCase()+group.status.slice(1)} color={sc.c} bg={sc.bg} dot/>
                     {contractExpiring && <Badge label="Contract expiring soon" color={T.yellow} bg={T.yellowBg}/>}
                   </div>
                   <div style={{fontSize:12,color:T.muted}}>{group.type} · {group.contact} · {group.email}</div>
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,flexWrap:"wrap"}}>
-                  <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
-                    📍 {group.locations.length} location{group.locations.length!==1?"s":""}
+                  <span style={{background:T.sunken,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:560,color:T.navy}}>
+                    {group.locations.length} location{group.locations.length!==1?"s":""}
                   </span>
-                  <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
-                    🛏 {group.locations.reduce((a,l)=>a+(parseInt(l.beds)||0),0)} beds
+                  <span style={{background:T.sunken,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:560,color:T.navy}}>
+                    {group.locations.reduce((a,l)=>a+(parseInt(l.beds)||0),0)} beds
                   </span>
-                  <span style={{background:"#f0f4f8",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:T.navy}}>
-                    🤝 {panel.length} agenc{panel.length===1?"y":"ies"} on panel
+                  <span style={{background:T.sunken,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:560,color:T.navy}}>
+                    {panel.length} agenc{panel.length===1?"y":"ies"} on panel
                   </span>
                   <div style={{display:"flex",gap:6}} onClick={e=>e.stopPropagation()}>
                     <Btn small variant="secondary" onClick={()=>{setEditGroup({...group});setIsNewGroup(false);}}>Edit</Btn>
@@ -7073,37 +7406,37 @@ const ClientManager = ({groups, setGroups}) => {
               {isOpen && (
                 <div style={{padding:"0 20px 20px"}}>
                   {/* Detail strip */}
-                  <div style={{display:"flex",gap:24,padding:"14px 16px",background:"#f8fafc",borderRadius:10,flexWrap:"wrap",marginTop:16,marginBottom:16}}>
+                  <div style={{display:"flex",gap:24,padding:"14px 16px",background:T.raised,borderRadius:10,flexWrap:"wrap",marginTop:16,marginBottom:16}}>
                     {[
-                      ["📞 Phone", group.phone||"—"],
-                      ["🌐 Website", group.website||"—"],
-                      ["📍 Address", group.address||"—"],
-                      ["📅 Contract", group.contractStart ? `${group.contractStart} – ${group.contractEnd||"Open"}` : "—"],
+                      ["Phone", group.phone||"—"],
+                      ["Website", group.website||"—"],
+                      ["Address", group.address||"—"],
+                      ["Contract", group.contractStart ? `${group.contractStart} – ${group.contractEnd||"Open"}` : "—"],
                     ].map(([k,v])=>(
                       <div key={k} style={{minWidth:160}}>
-                        <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}}>{k}</div>
+                        <div style={{fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:2}}>{k}</div>
                         <div style={{fontSize:12,color:T.text,fontWeight:600}}>{v}</div>
                       </div>
                     ))}
                     {group.notes && (
                       <div style={{flex:"1 1 100%"}}>
-                        <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:2}}>📝 Notes</div>
+                        <div style={{fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:2}}>Notes</div>
                         <div style={{fontSize:12,color:T.muted,fontStyle:"italic"}}>{group.notes}</div>
                       </div>
                     )}
                   </div>
 
                   {/* Inner tabs */}
-                  <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content",marginBottom:16}}>
-                    {[["locations","📍 Locations"],["panel","🤝 Agency Panel"]].map(([k,l])=>{
+                  <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4,width:"fit-content",marginBottom:16}}>
+                    {[["locations","Locations"],["panel","Agency Panel"]].map(([k,l])=>{
                       const active=tab===k;
                       return (
                         <button key={k} onClick={()=>setTab(group.id,k)}
-                          style={{padding:"6px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:12,cursor:"pointer",
+                          style={{padding:"6px 18px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:12,cursor:"pointer",
                             background:active?T.white:"transparent",color:active?T.navy:T.muted,
                             boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",transition:"all 0.15s"}}>
                           {l}
-                          {k==="panel" && <span style={{marginLeft:6,fontSize:10,padding:"2px 6px",borderRadius:20,background:active?T.amberBg:"transparent",color:active?T.amberText:T.muted,fontWeight:700}}>{panel.length}</span>}
+                          {k==="panel" && <span style={{marginLeft:6,fontSize:10,padding:"2px 6px",borderRadius:20,background:active?T.amberBg:"transparent",color:active?T.amberText:T.muted,fontWeight:560}}>{panel.length}</span>}
                         </button>
                       );
                     })}
@@ -7113,13 +7446,13 @@ const ClientManager = ({groups, setGroups}) => {
                   {tab==="locations" && (
                     <div>
                       <div style={{marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <h4 style={{fontWeight:800,fontSize:13,color:T.text}}>📍 Locations ({group.locations.length})</h4>
+                        <h4 style={{fontWeight:600,fontSize:13,color:T.text}}>Locations ({group.locations.length})</h4>
                         <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add Location</Btn>
                       </div>
                       {group.locations.length===0
-                        ? <div style={{padding:"24px",textAlign:"center",background:"#fafbfd",borderRadius:10,border:`1.5px dashed ${T.border}`}}>
-                            <div style={{fontSize:24,marginBottom:6}}>🏥</div>
-                            <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>No locations yet</div>
+                        ? <div style={{padding:"24px",textAlign:"center",background:T.raised,borderRadius:10,border:`1.5px dashed ${T.border}`}}>
+                            <div style={{marginBottom:6,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="hospital" size={21} stroke={1.5}/></div>
+                            <div style={{fontWeight:560,fontSize:13,marginBottom:4}}>No locations yet</div>
                             <Btn small onClick={()=>{setEditLoc(blankLocation(group.id));setEditLocGroup(group.id);setIsNewLoc(true);}}>+ Add First Location</Btn>
                           </div>
                         : <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -7127,22 +7460,22 @@ const ClientManager = ({groups, setGroups}) => {
                               const cqc = CQC_COLORS[loc.cqcRating]||CQC_COLORS["Not rated"];
                               const lsc = statusColor[loc.status]||statusColor.active;
                               return (
-                                <div key={loc.id} style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:10,border:`1.5px solid ${T.border}`,background:loc.status!=="active"?"#fafafa":T.white,flexWrap:"wrap"}}>
-                                  <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.blue}22,${T.blue}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🏥</div>
+                                <div key={loc.id} style={{display:"flex",gap:14,alignItems:"flex-start",padding:"14px 16px",borderRadius:10,border:`1px solid ${T.border}`,background:loc.status!=="active"?T.raised:T.white,flexWrap:"wrap"}}>
+                                  <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${T.blue}22,${T.blue}44)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}></div>
                                   <div style={{flex:1,minWidth:180}}>
                                     <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
-                                      <span style={{fontWeight:700,fontSize:14}}>{loc.name}</span>
+                                      <span style={{fontWeight:560,fontSize:14}}>{loc.name}</span>
                                       <Badge label={loc.type} color={T.blue} bg={T.blueBg}/>
                                       <Badge label={loc.status.charAt(0).toUpperCase()+loc.status.slice(1)} color={lsc.c} bg={lsc.bg} dot/>
                                     </div>
-                                    <div style={{fontSize:11,color:T.muted,marginBottom:4}}>📍 {loc.address}</div>
-                                    <div style={{fontSize:11,color:T.muted}}>👤 {loc.contact||"—"} · ✉️ {loc.email||"—"} · 📞 {loc.phone||"—"}</div>
-                                    {loc.notes && <div style={{fontSize:11,color:T.muted,fontStyle:"italic",marginTop:4}}>📝 {loc.notes}</div>}
+                                    <div style={{fontSize:11,color:T.muted,marginBottom:4}}>{loc.address}</div>
+                                    <div style={{fontSize:11,color:T.muted}}>{loc.contact||"—"} · {loc.email||"—"} · {loc.phone||"—"}</div>
+                                    {loc.notes && <div style={{fontSize:11,color:T.muted,fontStyle:"italic",marginTop:4}}>{loc.notes}</div>}
                                   </div>
                                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6,flexShrink:0}}>
                                     <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
-                                      <span style={{background:"#f0f4f8",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:T.navy}}>🛏 {loc.beds||"?"} beds</span>
-                                      <span style={{background:cqc.bg,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,color:cqc.c}}>CQC: {loc.cqcRating}</span>
+                                      <span style={{background:T.sunken,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:560,color:T.navy}}>{loc.beds||"?"} beds</span>
+                                      <span style={{background:cqc.bg,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:560,color:cqc.c}}>CQC: {loc.cqcRating}</span>
                                     </div>
                                     {loc.cqcDate && <div style={{fontSize:10,color:T.muted}}>Last inspected {loc.cqcDate}</div>}
                                     <div style={{display:"flex",gap:6,marginTop:4}}>
@@ -7162,7 +7495,7 @@ const ClientManager = ({groups, setGroups}) => {
                   {tab==="panel" && (
                     <div>
                       <div style={{marginBottom:12}}>
-                        <div style={{fontWeight:800,fontSize:13,color:T.text,marginBottom:4}}>🤝 Agency Panel — {group.name}</div>
+                        <div style={{fontWeight:600,fontSize:13,color:T.text,marginBottom:4}}>Agency Panel — {group.name}</div>
                         <div style={{fontSize:12,color:T.muted}}>Only agencies on this client's panel will receive shift notifications for their locations. Add or remove agencies below.</div>
                       </div>
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -7170,12 +7503,12 @@ const ClientManager = ({groups, setGroups}) => {
                           const onPanel = panel.includes(a.id);
                           return (
                             <div key={a.id} style={{display:"flex",gap:14,alignItems:"center",padding:"14px 16px",borderRadius:10,
-                              border:`1.5px solid ${onPanel?T.green+"88":T.border}`,
+                              border:`1px solid ${onPanel?T.green+"88":T.border}`,
                               background:onPanel?T.greenBg:T.white,transition:"all 0.2s"}}>
-                              <div style={{width:36,height:36,borderRadius:9,background:`linear-gradient(135deg,${T.amber}33,${T.amber}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>🤝</div>
+                              <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${T.amber}33,${T.amber}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}></div>
                               <div style={{flex:1,minWidth:0}}>
                                 <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:3,flexWrap:"wrap"}}>
-                                  <span style={{fontWeight:700,fontSize:14,color:T.text}}>{a.name}</span>
+                                  <span style={{fontWeight:560,fontSize:14,color:T.text}}>{a.name}</span>
                                   <Badge label={a.tier} color={tierColor(a.tier)} bg={tierBg(a.tier)}/>
                                   {onPanel && <Badge label="On Panel" color={T.green} bg={T.greenBg} dot/>}
                                 </div>
@@ -7192,7 +7525,7 @@ const ClientManager = ({groups, setGroups}) => {
                         })}
                       </div>
                       {panel.length===0 && (
-                        <Alert type="warn" style={{marginTop:12}}>⚠️ No agencies on this client's panel. Shifts for this client will not be sent to any agency until at least one is added.</Alert>
+                        <Alert type="warn" style={{marginTop:12}}>No agencies on this client's panel. Shifts for this client will not be sent to any agency until at least one is added.</Alert>
                       )}
                     </div>
                   )}
@@ -7205,8 +7538,8 @@ const ClientManager = ({groups, setGroups}) => {
 
       {filtered.length===0 && (
         <Card style={{padding:40,textAlign:"center"}}>
-          <div style={{fontSize:36,marginBottom:12}}>🏥</div>
-          <div style={{fontWeight:700,fontSize:16,marginBottom:6}}>No clients found</div>
+          <div style={{marginBottom:12,display:"flex",justifyContent:"center",color:T.ghost}}><Icon name="hospital" size={32} stroke={1.5}/></div>
+          <div style={{fontWeight:560,fontSize:16,marginBottom:6}}>No clients found</div>
           <Btn onClick={()=>{setEditGroup(blankGroup());setIsNewGroup(true);}}>+ Onboard First Client</Btn>
         </Card>
       )}
@@ -7220,26 +7553,26 @@ const ClientsAndPricing = (props) => {
   const [groups, setGroups] = useState(INIT_CLIENT_GROUPS);
 
   const TABS = [
-    { k:"clients",    l:"Clients & Panels",  i:"🏥" },
-    { k:"ratecards",  l:"Rate Cards",        i:"💷" },
-    { k:"bankrates",  l:"Bank Rates",        i:"🏦" },
-    { k:"rateuplifts",l:"Rate Uplifts",      i:"📈" },
-    { k:"margins",    l:"Margins & Pricing", i:"💰" },
+    { k:"clients",    l:"Clients & Panels",  i:"" },
+    { k:"ratecards",  l:"Rate Cards",        i:"" },
+    { k:"bankrates",  l:"Bank Rates",        i:"" },
+    { k:"rateuplifts",l:"Rate Uplifts",      i:"" },
+    { k:"margins",    l:"Margins & Pricing", i:"" },
   ];
 
   return (
-    <Page title="Clients & Pricing" sub="Client groups, agency panels, rates, and platform pricing" icon="🏥">
+    <Page title="Clients & Pricing" sub="Client groups, agency panels, rates, and platform pricing" icon="hospital">
       {/* Tab bar */}
-      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:12,padding:4,width:"fit-content",marginBottom:22,flexWrap:"wrap"}}>
+      <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:14,padding:4,width:"fit-content",marginBottom:22,flexWrap:"wrap"}}>
         {TABS.map(t=>{
           const active=tab===t.k;
           return (
             <button key={t.k} onClick={()=>setTab(t.k)}
-              style={{padding:"8px 18px",borderRadius:9,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+              style={{padding:"8px 18px",borderRadius:10,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
                 background:active?T.white:"transparent",color:active?T.navy:T.muted,
                 boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",transition:"all 0.15s",
                 display:"flex",alignItems:"center",gap:6}}>
-              <span style={{fontSize:14}}>{t.i}</span> {t.l}
+              <span style={{display:"flex"}}>{renderIcon(t.i,15)}</span> {t.l}
             </button>
           );
         })}
@@ -7278,16 +7611,16 @@ const ClientAdminBudgets = ({user, users, budgets, setBudgets}) => {
   const groupMtdPct  = Math.round(groupMtd/groupMonthly*100);
 
   const budgetExports = [
-    {icon:"📊",label:"Budget Summary — CSV",fn:()=>exportCSV("budget-summary.csv",
+    {icon:"chartBar",label:"Budget Summary — CSV",fn:()=>exportCSV("budget-summary.csv",
       ["Care Home","Monthly Budget","Annual Budget","MTD Spend","MTD %","Remaining","YTD Spend","YTD %","75% Alert","90% Alert"],
       mySites.map(s=>{const b=budgets?.[s]||INIT_BUDGETS[s]||{};const mp=Math.round((b.mtdSpend||0)/b.monthly*100);return[s,b.monthly,b.annual,b.mtdSpend,`${mp}%`,b.monthly-b.mtdSpend,b.ytdSpend,`${Math.round((b.ytdSpend||0)/b.annual*100)}%`,b.alertAt75?"Yes":"No",b.alertAt90?"Yes":"No"];}))},
-    {icon:"🖨️",label:"Budget Report — PDF",fn:()=>exportHTML("Group Budget Report",`${thisUser?.org||"Group"} · March 2026`,
+    {icon:"printer",label:"Budget Report — PDF",fn:()=>exportHTML("Group Budget Report",`${thisUser?.org||"Group"} · March 2026`,
       buildTable(["Care Home","Monthly Budget","MTD Spend","MTD %","Remaining","YTD Spend"],
         mySites.map(s=>{const b=budgets?.[s]||INIT_BUDGETS[s]||{};return[s,`£${b.monthly?.toLocaleString()}`,`£${b.mtdSpend?.toLocaleString()}`,`${Math.round((b.mtdSpend||0)/b.monthly*100)}%`,`£${(b.monthly-b.mtdSpend)?.toLocaleString()}`,`£${b.ytdSpend?.toLocaleString()}`];})))},
   ];
 
   return (
-    <Page title="Budget Management" sub={`Monitoring ${mySites.length} locations · ${thisUser?.org||"Group"}`} icon="💰" action={<ExportMenu exports={budgetExports}/>}>
+    <Page title="Budget Management" sub={`Monitoring ${mySites.length} locations · ${thisUser?.org||"Group"}`} icon="money" action={<ExportMenu exports={budgetExports}/>}>
       {editSite&&(
         <Modal title={`Set Budget — ${editSite}`} onClose={()=>setEditSite(null)}>
           <Alert type="info">Budgets set here are visible to the site manager and control their tracker bars and alert thresholds.</Alert>
@@ -7296,10 +7629,10 @@ const ClientAdminBudgets = ({user, users, budgets, setBudgets}) => {
             <Input label="Annual Budget (£)"  type="number" value={editForm.annual}  onChange={v=>setEditForm(f=>({...f,annual:v}))}/>
           </div>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Alert Thresholds — notify site manager when:</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Alert Thresholds — notify site manager when:</label>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {[{k:"alertAt75",label:"75% of monthly budget is reached",color:"#b45309",bg:"#fef3c7"},{k:"alertAt90",label:"90% of monthly budget is reached",color:T.red,bg:T.redBg}].map(opt=>(
-                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1.5px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
+              {[{k:"alertAt75",label:"75% of monthly budget is reached",color:T.amberText,bg:T.amberBg},{k:"alertAt90",label:"90% of monthly budget is reached",color:T.red,bg:T.redBg}].map(opt=>(
+                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
                   <input type="checkbox" checked={!!editForm[opt.k]} readOnly style={{accentColor:opt.color,width:14,height:14}}/>
                   <span style={{fontSize:13,fontWeight:600,color:editForm[opt.k]?opt.color:T.text}}>{opt.label}</span>
                 </label>
@@ -7327,7 +7660,7 @@ const ClientAdminBudgets = ({user, users, budgets, setBudgets}) => {
           const b    = budgets?.[site] || INIT_BUDGETS[site] || {monthly:15000,annual:180000,mtdSpend:0,ytdSpend:0,alertAt75:true,alertAt90:true};
           const mp   = Math.round((b.mtdSpend||0)/b.monthly*100);
           const yp   = Math.round((b.ytdSpend||0)/b.annual*100);
-          const col  = mp>=90?T.red:mp>=75?"#b45309":CA_PURPLE;
+          const col  = mp>=90?T.red:mp>=75?T.amberText:CA_PURPLE;
           const rem  = b.monthly-b.mtdSpend;
           const sc   = SITE_COLORS[site]||CA_PURPLE;
           return (
@@ -7335,34 +7668,34 @@ const ClientAdminBudgets = ({user, users, budgets, setBudgets}) => {
               <div style={{padding:"14px 16px 4px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div>
-                    <div style={{fontWeight:800,fontSize:14,color:T.text}}>{site}</div>
+                    <div style={{fontWeight:600,fontSize:14,color:T.text}}>{site}</div>
                     <div style={{fontSize:11,color:T.muted}}>March 2026</div>
                   </div>
                   <Btn small variant="secondary" onClick={()=>openEdit(site)}>Edit</Btn>
                 </div>
-                {mp>=90&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,background:T.redBg,border:`1px solid ${T.red}44`,fontSize:11,fontWeight:700,color:T.red}}>⚠️ 90% budget reached</div>}
-                {mp>=75&&mp<90&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:7,background:"#fef3c7",border:"1px solid #fcd34d",fontSize:11,fontWeight:700,color:"#b45309"}}>📊 75% budget used</div>}
+                {mp>=90&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:8,background:T.redBg,border:`1px solid ${T.red}44`,fontSize:11,fontWeight:560,color:T.red}}>90% budget reached</div>}
+                {mp>=75&&mp<90&&<div style={{marginBottom:8,padding:"6px 10px",borderRadius:8,background:T.amberBg,border:"1px solid #fcd34d",fontSize:11,fontWeight:560,color:T.amberText}}>75% budget used</div>}
                 <div style={{marginBottom:12}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
                     <span style={{color:T.muted}}>MTD Spend</span>
-                    <span style={{fontWeight:700,color:col}}>£{b.mtdSpend?.toLocaleString()} <span style={{color:T.muted,fontWeight:400}}>/ £{b.monthly?.toLocaleString()}</span></span>
+                    <span style={{fontWeight:560,color:col}}>£{b.mtdSpend?.toLocaleString()} <span style={{color:T.muted,fontWeight:400}}>/ £{b.monthly?.toLocaleString()}</span></span>
                   </div>
                   <ProgressBar value={mp} color={col}/>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:T.muted,marginTop:4}}>
                     <span>{mp}% used</span><span>£{rem?.toLocaleString()} remaining</span>
                   </div>
                 </div>
-                <div style={{padding:"10px 14px",borderRadius:8,background:"#f8fafc",marginBottom:10}}>
+                <div style={{padding:"10px 14px",borderRadius:8,background:T.raised,marginBottom:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <span style={{fontSize:11,fontWeight:700,color:T.muted}}>Year to Date</span>
-                    <span style={{fontSize:12,fontWeight:700,color:yp>=85?T.red:T.blue}}>£{b.ytdSpend?.toLocaleString()}</span>
+                    <span style={{fontSize:11,fontWeight:560,color:T.muted}}>Year to Date</span>
+                    <span style={{fontSize:12,fontWeight:560,color:yp>=85?T.red:T.blue}}>£{b.ytdSpend?.toLocaleString()}</span>
                   </div>
                   <ProgressBar value={yp} color={yp>=85?T.red:T.blue}/>
                   <div style={{fontSize:11,color:T.muted,marginTop:3}}>{yp}% of £{b.annual?.toLocaleString()} annual budget</div>
                 </div>
                 <div style={{display:"flex",gap:6,fontSize:10,paddingTop:8,borderTop:`1px solid ${T.border}`}}>
-                  {b.alertAt75&&<span style={{padding:"2px 7px",borderRadius:4,background:"#fef3c7",color:"#b45309",fontWeight:700}}>75% alert on</span>}
-                  {b.alertAt90&&<span style={{padding:"2px 7px",borderRadius:4,background:T.redBg,color:T.red,fontWeight:700}}>90% alert on</span>}
+                  {b.alertAt75&&<span style={{padding:"2px 7px",borderRadius:4,background:T.amberBg,color:T.amberText,fontWeight:560}}>75% alert on</span>}
+                  {b.alertAt90&&<span style={{padding:"2px 7px",borderRadius:4,background:T.redBg,color:T.red,fontWeight:560}}>90% alert on</span>}
                   {!b.alertAt75&&!b.alertAt90&&<span style={{color:T.muted}}>No alerts set</span>}
                 </div>
               </div>
@@ -7379,26 +7712,26 @@ const ClientAdminBudgets = ({user, users, budgets, setBudgets}) => {
             const b=budgets?.[site]||INIT_BUDGETS[site]||{};
             const mp=Math.round((b.mtdSpend||0)/b.monthly*100);
             const yp=Math.round((b.ytdSpend||0)/b.annual*100);
-            const col=mp>=90?T.red:mp>=75?"#b45309":T.green;
+            const col=mp>=90?T.red:mp>=75?T.amberText:T.green;
             return (
-              <tr key={site} style={{borderBottom:`1px solid ${T.border}`,background:mp>=90?T.redBg:mp>=75?"#fffbeb":"transparent"}}>
+              <tr key={site} style={{borderBottom:`1px solid ${T.border}`,background:mp>=90?T.redBg:mp>=75?T.amberBg:"transparent"}}>
                 <Td bold>{site}</Td>
                 <Td bold>£{b.monthly?.toLocaleString()}</Td>
                 <Td>£{b.annual?.toLocaleString()}</Td>
-                <Td><span style={{fontWeight:700,color:col}}>£{b.mtdSpend?.toLocaleString()}</span></Td>
+                <Td><span style={{fontWeight:560,color:col}}>£{b.mtdSpend?.toLocaleString()}</span></Td>
                 <Td>
                   <div style={{display:"flex",alignItems:"center",gap:8,minWidth:100}}>
                     <div style={{flex:1}}><ProgressBar value={mp} color={col}/></div>
-                    <span style={{fontSize:11,fontWeight:700,color:col,minWidth:30}}>{mp}%</span>
+                    <span style={{fontSize:11,fontWeight:560,color:col,minWidth:30}}>{mp}%</span>
                   </div>
                 </Td>
-                <Td><span style={{fontWeight:700,color:(b.monthly-b.mtdSpend)<2000?T.red:T.text}}>£{(b.monthly-b.mtdSpend)?.toLocaleString()}</span></Td>
+                <Td><span style={{fontWeight:560,color:(b.monthly-b.mtdSpend)<2000?T.red:T.text}}>£{(b.monthly-b.mtdSpend)?.toLocaleString()}</span></Td>
                 <Td>£{b.ytdSpend?.toLocaleString()}</Td>
-                <Td><span style={{fontWeight:700,color:yp>=85?T.red:T.muted}}>{yp}%</span></Td>
+                <Td><span style={{fontWeight:560,color:yp>=85?T.red:T.muted}}>{yp}%</span></Td>
                 <Td>
                   <div style={{display:"flex",gap:4}}>
-                    {b.alertAt75&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:4,background:"#fef3c7",color:"#b45309"}}>75%</span>}
-                    {b.alertAt90&&<span style={{fontSize:10,fontWeight:700,padding:"2px 6px",borderRadius:4,background:T.redBg,color:T.red}}>90%</span>}
+                    {b.alertAt75&&<span style={{fontSize:10,fontWeight:560,padding:"2px 6px",borderRadius:4,background:T.amberBg,color:T.amberText}}>75%</span>}
+                    {b.alertAt90&&<span style={{fontSize:10,fontWeight:560,padding:"2px 6px",borderRadius:4,background:T.redBg,color:T.red}}>90%</span>}
                     {!b.alertAt75&&!b.alertAt90&&<span style={{fontSize:11,color:T.muted}}>None</span>}
                   </div>
                 </Td>
@@ -7428,18 +7761,18 @@ const ClientAdminDashboard = ({user, users}) => {
   const urgentOpen = SHIFTS.filter(s=>mySites.includes(s.carehome)&&s.urgency==="urgent"&&s.status!=="filled");
 
   return (
-    <Page title={`Hello, ${user?.name?.split(" ")[0]||"there"}`} sub={`${thisUser?.org||"Group"} — Group Overview`} icon="◈">
+    <Page title={`Hello, ${user?.name?.split(" ")[0]||"there"}`} sub={`${thisUser?.org||"Group"} — Group Overview`} icon="grid">
 
       {/* Group identity bar */}
-      <div style={{background:`linear-gradient(135deg,${CA_PURPLE},#4f46e5)`,borderRadius:14,padding:"20px 24px",color:"#fff",marginBottom:4}}>
+      <div style={{background:`linear-gradient(135deg,${T.navyDeep} 0%,#2A2A4A 100%)`,borderRadius:T.r,padding:"20px 24px",color:"#fff",marginBottom:4,boxShadow:T.sh1}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
           <div>
-            <div style={{fontSize:18,fontWeight:800,marginBottom:2}}>{thisUser?.org||"Sunrise Healthcare Group"}</div>
+            <div style={{fontSize:18,fontWeight:600,marginBottom:2}}>{thisUser?.org||"Sunrise Healthcare Group"}</div>
             <div style={{fontSize:13,opacity:0.75}}>{displaySites.length} locations · Client Admin Portal</div>
           </div>
           <div style={{display:"flex",gap:8}}>
             {displaySites.map(s=>(
-              <div key={s} style={{padding:"4px 12px",borderRadius:20,background:"rgba(255,255,255,0.15)",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+              <div key={s} style={{padding:"4px 12px",borderRadius:20,background:"rgba(255,255,255,0.15)",fontSize:11,fontWeight:560,display:"flex",alignItems:"center",gap:5}}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:SITE_COLORS[s]||"#fff"}}/>
                 {s}
               </div>
@@ -7457,11 +7790,11 @@ const ClientAdminDashboard = ({user, users}) => {
       </Grid>
 
       {urgentOpen.length>0&&(
-        <div style={{background:"#fef3c7",border:"1.5px solid #f59e0b",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:18}}>⚠️</span>
+        <div style={{background:T.amberBg,border:"1px solid #f59e0b",borderRadius:10,padding:"12px 16px",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}><Icon name="warning" size={15}/></span>
           <div>
-            <div style={{fontWeight:700,fontSize:13,color:"#92400e"}}>Action needed: {urgentOpen.length} urgent unfilled {urgentOpen.length===1?"shift":"shifts"} across group</div>
-            <div style={{fontSize:12,color:"#b45309",marginTop:2}}>{urgentOpen.map(s=>`${s.carehome} · ${s.role} · ${s.date}`).join("  |  ")}</div>
+            <div style={{fontWeight:560,fontSize:13,color:T.amberText}}>Action needed: {urgentOpen.length} urgent unfilled {urgentOpen.length===1?"shift":"shifts"} across group</div>
+            <div style={{fontSize:12,color:T.amberText,marginTop:2}}>{urgentOpen.map(s=>`${s.carehome} · ${s.role} · ${s.date}`).join("  |  ")}</div>
           </div>
         </div>
       )}
@@ -7473,13 +7806,13 @@ const ClientAdminDashboard = ({user, users}) => {
           <div style={{padding:"0 8px 8px"}}>
             <ResponsiveContainer width="100%" height={220}>
               <ComposedChart data={GROUP_TREND} margin={{top:8,right:8,bottom:0,left:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-                <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}}/>
-                <YAxis yAxisId="left" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11,fill:T.muted}} width={42}/>
-                <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v}%`} tick={{fontSize:11,fill:T.muted}} width={36} domain={[60,100]}/>
+                <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+                <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis yAxisId="left" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={42}/>
+                <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v}%`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={36} domain={[60,100]}/>
                 <Tooltip formatter={(v,n)=>n==="spend"?[`£${v.toLocaleString()}`,"Group Spend"]:[`${v}%`,"Fill Rate"]}/>
                 <Bar yAxisId="left" dataKey="spend" fill={CA_PURPLE} radius={[4,4,0,0]} name="spend"/>
-                <Line yAxisId="right" type="monotone" dataKey="fill" stroke={T.amber} strokeWidth={2.5} dot={{r:4,fill:T.amber}} name="fill"/>
+                <Line yAxisId="right" type="monotone" dataKey="fillRate" stroke={T.accent} strokeWidth={2.5} dot={{r:4,fill:T.accent}} name="fillRate"/>
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -7493,8 +7826,8 @@ const ClientAdminDashboard = ({user, users}) => {
               return (
                 <div key={s} style={{marginBottom:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <span style={{fontSize:12,fontWeight:700,color:T.text}}>{s}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:fr>=85?T.green:fr>=70?T.amber:T.red}}>{fr}%</span>
+                    <span style={{fontSize:12,fontWeight:560,color:T.text}}>{s}</span>
+                    <span style={{fontSize:12,fontWeight:560,color:fr>=85?T.green:fr>=70?T.amber:T.red}}>{fr}%</span>
                   </div>
                   <ProgressBar value={fr} max={100} color={SITE_COLORS[s]||CA_PURPLE}/>
                 </div>
@@ -7517,15 +7850,15 @@ const ClientAdminDashboard = ({user, users}) => {
               <div style={{padding:"14px 16px 12px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div>
-                    <div style={{fontWeight:800,fontSize:14,color:T.text}}>{s}</div>
+                    <div style={{fontWeight:600,fontSize:14,color:T.text}}>{s}</div>
                     <div style={{fontSize:11,color:T.muted,marginTop:1}}>March 2026</div>
                   </div>
-                  {siteUrgent>0&&<span style={{fontSize:10,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"2px 8px",borderRadius:10}}>{siteUrgent} urgent</span>}
+                  {siteUrgent>0&&<span style={{fontSize:10,fontWeight:560,color:T.amberText,background:T.amberBg,padding:"2px 8px",borderRadius:10}}>{siteUrgent} urgent</span>}
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
                   {[{l:"Fill",v:`${fr}%`,c:fr>=85?T.green:fr>=70?T.amber:T.red},{l:"Shifts",v:d.shifts,c:T.text},{l:"Spend",v:`£${(d.spend/1000).toFixed(1)}k`,c:T.text}].map(stat=>(
-                    <div key={stat.l} style={{textAlign:"center",padding:"8px 4px",background:"#f8fafc",borderRadius:8}}>
-                      <div style={{fontSize:16,fontWeight:800,color:stat.c}}>{stat.v}</div>
+                    <div key={stat.l} style={{textAlign:"center",padding:"8px 4px",background:T.raised,borderRadius:8}}>
+                      <div style={{fontSize:16,fontWeight:600,color:stat.c}}>{stat.v}</div>
                       <div style={{fontSize:10,color:T.muted,fontWeight:600}}>{stat.l}</div>
                     </div>
                   ))}
@@ -7545,13 +7878,13 @@ const ClientAdminDashboard = ({user, users}) => {
         <CardHead title="Recent Activity — All Locations" sub="Shifts, timesheets and alerts"/>
         <Table headers={["Location","Role","Date","Status","Agency","Worker"]}
           rows={SHIFTS.filter(s=>mySites.includes(s.carehome)).slice(0,8).map(s=>(
-            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&s.status!=="filled"?"#fffbeb":"transparent"}}>
-              <Td><span style={{fontSize:11,fontWeight:700,color:SITE_COLORS[s.carehome]||CA_PURPLE}}>{s.carehome}</span></Td>
+            <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`,background:s.urgency==="urgent"&&s.status!=="filled"?T.amberBg:"transparent"}}>
+              <Td><span style={{fontSize:11,fontWeight:560,color:SITE_COLORS[s.carehome]||CA_PURPLE}}>{s.carehome}</span></Td>
               <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
               <Td style={{fontSize:12}}>{s.date}</Td>
               <Td><SBadge s={s.status}/></Td>
               <Td style={{fontSize:12}}>{s.agency||<span style={{color:T.muted}}>—</span>}</Td>
-              <Td style={{fontSize:12}}>{s.worker||<span style={{color:"#94a3b8"}}>Awaiting</span>}</Td>
+              <Td style={{fontSize:12}}>{s.worker||<span style={{color:T.ghost}}>Awaiting</span>}</Td>
             </tr>
           ))}
         />
@@ -7565,7 +7898,7 @@ const ClientAdminLocations = ({user, users}) => {
   const mySites = (thisUser?.sites||[]).filter(s=>SITE_DATA[s]);
 
   return (
-    <Page title="Locations" sub="Your contracted sites under this group" icon="🏥">
+    <Page title="Locations" sub="Your contracted sites under this group" icon="hospital">
       <Grid cols={3}>
         <Stat label="Total Locations" value={mySites.length} accent/>
         <Stat label="Total Beds" value={mySites.reduce((a,s)=>{const g=INIT_CLIENT_GROUPS.flatMap(g=>g.locations).find(l=>l.name===s);return a+(g?.beds||0);},0)} sub="Across all sites"/>
@@ -7577,25 +7910,25 @@ const ClientAdminLocations = ({user, users}) => {
           const locData=INIT_CLIENT_GROUPS.flatMap(g=>g.locations).find(l=>l.name===siteName);
           const accent=SITE_COLORS[siteName]||CA_PURPLE;
           const fr=d?Math.round(d.filled/d.shifts*100):0;
-          const CQC_C={Outstanding:"#7c3aed",Good:"#16a34a","Requires Improvement":"#d97706",Inadequate:"#dc2626"};
+          const CQC_C={Outstanding:T.purple,Good:T.green,"Requires Improvement":T.amber,Inadequate:T.red};
           return (
             <Card key={siteName} style={{borderLeft:`4px solid ${accent}`}}>
               <div style={{padding:"16px 18px"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div>
-                    <div style={{fontWeight:800,fontSize:15,color:T.text}}>{siteName}</div>
+                    <div style={{fontWeight:600,fontSize:15,color:T.text}}>{siteName}</div>
                     {locData&&<div style={{fontSize:11,color:T.muted,marginTop:2}}>{locData.type} · {locData.beds} beds</div>}
                   </div>
-                  {locData?.cqcRating&&<span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:10,background:`${CQC_C[locData.cqcRating]}18`,color:CQC_C[locData.cqcRating]}}>{locData.cqcRating}</span>}
+                  {locData?.cqcRating&&<span style={{fontSize:10,fontWeight:560,padding:"3px 8px",borderRadius:10,background:`${CQC_C[locData.cqcRating]}18`,color:CQC_C[locData.cqcRating]}}>{locData.cqcRating}</span>}
                 </div>
                 {d&&<>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-                    <div style={{padding:"10px",background:"#f8fafc",borderRadius:8,textAlign:"center"}}>
-                      <div style={{fontSize:20,fontWeight:800,color:accent}}>{fr}%</div>
+                    <div style={{padding:"10px",background:T.raised,borderRadius:8,textAlign:"center"}}>
+                      <div style={{fontSize:20,fontWeight:600,color:accent}}>{fr}%</div>
                       <div style={{fontSize:10,color:T.muted,fontWeight:600}}>FILL RATE</div>
                     </div>
-                    <div style={{padding:"10px",background:"#f8fafc",borderRadius:8,textAlign:"center"}}>
-                      <div style={{fontSize:20,fontWeight:800,color:T.text}}>£{(d.spend/1000).toFixed(1)}k</div>
+                    <div style={{padding:"10px",background:T.raised,borderRadius:8,textAlign:"center"}}>
+                      <div style={{fontSize:20,fontWeight:600,color:T.text}}>£{(d.spend/1000).toFixed(1)}k</div>
                       <div style={{fontSize:10,color:T.muted,fontWeight:600}}>MTD SPEND</div>
                     </div>
                   </div>
@@ -7617,7 +7950,7 @@ const ClientAdminLocations = ({user, users}) => {
 
 
 const SITE_COLORS = {
-  "Sunrise Care": "#F59E0B",
+  "Sunrise Care": T.amber,
   "Sunrise Dementia Unit": "#8B5CF6",
   "Oakwood Nursing": "#0EA5E9",
   "Meadowbrook Lodge": "#10B981",
@@ -7633,9 +7966,9 @@ const SITE_DATA = {
 };
 
 const GROUP_TREND = [
-  {month:"Oct",spend:42000,fill:79},{month:"Nov",spend:51000,fill:77},
-  {month:"Dec",spend:38000,fill:85},{month:"Jan",spend:55000,fill:74},
-  {month:"Feb",spend:49000,fill:88},{month:"Mar",spend:32420,fill:83},
+  {month:"Oct",spend:42000,fillRate:79},{month:"Nov",spend:51000,fillRate:77},
+  {month:"Dec",spend:38000,fillRate:85},{month:"Jan",spend:55000,fillRate:74},
+  {month:"Feb",spend:49000,fillRate:88},{month:"Mar",spend:32420,fillRate:83},
 ];
 
 const CareHomeGroupAnalytics = ({user,users,budgets}) => {
@@ -7669,30 +8002,30 @@ const CareHomeGroupAnalytics = ({user,users,budgets}) => {
   }));
 
   const gaExports = [
-    {icon:"📊",label:"Group Spend — CSV",desc:"6-month trend",fn:()=>exportCSV("group-analytics-spend.csv",
+    {icon:"chartBar",label:"Group Spend — CSV",desc:"6-month trend",fn:()=>exportCSV("group-analytics-spend.csv",
       ["Month","Total Spend (£)","Fill Rate (%)"],
-      GROUP_TREND.map(r=>[r.month,r.spend,r.fill]))},
-    {icon:"🏥",label:"By Location — CSV",desc:"MTD breakdown per site",fn:()=>exportCSV("group-analytics-by-location.csv",
+      GROUP_TREND.map(r=>[r.month,r.spend,r.fillRate]))},
+    {icon:"hospital",label:"By Location — CSV",desc:"MTD breakdown per site",fn:()=>exportCSV("group-analytics-by-location.csv",
       ["Location","Shifts","Filled","Fill Rate (%)","MTD Spend (£)","Budget (£)","Budget Used (%)"],
       displaySites.map(s=>{const d=getSiteData(s);return[s,d?.shifts,d?.filled,d?Math.round(d.filled/d.shifts*100):"—",d?.spend,d?.budget,d?Math.round(d.spend/d.budget*100):"—"];}))},
-    {icon:"💰",label:"Budget Summary — CSV",fn:()=>exportCSV("group-budget-summary.csv",
+    {icon:"money",label:"Budget Summary — CSV",fn:()=>exportCSV("group-budget-summary.csv",
       ["Location","Monthly Budget","MTD Spend","MTD %","Remaining","YTD Spend"],
       displaySites.map(s=>{const b=budgets?.[s]||INIT_BUDGETS[s]||{};const mp=Math.round((b.mtdSpend||0)/b.monthly*100);return[s,b.monthly,b.mtdSpend,`${mp}%`,b.monthly-b.mtdSpend,b.ytdSpend];}))},
-    {icon:"🖨️",label:"Group Report — PDF",fn:()=>exportHTML("Group Analytics Report",`March 2026`,
+    {icon:"printer",label:"Group Report — PDF",fn:()=>exportHTML("Group Analytics Report",`March 2026`,
       buildTable(["Location","Fill Rate","Shifts","MTD Spend","Budget","Budget Used"],
         displaySites.map(s=>{const d=getSiteData(s);return[s,d?`${Math.round(d.filled/d.shifts*100)}%`:"—",d?.shifts||0,d?`£${d.spend.toLocaleString()}`:"—",d?`£${d.budget.toLocaleString()}`:"—",d?`${Math.round(d.spend/d.budget*100)}%`:"—"];})))},
   ];
 
   return (
-    <Page title="Group Analytics" sub={`Showing ${activeSite==="all"?`all ${displaySites.length} locations`:`${activeSite}`}`} icon="📊" action={<ExportMenu exports={gaExports}/>}>
+    <Page title="Group Analytics" sub={`Showing ${activeSite==="all"?`all ${displaySites.length} locations`:`${activeSite}`}`} icon="chartBar" action={<ExportMenu exports={gaExports}/>}>
 
       {/* Site filter tabs */}
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:4}}>
-        <button onClick={()=>setActiveSite("all")} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${activeSite==="all"?T.amber:T.border}`,background:activeSite==="all"?T.amberBg:T.white,fontWeight:700,fontSize:12,cursor:"pointer",color:activeSite==="all"?T.amberText:T.muted,fontFamily:"Syne,sans-serif"}}>
+        <button onClick={()=>setActiveSite("all")} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${activeSite==="all"?T.amber:T.border}`,background:activeSite==="all"?T.amberBg:T.white,fontWeight:560,fontSize:12,cursor:"pointer",color:activeSite==="all"?T.amberText:T.muted,fontFamily:FONT}}>
           All Locations ({displaySites.length})
         </button>
         {displaySites.map(s=>(
-          <button key={s} onClick={()=>setActiveSite(s)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${activeSite===s?SITE_COLORS[s]||T.blue:T.border}`,background:activeSite===s?`${SITE_COLORS[s]}18`||T.blueBg:T.white,fontWeight:700,fontSize:12,cursor:"pointer",color:activeSite===s?SITE_COLORS[s]||T.blue:T.muted,fontFamily:"Syne,sans-serif"}}>
+          <button key={s} onClick={()=>setActiveSite(s)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${activeSite===s?SITE_COLORS[s]||T.blue:T.border}`,background:activeSite===s?`${SITE_COLORS[s]}18`||T.blueBg:T.white,fontWeight:560,fontSize:12,cursor:"pointer",color:activeSite===s?SITE_COLORS[s]||T.blue:T.muted,fontFamily:FONT}}>
             {s}
           </button>
         ))}
@@ -7714,13 +8047,13 @@ const CareHomeGroupAnalytics = ({user,users,budgets}) => {
             <div style={{padding:"0 8px 8px"}}>
               <ResponsiveContainer width="100%" height={220}>
                 <ComposedChart data={GROUP_TREND} margin={{top:8,right:8,bottom:0,left:0}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-                  <XAxis dataKey="month" tick={{fontSize:11,fill:T.muted}}/>
-                  <YAxis yAxisId="left" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11,fill:T.muted}} width={42}/>
-                  <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v}%`} tick={{fontSize:11,fill:T.muted}} width={36} domain={[60,100]}/>
+                  <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+                  <XAxis dataKey="month" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                  <YAxis yAxisId="left" tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={42}/>
+                  <YAxis yAxisId="right" orientation="right" tickFormatter={v=>`${v}%`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={36} domain={[60,100]}/>
                   <Tooltip formatter={(v,n)=>n==="spend"?[`£${v.toLocaleString()}`,"Spend"]:[`${v}%`,"Fill Rate"]}/>
-                  <Bar yAxisId="left" dataKey="spend" fill={T.amber} radius={[4,4,0,0]} name="spend"/>
-                  <Line yAxisId="right" type="monotone" dataKey="fill" stroke={T.teal} strokeWidth={2.5} dot={{r:4,fill:T.teal}} name="fill"/>
+                  <Bar yAxisId="left" dataKey="spend" fill={T.accent} radius={[4,4,0,0]} name="spend"/>
+                  <Line yAxisId="right" type="monotone" dataKey="fillRate" stroke={T.teal} strokeWidth={2.5} dot={{r:4,fill:T.teal}} name="fillRate"/>
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
@@ -7734,8 +8067,8 @@ const CareHomeGroupAnalytics = ({user,users,budgets}) => {
                 return (
                   <div key={s} style={{marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:12,fontWeight:700,color:T.text}}>{s}</span>
-                      <span style={{fontSize:12,fontWeight:700,color:fr>=85?T.green:fr>=70?T.amber:T.red}}>{fr}%</span>
+                      <span style={{fontSize:12,fontWeight:560,color:T.text}}>{s}</span>
+                      <span style={{fontSize:12,fontWeight:560,color:fr>=85?T.green:fr>=70?T.amber:T.red}}>{fr}%</span>
                     </div>
                     <ProgressBar value={fr} max={100} color={SITE_COLORS[s]||T.blue}/>
                   </div>
@@ -7753,12 +8086,12 @@ const CareHomeGroupAnalytics = ({user,users,budgets}) => {
           <div style={{padding:"0 8px 8px"}}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={siteBarData} margin={{top:8,right:8,bottom:0,left:0}}>
-                <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-                <XAxis dataKey="site" tick={{fontSize:11,fill:T.muted}}/>
-                <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11,fill:T.muted}} width={42}/>
+                <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+                <XAxis dataKey="site" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+                <YAxis tickFormatter={v=>`£${(v/1000).toFixed(0)}k`} tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false} width={42}/>
                 <Tooltip formatter={(v,n)=>[`£${v.toLocaleString()}`,n==="spend"?"MTD Spend":"Budget"]}/>
-                <Bar dataKey="budget" fill="#e2e8f0" radius={[4,4,0,0]} name="budget"/>
-                <Bar dataKey="spend" fill={T.amber} radius={[4,4,0,0]} name="spend"/>
+                <Bar dataKey="budget" fill={T.sunken} radius={[4,4,0,0]} name="budget"/>
+                <Bar dataKey="spend" fill={T.accent} radius={[4,4,0,0]} name="spend"/>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -7775,22 +8108,22 @@ const CareHomeGroupAnalytics = ({user,users,budgets}) => {
           return (
             <Card key={s} style={{borderTop:`3px solid ${accent}`}}>
               <div style={{padding:"14px 16px 4px"}}>
-                <div style={{fontWeight:800,fontSize:14,color:T.text,marginBottom:2}}>{s}</div>
+                <div style={{fontWeight:600,fontSize:14,color:T.text,marginBottom:2}}>{s}</div>
                 <div style={{fontSize:11,color:T.muted,marginBottom:14}}>March 2026</div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-                  <div style={{textAlign:"center",padding:"10px 8px",background:"#f8fafc",borderRadius:8}}>
-                    <div style={{fontSize:22,fontWeight:800,color:accent}}>{fr}%</div>
+                  <div style={{textAlign:"center",padding:"10px 8px",background:T.raised,borderRadius:8}}>
+                    <div style={{fontSize:22,fontWeight:600,color:accent}}>{fr}%</div>
                     <div style={{fontSize:10,color:T.muted,fontWeight:600,marginTop:2}}>FILL RATE</div>
                   </div>
-                  <div style={{textAlign:"center",padding:"10px 8px",background:"#f8fafc",borderRadius:8}}>
-                    <div style={{fontSize:22,fontWeight:800,color:T.text}}>{d.shifts}</div>
+                  <div style={{textAlign:"center",padding:"10px 8px",background:T.raised,borderRadius:8}}>
+                    <div style={{fontSize:22,fontWeight:600,color:T.text}}>{d.shifts}</div>
                     <div style={{fontSize:10,color:T.muted,fontWeight:600,marginTop:2}}>SHIFTS</div>
                   </div>
                 </div>
                 <div style={{marginBottom:8}}>
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
                     <span style={{color:T.muted}}>MTD Spend</span>
-                    <span style={{fontWeight:700}}>£{d.spend.toLocaleString()} <span style={{color:T.muted,fontWeight:400}}>/ £{d.budget.toLocaleString()}</span></span>
+                    <span style={{fontWeight:560}}>£{d.spend.toLocaleString()} <span style={{color:T.muted,fontWeight:400}}>/ £{d.budget.toLocaleString()}</span></span>
                   </div>
                   <ProgressBar value={d.spend} max={d.budget} color={bp>90?T.red:bp>75?T.amber:accent}/>
                 </div>
@@ -7828,7 +8161,7 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
   const [invite,      setInvite]      = useState({name:"",email:"",sites:[mySites[0]||""]});
   const [search,      setSearch]      = useState("");
   const permDefs = PERM_DEFS["carehome"]||[];
-  const statusColor = {active:{c:T.green,bg:T.greenBg},inactive:{c:T.muted,bg:"#f1f5f9"},suspended:{c:T.red,bg:T.redBg},invited:{c:T.yellow,bg:T.yellowBg}};
+  const statusColor = {active:{c:T.green,bg:T.greenBg},inactive:{c:T.muted,bg:T.sunken},suspended:{c:T.red,bg:T.redBg},invited:{c:T.yellow,bg:T.yellowBg}};
 
   const filtered = myUsers.filter(u=>!search||u.name.toLowerCase().includes(search.toLowerCase())||u.email.toLowerCase().includes(search.toLowerCase()));
 
@@ -7850,7 +8183,7 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
   };
 
   return (
-    <Page title="Users & Permissions" sub={`Manage who can access your portal and which locations they can see`} icon="🔐"
+    <Page title="Users & Permissions" sub={`Manage who can access your portal and which locations they can see`} icon="lock"
       action={isSuperAdmin?<Btn onClick={()=>setInviteModal(true)}>+ Invite User</Btn>:null}>
 
       {!isSuperAdmin&&<Alert type="info">You have view-only access. Contact your group administrator to make changes.</Alert>}
@@ -7859,12 +8192,12 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
       {inviteModal&&(
         <Modal title="Invite Portal User" onClose={()=>setInviteModal(false)}>
           <div style={{background:T.greenBg,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:T.green,fontWeight:600,border:`1px solid ${T.green}44`}}>
-            📧 They'll receive an invitation email and set their own password on first login.
+            They'll receive an invitation email and set their own password on first login.
           </div>
           <Input label="Full Name *" value={invite.name} onChange={v=>setInvite(p=>({...p,name:v}))} placeholder="e.g. Sam Hughes"/>
           <Input label="Work Email *" type="email" value={invite.email} onChange={v=>setInvite(p=>({...p,email:v}))} placeholder="name@company.co.uk"/>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Site Access</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Site Access</label>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {mySites.map(s=>(
                 <label key={s} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13}}>
@@ -7889,12 +8222,12 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
       {/* Permission editor */}
       {editing&&(
         <Modal title="Edit User" onClose={()=>setEditing(null)}>
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"#f8fafc",borderRadius:8,marginBottom:16}}>
-            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:700,flexShrink:0}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:T.raised,borderRadius:8,marginBottom:16}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}88,${T.navy}88)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,color:T.white,fontWeight:560,flexShrink:0}}>
               {editing.name.split(" ").map(n=>n[0]).join("")}
             </div>
             <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14}}>{editing.name}</div>
+              <div style={{fontWeight:560,fontSize:14}}>{editing.name}</div>
               <div style={{fontSize:12,color:T.muted}}>{editing.email}</div>
             </div>
             {editing.superAdmin&&<Badge label="Group Admin" color={T.blue} bg={T.blueBg}/>}
@@ -7902,14 +8235,14 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
 
           {/* Site access */}
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Site Access</div>
+            <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Site Access</div>
             {editing.superAdmin
               ? <Alert type="info">Group admin has access to all sites in your group.</Alert>
               : <div style={{display:"flex",flexDirection:"column",gap:6}}>
                   {mySites.map(s=>{
                     const hasSite=editing.sites?.includes(s);
                     return (
-                      <label key={s} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,border:`1.5px solid ${hasSite?SITE_COLORS[s]||T.blue:T.border}`,background:hasSite?`${SITE_COLORS[s]||T.blue}10`:"#fafafa",cursor:isSuperAdmin?"pointer":"default"}}>
+                      <label key={s} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:8,border:`1px solid ${hasSite?SITE_COLORS[s]||T.blue:T.border}`,background:hasSite?`${SITE_COLORS[s]||T.blue}10`:T.raised,cursor:isSuperAdmin?"pointer":"default"}}>
                         <input type="checkbox" checked={!!hasSite} disabled={!isSuperAdmin} onChange={()=>{
                           toggleSite(editing.id,s);
                           setEditing(prev=>({...prev,sites:hasSite?(prev.sites||[]).filter(x=>x!==s):[...(prev.sites||[]),s]}));
@@ -7924,7 +8257,7 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
           </div>
 
           {/* Permission toggles */}
-          <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>Portal Permissions</div>
+          <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>Portal Permissions</div>
           {editing.superAdmin
             ? <Alert type="info">Group admin — all permissions permanently granted.</Alert>
             : <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
@@ -7932,14 +8265,14 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
                   const granted=editing.perms[p.k]!==false;
                   const locked=p.k==="dashboard";
                   return (
-                    <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?"#f0fff4":"#fafafa",borderRadius:8,border:`1.5px solid ${granted?T.green+"44":T.border}`}}>
+                    <div key={p.k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:granted?T.greenBg:T.raised,borderRadius:8,border:`1px solid ${granted?T.green+"44":T.border}`}}>
                       <div>
                         <div style={{fontSize:13,fontWeight:600,color:T.text}}>{p.l}</div>
                         <div style={{fontSize:11,color:T.muted,marginTop:1}}>{p.desc}</div>
                       </div>
                       <button onClick={locked?undefined:()=>{togglePerm(editing.id,p.k);setEditing(prev=>({...prev,perms:{...prev.perms,[p.k]:!prev.perms[p.k]}}));}}
                         disabled={!isSuperAdmin||locked}
-                        style={{width:42,height:24,borderRadius:12,background:granted?T.green:T.border,border:"none",cursor:(isSuperAdmin&&!locked)?"pointer":"not-allowed",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:(locked||!isSuperAdmin)?0.5:1}}>
+                        style={{width:42,height:24,borderRadius:14,background:granted?T.green:T.border,border:"none",cursor:(isSuperAdmin&&!locked)?"pointer":"not-allowed",position:"relative",transition:"background 0.2s",flexShrink:0,opacity:(locked||!isSuperAdmin)?0.5:1}}>
                         <div style={{position:"absolute",top:3,left:granted?20:3,width:18,height:18,borderRadius:"50%",background:T.white,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                       </button>
                     </div>
@@ -7976,11 +8309,11 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
               <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`}}>
                 <Td>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}66,${T.navy}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:T.white,fontWeight:700,flexShrink:0}}>
+                    <div style={{width:34,height:34,borderRadius:"50%",background:`linear-gradient(135deg,${T.blue}66,${T.navy}66)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:T.white,fontWeight:560,flexShrink:0}}>
                       {u.name.split(" ").map(n=>n[0]).join("")}
                     </div>
                     <div>
-                      <div style={{fontWeight:700,fontSize:13}}>{u.name}{u.superAdmin&&<Badge label="Admin" color={T.blue} bg={T.blueBg} style={{marginLeft:6,fontSize:10}}/>}</div>
+                      <div style={{fontWeight:560,fontSize:13}}>{u.name}{u.superAdmin&&<Badge label="Admin" color={T.blue} bg={T.blueBg} style={{marginLeft:6,fontSize:10}}/>}</div>
                       <div style={{fontSize:11,color:T.muted}}>{u.email}</div>
                     </div>
                   </div>
@@ -7989,7 +8322,7 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
                   <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                     {u.superAdmin
                       ? <Badge label="All Sites" color={T.blue} bg={T.blueBg}/>
-                      : (u.sites||[]).map(s=><span key={s} style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:`${SITE_COLORS[s]||T.blue}18`,color:SITE_COLORS[s]||T.blue,border:`1px solid ${SITE_COLORS[s]||T.blue}44`}}>{s.split(" ")[0]}</span>)
+                      : (u.sites||[]).map(s=><span key={s} style={{fontSize:10,fontWeight:560,padding:"2px 7px",borderRadius:10,background:`${SITE_COLORS[s]||T.blue}18`,color:SITE_COLORS[s]||T.blue,border:`1px solid ${SITE_COLORS[s]||T.blue}44`}}>{s.split(" ")[0]}</span>)
                     }
                   </div>
                 </Td>
@@ -7999,7 +8332,7 @@ const CareHomeUsersAndPermissions = ({users, setUsers, user}) => {
                     : <span style={{fontSize:12,color:T.muted}}>{grantedCount} of {permDefs.length} granted</span>
                   }
                 </Td>
-                <Td><Badge label={u.status} color={sc.c} bg={sc.bg}/></Td>
+                <Td><Badge label={cap(u.status)} color={sc.c} bg={sc.bg}/></Td>
                 <Td style={{fontSize:12,color:T.muted}}>{u.lastLogin}</Td>
                 <Td>
                   {(isSuperAdmin||u.id===thisUser?.id)&&<Btn small onClick={()=>setEditing({...u})}>Edit</Btn>}
@@ -8055,23 +8388,23 @@ const AgencyRightToWork = () => {
   const restricted = myWorkers.filter(w=>w.hoursRestriction===20);
 
   const rtwStatus = (w) => {
-    if(!w.rtwType||w.rtwType==="pending") return {l:"Pending",c:T.muted,bg:"#f1f5f9"};
+    if(!w.rtwType||w.rtwType==="pending") return {l:"Pending",c:T.muted,bg:T.sunken};
     if(w.rtwExpiry&&w.rtwExpiry<today) return {l:"Expired",c:T.red,bg:T.redBg};
     if(w.rtwExpiry&&w.rtwExpiry<="2026-06-10") return {l:"Expiring Soon",c:T.yellow,bg:T.yellowBg};
     return {l:"Verified",c:T.green,bg:T.greenBg};
   };
 
   const rtwAgencyExports = [
-    {icon:"🪪",label:"All RTW Records — CSV",fn:()=>exportCSV("agency-rtw-all.csv",
+    {icon:"idCard",label:"All RTW Records — CSV",fn:()=>exportCSV("agency-rtw-all.csv",
       ["Worker","Role","RTW Type","Reference","Expiry","Hours Restriction","Verified By","Notes"],
       myWorkers.map(w=>[w.name,w.role,RTW_LABEL[w.rtwType]||w.rtwType||"—",w.rtwRef||"—",w.rtwExpiry||"Permanent",w.hoursRestriction?"20hr/week":"Unrestricted",w.rtwVerifiedBy||"—",w.rtwNotes||""]))},
-    {icon:"⚠️",label:"Expiring / Expired — CSV",fn:()=>exportCSV("agency-rtw-expiring.csv",
+    {icon:"warning",label:"Expiring / Expired — CSV",fn:()=>exportCSV("agency-rtw-expiring.csv",
       ["Worker","Role","RTW Type","Expiry","Days Until Expiry"],
       myWorkers.filter(w=>w.rtwExpiry).map(w=>{
         const days=Math.round((new Date(w.rtwExpiry)-new Date(today))/(1000*60*60*24));
         return[w.name,w.role,RTW_LABEL[w.rtwType]||w.rtwType,w.rtwExpiry,days<0?"EXPIRED":days];
       }))},
-    {icon:"🖨️",label:"RTW Register — PDF",fn:()=>exportHTML("Agency Right to Work Register","First Choice Nursing — "+new Date().toLocaleDateString("en-GB"),
+    {icon:"printer",label:"RTW Register — PDF",fn:()=>exportHTML("Agency Right to Work Register","First Choice Nursing — "+new Date().toLocaleDateString("en-GB"),
       buildTable(["Worker","Role","RTW Type","Reference","Expiry","Hours Limit","Status"],
         myWorkers.map(w=>{
           const st=rtwStatus(w);
@@ -8080,16 +8413,16 @@ const AgencyRightToWork = () => {
   ];
 
   return (
-    <Page title="Right to Work" sub="Manage RTW checks for First Choice Nursing workers" icon="🪪"
+    <Page title="Right to Work" sub="Manage RTW checks for First Choice Nursing workers" icon="idCard"
       action={<div style={{display:"flex",gap:8,alignItems:"center"}}>
-        {expired.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.redBg,color:T.red,fontSize:12,fontWeight:700}}>{expired.length} Expired</span>}
-        {expiring.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.yellowBg,color:"#92400e",fontSize:12,fontWeight:700}}>{expiring.length} Expiring Soon</span>}
-        {restricted.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:"#ede9fe",color:"#6d28d9",fontSize:12,fontWeight:700}}>{restricted.length} &times; 20hr Restricted</span>}
+        {expired.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.redBg,color:T.red,fontSize:12,fontWeight:560}}>{expired.length} Expired</span>}
+        {expiring.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.yellowBg,color:T.amberText,fontSize:12,fontWeight:560}}>{expiring.length} Expiring Soon</span>}
+        {restricted.length>0&&<span style={{padding:"6px 12px",borderRadius:8,background:T.purpleBg,color:T.purple,fontSize:12,fontWeight:560}}>{restricted.length} &times; 20hr Restricted</span>}
         <ExportMenu exports={rtwAgencyExports}/>
       </div>}>
 
-      {expired.length>0&&<Alert type="error">⛔ {expired.length} worker{expired.length>1?"s have":" has"} an expired RTW document — {expired.map(w=>w.name).join(", ")}. They must not be placed on shifts until renewed.</Alert>}
-      {expiring.length>0&&<Alert type="warn">⚠️ {expiring.length} RTW document{expiring.length>1?"s are":" is"} expiring within 90 days. Schedule repeat checks now.</Alert>}
+      {expired.length>0&&<Alert type="error">{expired.length} worker{expired.length>1?"s have":" has"} an expired RTW document — {expired.map(w=>w.name).join(", ")}. They must not be placed on shifts until renewed.</Alert>}
+      {expiring.length>0&&<Alert type="warn">{expiring.length} RTW document{expiring.length>1?"s are":" is"} expiring within 90 days. Schedule repeat checks now.</Alert>}
 
       <Card>
         <Table headers={["Worker","Role","RTW Type","Reference","Expiry","Hours","Status","Actions"]}
@@ -8102,8 +8435,8 @@ const AgencyRightToWork = () => {
                 <Td><Badge label={w.role} color={T.purple} bg={T.purpleBg}/></Td>
                 <Td style={{fontSize:12}}>{w.rtwType?RTW_LABEL[w.rtwType]||w.rtwType:<span style={{color:T.muted}}>Not set</span>}</Td>
                 <Td style={{fontSize:12,fontFamily:"monospace"}}>{w.rtwRef||<span style={{color:T.muted}}>—</span>}</Td>
-                <Td style={{fontSize:12}}>{w.rtwExpiry?<span style={{color:w.rtwExpiry<today?T.red:w.rtwExpiry<="2026-06-10"?"#b45309":T.text,fontWeight:w.rtwExpiry<="2026-06-10"?700:400}}>{w.rtwExpiry}</span>:<span style={{color:T.muted}}>Permanent</span>}</Td>
-                <Td>{w.hoursRestriction?<span style={{fontSize:11,fontWeight:700,color:"#6d28d9",background:"#ede9fe",padding:"2px 8px",borderRadius:10}}>{w.hoursRestriction}hr/wk</span>:<span style={{fontSize:11,color:T.muted}}>Unrestricted</span>}</Td>
+                <Td style={{fontSize:12}}>{w.rtwExpiry?<span style={{color:w.rtwExpiry<today?T.red:w.rtwExpiry<="2026-06-10"?T.amberText:T.text,fontWeight:w.rtwExpiry<="2026-06-10"?700:400}}>{w.rtwExpiry}</span>:<span style={{color:T.muted}}>Permanent</span>}</Td>
+                <Td>{w.hoursRestriction?<span style={{fontSize:11,fontWeight:560,color:T.purple,background:T.purpleBg,padding:"2px 8px",borderRadius:10}}>{w.hoursRestriction}hr/wk</span>:<span style={{fontSize:11,color:T.muted}}>Unrestricted</span>}</Td>
                 <Td><Badge label={st.l} color={st.c} bg={st.bg}/></Td>
                 <Td><Btn small onClick={()=>setSelected(selected===w.id?null:w.id)}>Edit</Btn></Td>
               </tr>
@@ -8123,27 +8456,27 @@ const AgencyRightToWork = () => {
             <CardHead title={`Edit RTW — ${w.name}`} sub={w.role} action={<Btn small variant="secondary" onClick={()=>setSelected(null)}>✕ Close</Btn>}/>
             <div style={{padding:"4px 16px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
               <div style={{gridColumn:"1/-1"}}>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8}}>RTW Type *</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:8}}>RTW Type *</label>
                 <select value={f.rtwType} onChange={e=>set(w.id,"rtwType",e.target.value)}
-                  style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",color:T.text,background:T.white}}>
+                  style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,color:T.text,background:T.white}}>
                   {RTW_TYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
                 </select>
-                {selType&&<div style={{marginTop:6,padding:"8px 12px",background:selType.restricted?"#ede9fe":selType.restricted===false?T.greenBg:"#f8fafc",borderRadius:6,fontSize:12,color:selType.restricted?"#6d28d9":selType.restricted===false?T.green:T.muted}}>
-                  {selType.restricted&&"⚠️ "}{selType.restricted===false&&"✅ "}{selType.desc}
+                {selType&&<div style={{marginTop:6,padding:"8px 12px",background:selType.restricted?T.purpleBg:selType.restricted===false?T.greenBg:T.raised,borderRadius:8,fontSize:12,color:selType.restricted?T.purple:selType.restricted===false?T.green:T.muted}}>
+                  {selType.restricted&&""}{selType.restricted===false&&""}{selType.desc}
                   {selType.restricted&&<strong> This worker must not exceed 20 hours/week during term time.</strong>}
                 </div>}
               </div>
               <Input label="Reference / Document Number" value={f.rtwRef} onChange={v=>set(w.id,"rtwRef",v)} placeholder="e.g. Share code, BRP number, passport no."/>
               <Input label="Expiry Date" type="date" value={f.rtwExpiry} onChange={v=>set(w.id,"rtwExpiry",v)}/>
               <div style={{gridColumn:"1/-1"}}>
-                <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Notes</label>
+                <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Notes</label>
                 <textarea value={f.rtwNotes} onChange={e=>set(w.id,"rtwNotes",e.target.value)} rows={3}
                   placeholder="e.g. Term dates, visa conditions, follow-up actions..."
-                  style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:"Syne,sans-serif",resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
+                  style={{width:"100%",padding:"10px 12px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:13,fontFamily:FONT,resize:"vertical",color:T.text,boxSizing:"border-box"}}/>
               </div>
               <div style={{gridColumn:"1/-1",display:"flex",gap:10,justifyContent:"flex-end"}}>
                 <Btn variant="secondary" onClick={()=>setSelected(null)}>Cancel</Btn>
-                <Btn onClick={()=>saveWorker(w.id)}>{saved[w.id]?"✅ Saved!":"Save RTW Record"}</Btn>
+                <Btn onClick={()=>saveWorker(w.id)}>{saved[w.id]?"Saved!":"Save RTW Record"}</Btn>
               </div>
             </div>
           </Card>
@@ -8155,12 +8488,12 @@ const AgencyRightToWork = () => {
         <CardHead title="RTW Type Reference Guide" sub="UK right to work document categories"/>
         <div style={{padding:"8px 16px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {RTW_TYPES.filter(t=>t.value!=="pending").map(t=>(
-            <div key={t.value} style={{padding:"10px 14px",borderRadius:8,background:t.restricted?"#faf5ff":t.restricted===false?"#f0fff4":"#f8fafc",border:`1px solid ${t.restricted?"#ddd6fe":t.restricted===false?"#bbf7d0":T.border}`}}>
+            <div key={t.value} style={{padding:"10px 14px",borderRadius:8,background:t.restricted?T.purpleBg:t.restricted===false?T.greenBg:T.raised,border:`1px solid ${t.restricted?T.purpleBg:t.restricted===false?"#bbf7d0":T.border}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <span style={{fontSize:12,fontWeight:700,color:T.text}}>{t.label}</span>
-                {t.restricted&&<span style={{fontSize:10,fontWeight:700,color:"#6d28d9",background:"#ede9fe",padding:"1px 6px",borderRadius:8}}>20hr limit</span>}
-                {t.restricted===false&&<span style={{fontSize:10,fontWeight:700,color:T.green,background:T.greenBg,padding:"1px 6px",borderRadius:8}}>Unrestricted</span>}
-                {t.expiry&&t.restricted===null&&<span style={{fontSize:10,fontWeight:700,color:T.amber,background:T.amberBg,padding:"1px 6px",borderRadius:8}}>Check visa type</span>}
+                <span style={{fontSize:12,fontWeight:560,color:T.text}}>{t.label}</span>
+                {t.restricted&&<span style={{fontSize:10,fontWeight:560,color:T.purple,background:T.purpleBg,padding:"1px 6px",borderRadius:8}}>20hr limit</span>}
+                {t.restricted===false&&<span style={{fontSize:10,fontWeight:560,color:T.green,background:T.greenBg,padding:"1px 6px",borderRadius:8}}>Unrestricted</span>}
+                {t.expiry&&t.restricted===null&&<span style={{fontSize:10,fontWeight:560,color:T.amber,background:T.amberBg,padding:"1px 6px",borderRadius:8}}>Check visa type</span>}
               </div>
               <div style={{fontSize:11,color:T.muted,lineHeight:1.5}}>{t.desc}</div>
             </div>
@@ -8200,18 +8533,18 @@ const RtwMonitoringReport = ({user}) => {
   });
 
   const rtwExports = [
-    {icon:"🪪",label:"Restricted Workers — CSV",desc:"All 20hr limited workers",fn:()=>exportCSV("rtw-restricted-workers.csv",
+    {icon:"idCard",label:"Restricted Workers — CSV",desc:"All 20hr limited workers",fn:()=>exportCSV("rtw-restricted-workers.csv",
       ["Worker","Agency","Role","Visa Expiry","Sites","w/c 27 Jan","w/c 3 Feb","w/c 10 Feb","w/c 17 Feb","w/c 24 Feb","w/c 3 Mar","Total Hrs"],
       RESTRICTED_HOURS.map(w=>[w.workerName,w.agency,w.role,WORKERS.find(x=>x.id===w.workerId)?.rtwExpiry||"—",w.sites.join("; "),...w.weekHours,w.weekHours.reduce((a,b)=>a+b,0)]))},
-    {icon:"⛔",label:"Hours Breaches — CSV",desc:"Weeks where 20hr limit exceeded",fn:()=>{
+    {icon:"ban",label:"Hours Breaches — CSV",desc:"Weeks where 20hr limit exceeded",fn:()=>{
       const rows=[];
       RESTRICTED_HOURS.forEach(w=>w.weekHours.forEach((h,i)=>{if(h>20)rows.push([w.workerName,w.agency,w.role,RTW_WEEKS[i],h,h-20]);}));
       exportCSV("rtw-breaches.csv",["Worker","Agency","Role","Week","Hours Worked","Hours Over Limit"],rows);
     }},
-    {icon:"⚠️",label:"Expiring RTW Docs — CSV",desc:"Expires within 90 days",fn:()=>exportCSV("rtw-expiring.csv",
+    {icon:"warning",label:"Expiring RTW Docs — CSV",desc:"Expires within 90 days",fn:()=>exportCSV("rtw-expiring.csv",
       ["Worker","Agency","Role","RTW Type","Expiry Date","Hours Restriction"],
       WORKERS.filter(w=>w.rtwExpiry&&w.rtwExpiry<="2026-06-10").map(w=>[w.name,w.agency,w.role,RTW_LABEL[w.rtwType]||w.rtwType,w.rtwExpiry,w.hoursRestriction?"20hr/week":"None"]))},
-    {icon:"🖨️",label:"Full RTW Report — PDF",fn:()=>exportHTML("Right to Work Monitoring Report","20-hour restricted workers — "+new Date().toLocaleDateString("en-GB"),
+    {icon:"printer",label:"Full RTW Report — PDF",fn:()=>exportHTML("Right to Work Monitoring Report","20-hour restricted workers — "+new Date().toLocaleDateString("en-GB"),
       buildTable(["Worker","Agency","Role","Visa Expiry","This Week (hrs)","Status"],
         RESTRICTED_HOURS.map(w=>{
           const cur=w.weekHours[w.weekHours.length-1];
@@ -8220,13 +8553,13 @@ const RtwMonitoringReport = ({user}) => {
   ];
 
   return (
-    <Page title="RTW Monitoring" sub="20-hour restricted workers — hours tracking and visa status" icon="🪪" action={<ExportMenu exports={rtwExports}/>}>
+    <Page title="RTW Monitoring" sub="20-hour restricted workers — hours tracking and visa status" icon="idCard" action={<ExportMenu exports={rtwExports}/>}>
 
       {breaches.length>0&&(
-        <Alert type="error">⛔ {breaches.length} worker{breaches.length>1?"s have":" has"} exceeded 20 hours in at least one week. Review immediately and contact the relevant agency.</Alert>
+        <Alert type="error">{breaches.length} worker{breaches.length>1?"s have":" has"} exceeded 20 hours in at least one week. Review immediately and contact the relevant agency.</Alert>
       )}
       {expiringWorkers.length>0&&(
-        <Alert type="warn">⚠️ {expiringWorkers.length} restricted worker{expiringWorkers.length>1?"s have":" has"} a visa or RTW document expiring within 90 days.</Alert>
+        <Alert type="warn">{expiringWorkers.length} restricted worker{expiringWorkers.length>1?"s have":" has"} a visa or RTW document expiring within 90 days.</Alert>
       )}
 
       <Grid cols={4}>
@@ -8240,27 +8573,27 @@ const RtwMonitoringReport = ({user}) => {
       {isClientAdmin&&(
         <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <button onClick={()=>setFilterSite("all")} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${filterSite==="all"?CA_PURPLE:T.border}`,background:filterSite==="all"?"#f5f3ff":T.white,fontWeight:700,fontSize:12,cursor:"pointer",color:filterSite==="all"?CA_PURPLE:T.muted,fontFamily:"Syne,sans-serif"}}>All Sites</button>
+            <button onClick={()=>setFilterSite("all")} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${filterSite==="all"?CA_PURPLE:T.border}`,background:filterSite==="all"?T.purpleBg:T.white,fontWeight:560,fontSize:12,cursor:"pointer",color:filterSite==="all"?CA_PURPLE:T.muted,fontFamily:FONT}}>All Sites</button>
             {mySites.map(s=>(
-              <button key={s} onClick={()=>setFilterSite(s)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${filterSite===s?SITE_COLORS[s]||CA_PURPLE:T.border}`,background:filterSite===s?`${SITE_COLORS[s]||CA_PURPLE}15`:T.white,fontWeight:700,fontSize:12,cursor:"pointer",color:filterSite===s?SITE_COLORS[s]||CA_PURPLE:T.muted,fontFamily:"Syne,sans-serif"}}>{s}</button>
+              <button key={s} onClick={()=>setFilterSite(s)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${filterSite===s?SITE_COLORS[s]||CA_PURPLE:T.border}`,background:filterSite===s?`${SITE_COLORS[s]||CA_PURPLE}15`:T.white,fontWeight:560,fontSize:12,cursor:"pointer",color:filterSite===s?SITE_COLORS[s]||CA_PURPLE:T.muted,fontFamily:FONT}}>{s}</button>
             ))}
           </div>
           <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>setFilterAgency("all")} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${filterAgency==="all"?T.amber:T.border}`,background:filterAgency==="all"?T.amberBg:T.white,fontWeight:600,fontSize:11,cursor:"pointer",color:filterAgency==="all"?T.amberText:T.muted,fontFamily:"Syne,sans-serif"}}>All Agencies</button>
+            <button onClick={()=>setFilterAgency("all")} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${filterAgency==="all"?T.amber:T.border}`,background:filterAgency==="all"?T.amberBg:T.white,fontWeight:600,fontSize:11,cursor:"pointer",color:filterAgency==="all"?T.amberText:T.muted,fontFamily:FONT}}>All Agencies</button>
             {agencies.map(a=>(
-              <button key={a} onClick={()=>setFilterAgency(a)} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${filterAgency===a?T.amber:T.border}`,background:filterAgency===a?T.amberBg:T.white,fontWeight:600,fontSize:11,cursor:"pointer",color:filterAgency===a?T.amberText:T.muted,fontFamily:"Syne,sans-serif"}}>{a}</button>
+              <button key={a} onClick={()=>setFilterAgency(a)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${filterAgency===a?T.amber:T.border}`,background:filterAgency===a?T.amberBg:T.white,fontWeight:600,fontSize:11,cursor:"pointer",color:filterAgency===a?T.amberText:T.muted,fontFamily:FONT}}>{a}</button>
             ))}
           </div>
         </div>
       )}
 
       {/* View toggle */}
-      <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4,width:"fit-content"}}>
+      <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4,width:"fit-content"}}>
         {[{k:"hours",l:"Weekly Hours Table"},{k:"cards",l:"Worker Cards"}].map(t=>{
           const active=tab===t.k;
           return (
             <button key={t.k} onClick={()=>setTab(t.k)}
-              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+              style={{padding:"7px 18px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
                 background:active?T.white:"transparent",color:active?T.navy:T.muted,
                 boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none"}}>
               {t.l}
@@ -8276,14 +8609,14 @@ const RtwMonitoringReport = ({user}) => {
           <div style={{overflowX:"auto"}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
-                <tr style={{background:"#f8fafc",borderBottom:`2px solid ${T.border}`}}>
-                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Worker</th>
-                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Agency</th>
-                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Visa Expiry</th>
+                <tr style={{background:T.raised,borderBottom:`2px solid ${T.border}`}}>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Worker</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Agency</th>
+                  <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Visa Expiry</th>
                   {RTW_WEEKS.map((wk,i)=>(
-                    <th key={wk} style={{padding:"10px 10px",textAlign:"center",fontSize:10,fontWeight:700,color:i===RTW_WEEKS.length-1?T.navy:T.muted,textTransform:"uppercase",letterSpacing:"0.04em",background:i===RTW_WEEKS.length-1?"#f0f4ff":"transparent",whiteSpace:"nowrap"}}>{wk}</th>
+                    <th key={wk} style={{padding:"10px 10px",textAlign:"center",fontSize:10,fontWeight:560,color:i===RTW_WEEKS.length-1?T.navy:T.muted,letterSpacing:"0.04em",background:i===RTW_WEEKS.length-1?T.accentBg:"transparent",whiteSpace:"nowrap"}}>{wk}</th>
                   ))}
-                  <th style={{padding:"10px 14px",textAlign:"center",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.06em"}}>Total</th>
+                  <th style={{padding:"10px 14px",textAlign:"center",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -8293,32 +8626,32 @@ const RtwMonitoringReport = ({user}) => {
                   return (
                     <tr key={w.workerId} style={{borderBottom:`1px solid ${T.border}`}}>
                       <td style={{padding:"12px 14px"}}>
-                        <div style={{fontWeight:700,fontSize:13}}>{w.workerName}</div>
+                        <div style={{fontWeight:560,fontSize:13}}>{w.workerName}</div>
                         <div style={{display:"flex",gap:6,marginTop:3}}>
                           <Badge label={w.role} color={T.purple} bg={T.purpleBg}/>
-                          <span style={{fontSize:10,fontWeight:700,color:"#6d28d9",background:"#ede9fe",padding:"2px 7px",borderRadius:8}}>20hr limit</span>
+                          <span style={{fontSize:10,fontWeight:560,color:T.purple,background:T.purpleBg,padding:"2px 7px",borderRadius:8}}>20hr limit</span>
                         </div>
                       </td>
                       <td style={{padding:"12px 14px",fontSize:12,color:T.muted}}>{w.agency}</td>
                       <td style={{padding:"12px 14px"}}>
                         {wx?.rtwExpiry
-                          ? <span style={{fontSize:12,fontWeight:isExpiringSoon?700:400,color:isExpiringSoon?T.red:T.text}}>{wx.rtwExpiry}{isExpiringSoon&&" ⚠️"}</span>
+                          ? <span style={{fontSize:12,fontWeight:isExpiringSoon?700:400,color:isExpiringSoon?T.red:T.text}}>{wx.rtwExpiry}{isExpiringSoon&&" "}</span>
                           : <span style={{fontSize:12,color:T.muted}}>—</span>}
                       </td>
                       {w.weekHours.map((h,i)=>{
                         const over=h>LIMIT; const atLimit=h===LIMIT;
-                        const bg=over?"#fee2e2":atLimit?"#fef3c7":i===w.weekHours.length-1?"#eef2ff":"transparent";
-                        const col=over?T.red:atLimit?"#b45309":i===w.weekHours.length-1?T.navy:T.text;
+                        const bg=over?T.redBg:atLimit?T.amberBg:i===w.weekHours.length-1?"#eef2ff":"transparent";
+                        const col=over?T.red:atLimit?T.amberText:i===w.weekHours.length-1?T.navy:T.text;
                         return (
                           <td key={i} style={{padding:"12px 10px",textAlign:"center",background:bg}}>
                             <span style={{fontSize:13,fontWeight:over||atLimit?800:500,color:col}}>{h}</span>
-                            {over&&<div style={{fontSize:9,color:T.red,fontWeight:700}}>OVER</div>}
-                            {atLimit&&<div style={{fontSize:9,color:"#b45309",fontWeight:700}}>AT LIMIT</div>}
+                            {over&&<div style={{fontSize:9,color:T.red,fontWeight:560}}>OVER</div>}
+                            {atLimit&&<div style={{fontSize:9,color:T.amberText,fontWeight:560}}>AT LIMIT</div>}
                           </td>
                         );
                       })}
                       <td style={{padding:"12px 14px",textAlign:"center"}}>
-                        <span style={{fontSize:13,fontWeight:700}}>{totalHours(w)}</span>
+                        <span style={{fontSize:13,fontWeight:560}}>{totalHours(w)}</span>
                         <div style={{fontSize:10,color:T.muted}}>hrs</div>
                       </td>
                     </tr>
@@ -8345,24 +8678,24 @@ const RtwMonitoringReport = ({user}) => {
             const isExpiring=wx?.rtwExpiry&&wx.rtwExpiry<="2026-06-10";
             const barColor=over?T.red:curHrs>=18?T.amber:CA_PURPLE;
             return (
-              <Card key={w.workerId} style={{borderTop:`3px solid ${over?T.red:atLimit?"#f59e0b":CA_PURPLE}`,padding:0}}>
+              <Card key={w.workerId} style={{borderTop:`3px solid ${over?T.red:atLimit?T.amber:CA_PURPLE}`,padding:0}}>
                 <div style={{padding:"14px 16px"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                     <div>
-                      <div style={{fontWeight:800,fontSize:14}}>{w.workerName}</div>
+                      <div style={{fontWeight:600,fontSize:14}}>{w.workerName}</div>
                       <div style={{fontSize:11,color:T.muted,marginTop:2}}>{w.agency} · {w.role}</div>
                     </div>
                     <div>
-                      {over&&<span style={{fontSize:11,fontWeight:700,color:T.red,background:T.redBg,padding:"3px 8px",borderRadius:8}}>BREACH</span>}
-                      {!over&&atLimit&&<span style={{fontSize:11,fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"3px 8px",borderRadius:8}}>AT LIMIT</span>}
-                      {!over&&!atLimit&&<span style={{fontSize:11,fontWeight:700,color:T.green,background:T.greenBg,padding:"3px 8px",borderRadius:8}}>OK</span>}
+                      {over&&<span style={{fontSize:11,fontWeight:560,color:T.red,background:T.redBg,padding:"3px 8px",borderRadius:8}}>BREACH</span>}
+                      {!over&&atLimit&&<span style={{fontSize:11,fontWeight:560,color:T.amberText,background:T.amberBg,padding:"3px 8px",borderRadius:8}}>AT LIMIT</span>}
+                      {!over&&!atLimit&&<span style={{fontSize:11,fontWeight:560,color:T.green,background:T.greenBg,padding:"3px 8px",borderRadius:8}}>OK</span>}
                     </div>
                   </div>
 
                   <div style={{marginBottom:10}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,fontSize:12}}>
                       <span style={{color:T.muted}}>This week (w/c 3 Mar)</span>
-                      <span style={{fontWeight:700,color:over?T.red:T.text}}>{curHrs} / {LIMIT} hrs</span>
+                      <span style={{fontWeight:560,color:over?T.red:T.text}}>{curHrs} / {LIMIT} hrs</span>
                     </div>
                     <ProgressBar value={Math.min(curHrs,LIMIT+2)} max={LIMIT} color={barColor}/>
                   </div>
@@ -8372,10 +8705,10 @@ const RtwMonitoringReport = ({user}) => {
                     <div>Visa expiry: <strong style={{color:isExpiring?T.red:T.text}}>{wx?.rtwExpiry||"—"}</strong></div>
                   </div>
 
-                  {wx?.rtwNotes&&<div style={{padding:"7px 10px",background:"#f8fafc",borderRadius:6,fontSize:11,color:T.muted,borderLeft:`3px solid ${CA_PURPLE}`,marginBottom:8}}>{wx.rtwNotes}</div>}
+                  {wx?.rtwNotes&&<div style={{padding:"7px 10px",background:T.raised,borderRadius:8,fontSize:11,color:T.muted,borderLeft:`3px solid ${CA_PURPLE}`,marginBottom:8}}>{wx.rtwNotes}</div>}
 
                   <div style={{paddingTop:8,borderTop:`1px solid ${T.border}`,display:"flex",flexWrap:"wrap",gap:4}}>
-                    {w.sites.map(s=><span key={s} style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:8,background:`${SITE_COLORS[s]||CA_PURPLE}18`,color:SITE_COLORS[s]||CA_PURPLE}}>{s}</span>)}
+                    {w.sites.map(s=><span key={s} style={{fontSize:10,fontWeight:560,padding:"2px 7px",borderRadius:8,background:`${SITE_COLORS[s]||CA_PURPLE}18`,color:SITE_COLORS[s]||CA_PURPLE}}>{s}</span>)}
                   </div>
                 </div>
               </Card>
@@ -8388,9 +8721,9 @@ const RtwMonitoringReport = ({user}) => {
       )}
 
       {/* Compliance reminder */}
-      <Card style={{background:"#faf5ff",border:`1.5px solid #ddd6fe`}}>
+      <Card style={{background:T.purpleBg,border:`1px solid #ddd6fe`}}>
         <div style={{padding:"16px 18px"}}>
-          <div style={{fontWeight:800,fontSize:14,color:"#6d28d9",marginBottom:8}}>📋 Your Responsibilities as a Host Employer</div>
+          <div style={{fontWeight:600,fontSize:14,color:T.purple,marginBottom:8}}>Your Responsibilities as a Host Employer</div>
           <div style={{fontSize:13,color:"#4c1d95",lineHeight:1.8}}>
             <div>• Student visa holders are restricted to <strong>20 hours per week during term time</strong>. Outside term time, they may work full time.</div>
             <div>• You must report suspected breaches to the sponsoring agency immediately.</div>
@@ -8407,7 +8740,7 @@ const RtwMonitoringReport = ({user}) => {
 /* ─── CUSTOM REPORTS ─────────────────────────────────────────────────────────── */
 const REPORT_SOURCES = {
   shifts: {
-    label:"Shifts", icon:"📋",
+    label:"Shifts", icon:"clipboard",
     fields:[
       {k:"carehome",   l:"Location"},
       {k:"role",       l:"Role"},
@@ -8423,7 +8756,7 @@ const REPORT_SOURCES = {
     filters:["dateFrom","dateTo","status","agency","carehome","role"],
   },
   workers: {
-    label:"Workers", icon:"👥",
+    label:"Workers", icon:"users",
     fields:[
       {k:"name",           l:"Name"},
       {k:"role",           l:"Role"},
@@ -8442,7 +8775,7 @@ const REPORT_SOURCES = {
     filters:["agency","role","dbs","rtwType"],
   },
   invoices: {
-    label:"Invoices", icon:"📄",
+    label:"Invoices", icon:"document",
     fields:[
       {k:"id",      l:"Invoice ID"},
       {k:"agency",  l:"Agency"},
@@ -8457,7 +8790,7 @@ const REPORT_SOURCES = {
     filters:["status","agency"],
   },
   agencies: {
-    label:"Agencies", icon:"🤝",
+    label:"Agencies", icon:"briefcase",
     fields:[
       {k:"name",        l:"Agency Name"},
       {k:"tier",        l:"Tier"},
@@ -8475,7 +8808,7 @@ const REPORT_SOURCES = {
     filters:["tier","status"],
   },
   timesheets: {
-    label:"Timesheets", icon:"🕐",
+    label:"Timesheets", icon:"clock",
     fields:[
       {k:"id",          l:"ID"},
       {k:"agency",      l:"Agency"},
@@ -8492,7 +8825,7 @@ const REPORT_SOURCES = {
     filters:["dateFrom","dateTo","status","agency","carehome","role"],
   },
   compliance_reqs: {
-    label:"Compliance Requirements", icon:"🛡",
+    label:"Compliance Requirements", icon:"shield",
     fields:[
       {k:"name",           l:"Requirement Name"},
       {k:"type",           l:"Type"},
@@ -8518,7 +8851,7 @@ const REPORT_SOURCES = {
     filters:["compScope","compType","compCategory","compMandatory","compActive"],
   },
   worker_compliance: {
-    label:"Worker Compliance Status", icon:"✅",
+    label:"Worker Compliance Status", icon:"checkCircle",
     fields:[
       {k:"workerName",      l:"Worker"},
       {k:"role",            l:"Role"},
@@ -8576,7 +8909,7 @@ const REPORT_SOURCES = {
     filters:["agency","role","compOverallStatus","dbs"],
   },
   budgets: {
-    label:"Budgets", icon:"💰",
+    label:"Budgets", icon:"money",
     fields:[
       {k:"site",           l:"Care Home"},
       {k:"monthly_budget", l:"Monthly Budget (£)"},
@@ -8705,11 +9038,11 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
   const deleteReport = id => setSaved(p=>p.filter(r=>r.id!==id));
 
   // ── SOURCE ICONS / colours ─────────────────────────────────────────────────
-  const srcColor = {shifts:T.blue,workers:T.purple,invoices:T.green,agencies:T.amber,timesheets:"#0891b2",compliance_reqs:"#0f766e",worker_compliance:"#16a34a",budgets:"#d97706"};
+  const srcColor = {shifts:T.blue,workers:T.purple,invoices:T.green,agencies:T.amber,timesheets:T.teal,compliance_reqs:"#0f766e",worker_compliance:T.green,budgets:T.amber};
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <Page title="Custom Reports" sub="Build, save and export tailored data reports" icon="🗂"
+    <Page title="Custom Reports" sub="Build, save and export tailored data reports" icon="archive"
       action={
         <div style={{display:"flex",gap:8}}>
           {view!=="home"&&<Btn variant="secondary" onClick={()=>setView("home")}>← Back</Btn>}
@@ -8724,9 +9057,9 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12,marginBottom:4}}>
             {Object.entries(REPORT_SOURCES).map(([k,s])=>(
               <button key={k} onClick={()=>{setSource(k);setSelFields(s.fields.map(f=>f.k));setFilters({});setReportName(s.label+" Report");setView("builder");}}
-                style={{display:"flex",flexDirection:"column",alignItems:"flex-start",padding:"16px 18px",background:T.white,border:`1.5px solid ${T.border}`,borderTop:`3px solid ${srcColor[k]}`,borderRadius:10,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",transition:"box-shadow 0.15s"}}>
-                <span style={{fontSize:24,marginBottom:8}}>{s.icon}</span>
-                <span style={{fontWeight:800,fontSize:13,color:T.text}}>{s.label}</span>
+                style={{display:"flex",flexDirection:"column",alignItems:"flex-start",padding:"16px 18px",background:T.white,border:`1px solid ${T.border}`,borderTop:`3px solid ${srcColor[k]}`,borderRadius:10,cursor:"pointer",textAlign:"left",fontFamily:FONT,transition:"box-shadow 0.15s"}}>
+                <span style={{marginBottom:8,display:"flex",color:T.faint}}>{renderIcon(s.icon,22)}</span>
+                <span style={{fontWeight:600,fontSize:13,color:T.text}}>{s.label}</span>
                 <span style={{fontSize:11,color:T.muted,marginTop:3}}>{s.fields.length} fields available</span>
               </button>
             ))}
@@ -8744,8 +9077,8 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                 const activeFilters=Object.entries(r.filters||{}).filter(([,v])=>v).length;
                 return(
                   <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`}}>
-                    <Td><div style={{fontWeight:700,fontSize:13}}>{r.name}</div></Td>
-                    <Td><span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontWeight:600,color:srcColor[r.source]}}><span>{s?.icon}</span>{s?.label}</span></Td>
+                    <Td><div style={{fontWeight:560,fontSize:13}}>{r.name}</div></Td>
+                    <Td><span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontWeight:600,color:srcColor[r.source]}}><span style={{display:"flex"}}>{renderIcon(s?.icon,14)}</span>{s?.label}</span></Td>
                     <Td><span style={{fontSize:12,color:T.muted}}>{r.fields.length} columns</span></Td>
                     <Td><span style={{fontSize:12,color:activeFilters?T.amber:T.muted}}>{activeFilters?`${activeFilters} active`:"None"}</span></Td>
                     <Td style={{fontSize:12,color:T.muted}}>{r.created}</Td>
@@ -8754,7 +9087,7 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                       <div style={{display:"flex",gap:5}}>
                         <Btn small onClick={()=>loadTemplate(r)}>Run</Btn>
                         <Btn small variant="secondary" onClick={()=>{setSource(r.source);setSelFields(r.fields);setFilters(r.filters||{});setReportName(r.name);setActiveReport(r);setView("builder");}}>Edit</Btn>
-                        <Btn small variant="secondary" onClick={()=>deleteReport(r.id)}>🗑</Btn>
+                        <Btn small variant="secondary" onClick={()=>deleteReport(r.id)}></Btn>
                       </div>
                     </Td>
                   </tr>
@@ -8779,14 +9112,14 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
 
             {/* Data source */}
             <Card style={{padding:"16px 18px"}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Data Source</div>
+              <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Data Source</div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {Object.entries(REPORT_SOURCES).map(([k,s])=>(
                   <button key={k} onClick={()=>{setSource(k);setSelFields(s.fields.map(f=>f.k));setFilters({});}}
-                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,border:`1.5px solid ${source===k?srcColor[k]:T.border}`,background:source===k?`${srcColor[k]}12`:T.white,cursor:"pointer",fontFamily:"Syne,sans-serif",textAlign:"left"}}>
-                    <span style={{fontSize:16}}>{s.icon}</span>
-                    <span style={{fontWeight:700,fontSize:12,color:source===k?srcColor[k]:T.text}}>{s.label}</span>
-                    {source===k&&<span style={{marginLeft:"auto",fontSize:10,color:srcColor[k],fontWeight:700}}>✓</span>}
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"9px 12px",borderRadius:8,border:`1px solid ${source===k?srcColor[k]:T.border}`,background:source===k?`${srcColor[k]}12`:T.white,cursor:"pointer",fontFamily:FONT,textAlign:"left"}}>
+                    <span style={{display:"flex"}}>{renderIcon(s.icon,16)}</span>
+                    <span style={{fontWeight:560,fontSize:12,color:source===k?srcColor[k]:T.text}}>{s.label}</span>
+                    {source===k&&<span style={{marginLeft:"auto",fontSize:10,color:srcColor[k],fontWeight:560}}>✓</span>}
                   </button>
                 ))}
               </div>
@@ -8795,16 +9128,16 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
             {/* Field selector */}
             <Card style={{padding:"16px 18px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <span style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em"}}>Columns ({selFields.length}/{src.fields.length})</span>
+                <span style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em"}}>Columns ({selFields.length}/{src.fields.length})</span>
                 <div style={{display:"flex",gap:6}}>
-                  <button onClick={selectAll}  style={{fontSize:10,fontWeight:700,color:T.amber,background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>All</button>
-                  <button onClick={clearAll}   style={{fontSize:10,fontWeight:700,color:T.muted,background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>None</button>
+                  <button onClick={selectAll}  style={{fontSize:10,fontWeight:560,color:T.amber,background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>All</button>
+                  <button onClick={clearAll}   style={{fontSize:10,fontWeight:560,color:T.muted,background:"none",border:"none",cursor:"pointer",padding:"2px 4px"}}>None</button>
                 </div>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:5}}>
                 {src.fields.map(f=>(
                   <label key={f.k} onClick={()=>toggleField(f.k)}
-                    style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:6,background:selFields.includes(f.k)?`${srcColor[source]}10`:"transparent",cursor:"pointer",border:`1px solid ${selFields.includes(f.k)?srcColor[source]:T.border}`}}>
+                    style={{display:"flex",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:8,background:selFields.includes(f.k)?`${srcColor[source]}10`:"transparent",cursor:"pointer",border:`1px solid ${selFields.includes(f.k)?srcColor[source]:T.border}`}}>
                     <div style={{width:14,height:14,borderRadius:3,border:`2px solid ${selFields.includes(f.k)?srcColor[source]:T.border}`,background:selFields.includes(f.k)?srcColor[source]:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
                       {selFields.includes(f.k)&&<span style={{color:"white",fontSize:9,lineHeight:1}}>✓</span>}
                     </div>
@@ -8816,7 +9149,7 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
 
             {/* Filters */}
             <Card style={{padding:"16px 18px"}}>
-              <div style={{fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Filters</div>
+              <div style={{fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Filters</div>
               {src.filters.map(fk=>(
                 <div key={fk} style={{marginBottom:10}}>
                   <label style={{display:"block",fontSize:11,fontWeight:600,color:T.muted,marginBottom:4}}>
@@ -8834,9 +9167,9 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                   </label>
                   {(fk==="dateFrom"||fk==="dateTo")
                     ? <input type="date" value={filters[fk]||""} onChange={e=>setFilters(p=>({...p,[fk]:e.target.value}))}
-                        style={{width:"100%",padding:"7px 10px",border:`1.5px solid ${T.border}`,borderRadius:7,fontSize:12,fontFamily:"Syne,sans-serif",color:T.text}}/>
+                        style={{width:"100%",padding:"7px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,color:T.text}}/>
                     : <select value={filters[fk]||""} onChange={e=>setFilters(p=>({...p,[fk]:e.target.value}))}
-                        style={{width:"100%",padding:"7px 10px",border:`1.5px solid ${T.border}`,borderRadius:7,fontSize:12,fontFamily:"Syne,sans-serif",color:T.text,background:T.white}}>
+                        style={{width:"100%",padding:"7px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,color:T.text,background:T.white}}>
                         {(filterOpts[fk]||[""]).map(o=>(
                           <option key={o} value={o}>{fk==="rtwType"&&o?RTW_LABEL[o]||o:o||`All ${fk.charAt(0).toUpperCase()+fk.slice(1)}s`}</option>
                         ))}
@@ -8845,7 +9178,7 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                 </div>
               ))}
               {Object.values(filters).some(v=>v)&&(
-                <button onClick={()=>setFilters({})} style={{fontSize:11,fontWeight:700,color:T.red,background:"none",border:"none",cursor:"pointer",padding:"2px 0"}}>✕ Clear all filters</button>
+                <button onClick={()=>setFilters({})} style={{fontSize:11,fontWeight:560,color:T.red,background:"none",border:"none",cursor:"pointer",padding:"2px 0"}}>✕ Clear all filters</button>
               )}
             </Card>
           </div>
@@ -8854,8 +9187,8 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             {selFields.length===0
               ? <Card style={{padding:"48px",textAlign:"center",color:T.muted}}>
-                  <div style={{fontSize:32,marginBottom:8}}>{src.icon}</div>
-                  <div style={{fontWeight:700,marginBottom:4}}>No columns selected</div>
+                  <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.ghost}}>{renderIcon(src.icon,28)}</div>
+                  <div style={{fontWeight:560,marginBottom:4}}>No columns selected</div>
                   <div style={{fontSize:12}}>Tick at least one field on the left to preview results.</div>
                 </Card>
               : (()=>{
@@ -8865,16 +9198,16 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                     <>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <div>
-                          <span style={{fontWeight:800,fontSize:14,color:T.text}}>{rows.length} row{rows.length!==1?"s":""} </span>
+                          <span style={{fontWeight:600,fontSize:14,color:T.text}}>{rows.length} row{rows.length!==1?"s":""} </span>
                           <span style={{fontSize:13,color:T.muted}}>· {selFields.length} columns{activeFilters?` · ${activeFilters} filter${activeFilters>1?"s":""}`:""}</span>
                         </div>
                         <div style={{display:"flex",gap:8}}>
                           <ExportMenu exports={[
-                            {icon:"📋",label:"Export CSV",fn:()=>exportCSV(`${(reportName||"report").replace(/\s+/g,"-")}.csv`,headers,rows)},
-                            {icon:"🖨️",label:"Export PDF",fn:()=>exportHTML(reportName||"Custom Report","Nexus RPO — Custom Report",buildTable(headers,rows))},
+                            {icon:"clipboard",label:"Export CSV",fn:()=>exportCSV(`${(reportName||"report").replace(/\s+/g,"-")}.csv`,headers,rows)},
+                            {icon:"printer",label:"Export PDF",fn:()=>exportHTML(reportName||"Custom Report","Nexus RPO — Custom Report",buildTable(headers,rows))},
                           ]}/>
                           <Btn onClick={()=>setView("preview")}>Preview Full →</Btn>
-                          <Btn variant="secondary" onClick={saveReport}>{justSaved?"✅ Saved!":"💾 Save Report"}</Btn>
+                          <Btn variant="secondary" onClick={saveReport}>{justSaved?"Saved!":"Save Report"}</Btn>
                         </div>
                       </div>
                       <Card>
@@ -8883,21 +9216,21 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                             <thead style={{position:"sticky",top:0,zIndex:2}}>
                               <tr style={{background:T.navy}}>
                                 {headers.map(h=>(
-                                  <th key={h} style={{padding:"9px 12px",textAlign:"left",color:"white",fontWeight:700,fontSize:10,textTransform:"uppercase",letterSpacing:"0.06em",whiteSpace:"nowrap"}}>{h}</th>
+                                  <th key={h} style={{padding:"9px 12px",textAlign:"left",color:"white",fontWeight:560,fontSize:10,letterSpacing:"-0.006em",whiteSpace:"nowrap"}}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {rows.slice(0,50).map((row,i)=>(
-                                <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:i%2===0?"transparent":"#f8fafc"}}>
+                                <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:i%2===0?"transparent":T.raised}}>
                                   {row.map((cell,j)=>(
                                     <td key={j} style={{padding:"8px 12px",color:T.text,whiteSpace:"nowrap"}}>
                                       {(cell==="Fail"||cell==="Expired"||cell==="expired"||cell==="overdue")
-                                        ? <span style={{fontWeight:700,color:T.red,background:T.redBg,padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                                        ? <span style={{fontWeight:560,color:T.red,background:T.redBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                                         :(cell==="Warning"||cell==="Expiring Soon"||cell==="expiring")
-                                        ? <span style={{fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                                        ? <span style={{fontWeight:560,color:T.amberText,background:T.amberBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                                         :(cell==="Pass"||cell==="Verified"||cell==="valid"||cell==="approved"||cell==="paid"||cell==="Active")
-                                        ? <span style={{fontWeight:700,color:T.green,background:T.greenBg,padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                                        ? <span style={{fontWeight:560,color:T.green,background:T.greenBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                                         : cell}
                                     </td>
                                   ))}
@@ -8908,7 +9241,7 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                               )}
                             </tbody>
                           </table>
-                          {rows.length>50&&<div style={{padding:"10px 14px",fontSize:11,color:T.muted,borderTop:`1px solid ${T.border}`,background:"#f8fafc"}}>Showing 50 of {rows.length} rows. Export to see all data.</div>}
+                          {rows.length>50&&<div style={{padding:"10px 14px",fontSize:11,color:T.muted,borderTop:`1px solid ${T.border}`,background:T.raised}}>Showing 50 of {rows.length} rows. Export to see all data.</div>}
                         </div>
                       </Card>
                     </>
@@ -8927,16 +9260,16 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
           <>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
-                <span style={{fontWeight:800,fontSize:16,color:T.text}}>{reportName||"Custom Report"}</span>
+                <span style={{fontWeight:600,fontSize:16,color:T.text}}>{reportName||"Custom Report"}</span>
                 <div style={{fontSize:12,color:T.muted,marginTop:2}}>{REPORT_SOURCES[source]?.icon} {REPORT_SOURCES[source]?.label} · {rows.length} rows · {selFields.length} columns{activeFilters?` · ${activeFilters} filter${activeFilters>1?"s":""}`:""}</div>
               </div>
               <div style={{display:"flex",gap:8}}>
                 <ExportMenu exports={[
-                  {icon:"📋",label:"Export CSV",fn:()=>exportCSV(`${(reportName||"report").replace(/\s+/g,"-")}.csv`,headers,rows)},
-                  {icon:"🖨️",label:"Export PDF",fn:()=>exportHTML(reportName||"Custom Report","Nexus RPO — Custom Report",buildTable(headers,rows))},
+                  {icon:"clipboard",label:"Export CSV",fn:()=>exportCSV(`${(reportName||"report").replace(/\s+/g,"-")}.csv`,headers,rows)},
+                  {icon:"printer",label:"Export PDF",fn:()=>exportHTML(reportName||"Custom Report","Nexus RPO — Custom Report",buildTable(headers,rows))},
                 ]}/>
                 <Btn variant="secondary" onClick={()=>setView("builder")}>← Edit Report</Btn>
-                <Btn variant="secondary" onClick={saveReport}>{justSaved?"✅ Saved!":"💾 Save"}</Btn>
+                <Btn variant="secondary" onClick={saveReport}>{justSaved?"Saved!":"Save"}</Btn>
               </div>
             </div>
 
@@ -8944,7 +9277,7 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
             {activeFilters>0&&(
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {Object.entries(filters).filter(([,v])=>v).map(([k,v])=>(
-                  <span key={k} style={{fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,background:T.amberBg,color:T.amberText,display:"flex",alignItems:"center",gap:5}}>
+                  <span key={k} style={{fontSize:11,fontWeight:560,padding:"4px 10px",borderRadius:20,background:T.amberBg,color:T.amberText,display:"flex",alignItems:"center",gap:5}}>
                     {k==="compScope"?"Scope"
                     :k==="compType"?"Type"
                     :k==="compCategory"?"Category"
@@ -8963,24 +9296,24 @@ const CustomReports = ({user, timesheets: tsProp, complianceReqs, budgets}) => {
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead>
                     <tr style={{background:T.navy}}>
-                      <th style={{padding:"9px 12px",color:"rgba(255,255,255,0.5)",fontWeight:700,fontSize:10,textTransform:"uppercase",letterSpacing:"0.06em",whiteSpace:"nowrap",width:40}}>#</th>
+                      <th style={{padding:"9px 12px",color:"rgba(255,255,255,0.5)",fontWeight:560,fontSize:10,letterSpacing:"-0.006em",whiteSpace:"nowrap",width:40}}>#</th>
                       {headers.map(h=>(
-                        <th key={h} style={{padding:"9px 12px",textAlign:"left",color:"white",fontWeight:700,fontSize:10,textTransform:"uppercase",letterSpacing:"0.06em",whiteSpace:"nowrap"}}>{h}</th>
+                        <th key={h} style={{padding:"9px 12px",textAlign:"left",color:"white",fontWeight:560,fontSize:10,letterSpacing:"-0.006em",whiteSpace:"nowrap"}}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((row,i)=>(
-                      <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:i%2===0?"transparent":"#f8fafc"}}>
+                      <tr key={i} style={{borderBottom:`1px solid ${T.border}`,background:i%2===0?"transparent":T.raised}}>
                         <td style={{padding:"8px 12px",color:T.muted,fontSize:11}}>{i+1}</td>
                         {row.map((cell,j)=>(
                           <td key={j} style={{padding:"8px 12px",color:T.text}}>
                             {(cell==="Fail"||cell==="Expired"||cell==="expired"||cell==="overdue")
-                              ? <span style={{fontWeight:700,color:T.red,background:T.redBg,padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                              ? <span style={{fontWeight:560,color:T.red,background:T.redBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                               :(cell==="Warning"||cell==="Expiring Soon"||cell==="expiring")
-                              ? <span style={{fontWeight:700,color:"#b45309",background:"#fef3c7",padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                              ? <span style={{fontWeight:560,color:T.amberText,background:T.amberBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                               :(cell==="Pass"||cell==="Verified"||cell==="valid"||cell==="approved"||cell==="paid"||cell==="Active")
-                              ? <span style={{fontWeight:700,color:T.green,background:T.greenBg,padding:"2px 8px",borderRadius:6,fontSize:11}}>{cell}</span>
+                              ? <span style={{fontWeight:560,color:T.green,background:T.greenBg,padding:"2px 8px",borderRadius:8,fontSize:11}}>{cell}</span>
                               : cell}
                           </td>
                         ))}
@@ -9009,33 +9342,40 @@ const NotificationPanel = ({role,onClose,onNavigate}) => {
   const [notes,setNotes] = useState(INIT_NOTIFICATIONS[role]||[]);
   const unread = notes.filter(n=>!n.read).length;
   const markAll = () => setNotes(n=>n.map(x=>({...x,read:true})));
-  const typeIcon = {urgent_shift:"🚨",rate_uplift:"📈",invoice_overdue:"📄",compliance:"🛡",contract:"📋",message:"💬",budget_alert:"💰",timesheet:"🕐"};
-  const typeColor = {urgent_shift:T.red,rate_uplift:T.amber,invoice_overdue:"#f97316",compliance:T.purple,contract:T.blue,message:T.teal,budget_alert:"#b45309",timesheet:T.green};
+  const typeIcon = {urgent_shift:"siren",rate_uplift:"trendingUp",invoice_overdue:"receipt",compliance:"shield",contract:"document",message:"message",budget_alert:"money",timesheet:"clock"};
+  const typeColor = {urgent_shift:T.red,rate_uplift:T.amber,invoice_overdue:T.amber,compliance:T.purple,contract:T.accent,message:T.teal,budget_alert:T.amberText,timesheet:T.green};
   return (
-    <div style={{position:"fixed",top:0,right:0,bottom:0,width:380,background:T.white,boxShadow:"-4px 0 32px rgba(0,0,0,0.15)",zIndex:1000,display:"flex",flexDirection:"column",fontFamily:"Syne,sans-serif"}}>
-      <div style={{padding:"18px 20px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <div style={{position:"fixed",top:0,right:0,bottom:0,width:392,background:T.white,boxShadow:T.sh4,zIndex:1000,display:"flex",flexDirection:"column",fontFamily:FONT,animation:"fcFade 0.24s ease both"}}>
+      <div style={{padding:"18px 20px",borderBottom:`1px solid ${T.divider}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
         <div>
-          <div style={{fontWeight:800,fontSize:16,color:T.text}}>Notifications</div>
-          <div style={{fontSize:11,color:T.muted,marginTop:2}}>{unread} unread</div>
+          <div style={{fontWeight:600,fontSize:17,color:T.text,letterSpacing:"-0.022em"}}>Notifications</div>
+          <div style={{fontSize:12.5,color:T.faint,marginTop:2}}>{unread} unread</div>
         </div>
-        <div style={{display:"flex",gap:8}}>
-          {unread>0&&<button onClick={markAll} style={{fontSize:11,fontWeight:700,color:T.amber,background:"none",border:"none",cursor:"pointer",fontFamily:"Syne,sans-serif"}}>Mark all read</button>}
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:T.muted,lineHeight:1}}>✕</button>
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          {unread>0&&<button onClick={markAll} style={{fontSize:13,fontWeight:510,color:T.accent,background:"none",border:"none",cursor:"pointer",fontFamily:FONT,letterSpacing:"-0.008em",padding:"4px 6px",borderRadius:T.rXs}}>Mark all read</button>}
+          <button onClick={onClose} aria-label="Close"
+            onMouseEnter={e=>{e.currentTarget.style.background="rgba(0,0,0,0.06)";e.currentTarget.style.color=T.text;}}
+            onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=T.faint;}}
+            style={{background:"transparent",border:"none",cursor:"pointer",color:T.faint,width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:`background ${T.t}, color ${T.t}`}}>
+            <Icon name="close" size={16}/>
+          </button>
         </div>
       </div>
       <div style={{flex:1,overflowY:"auto"}}>
         {notes.length===0?<div style={{padding:40,textAlign:"center",color:T.muted,fontSize:13}}>You're all caught up!</div>:notes.map(n=>(
           <div key={n.id} onClick={()=>{setNotes(ns=>ns.map(x=>x.id===n.id?{...x,read:true}:x));if(n.action&&onNavigate)onNavigate(n.action);onClose();}}
-            style={{padding:"14px 20px",borderBottom:`1px solid ${T.border}`,cursor:"pointer",background:n.read?"transparent":"#fffbeb",display:"flex",gap:12,alignItems:"flex-start",transition:"background 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background=n.read?"transparent":"#fffbeb"}>
-            <div style={{width:34,height:34,borderRadius:10,background:typeColor[n.type]+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{typeIcon[n.type]||"🔔"}</div>
+            style={{padding:"14px 20px",borderBottom:`1px solid ${T.divider}`,cursor:"pointer",background:n.read?"transparent":T.accentBg,display:"flex",gap:12,alignItems:"flex-start",transition:`background ${T.t}`}}
+            onMouseEnter={e=>e.currentTarget.style.background=n.read?T.raised:T.accentBg} onMouseLeave={e=>e.currentTarget.style.background=n.read?"transparent":T.accentBg}>
+            <div style={{width:34,height:34,borderRadius:T.rSm,background:typeColor[n.type]+"1A",color:typeColor[n.type],display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <Icon name={typeIcon[n.type]||"bell"} size={17}/>
+            </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                <span style={{fontWeight:700,fontSize:12,color:T.text}}>{n.title}</span>
-                {!n.read&&<span style={{width:7,height:7,borderRadius:"50%",background:T.amber,flexShrink:0,display:"inline-block"}}/>}
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                <span style={{fontWeight:560,fontSize:13.5,color:T.text,letterSpacing:"-0.012em"}}>{n.title}</span>
+                {!n.read&&<span style={{width:6.5,height:6.5,borderRadius:"50%",background:T.accent,flexShrink:0,display:"inline-block"}}/>}
               </div>
-              <div style={{fontSize:11,color:T.muted,lineHeight:1.5,marginBottom:3}}>{n.body}</div>
-              <div style={{fontSize:10,color:"#94a3b8",fontWeight:600}}>{n.time}</div>
+              <div style={{fontSize:12.5,color:T.muted,lineHeight:1.5,marginBottom:5,letterSpacing:"-0.006em"}}>{n.body}</div>
+              <div style={{fontSize:11.5,color:T.ghost}}>{n.time}</div>
             </div>
           </div>
         ))}
@@ -9061,28 +9401,28 @@ const ExpiryCalendar = ({user,complianceReqs}) => {
   const filtered=expiryItems.filter(e=>(typeF==="all"||e.type===typeF)&&(monthF==="all"||e.date.startsWith(monthF)));
   const expired=filtered.filter(e=>e.status==="expired");
   const expiring=filtered.filter(e=>e.status==="expiring");
-  const statusColor={expired:T.red,expiring:"#b45309",ok:T.green};
-  const statusBg={expired:T.redBg,expiring:"#fef3c7",ok:T.greenBg};
+  const statusColor={expired:T.red,expiring:T.amberText,ok:T.green};
+  const statusBg={expired:T.redBg,expiring:T.amberBg,ok:T.greenBg};
   return (
-    <Page title="Expiry Calendar" sub="All upcoming document & credential expirations across all workers" icon="📆">
+    <Page title="Expiry Calendar" sub="All upcoming document & credential expirations across all workers" icon="calendar">
       <Grid cols={3}>
         <Stat label="Expired Now"    value={expiryItems.filter(e=>e.status==="expired").length}   sub="Immediate action needed" accent/>
         <Stat label="Expiring ≤90d"  value={expiryItems.filter(e=>e.status==="expiring").length}  sub="Within next 3 months"/>
         <Stat label="Workers Affected" value={[...new Set(expiryItems.map(e=>e.label.split("—")[0].trim()))].length} sub="unique workers"/>
       </Grid>
-      {expired.length>0&&<Alert type="error">🚨 {expired.length} document{expired.length>1?"s have":" has"} already expired. Workers cannot be placed until renewed.</Alert>}
+      {expired.length>0&&<Alert type="error">{expired.length} document{expired.length>1?"s have":" has"} already expired. Workers cannot be placed until renewed.</Alert>}
       <Card style={{padding:"14px 16px"}}>
         <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Type</label>
-            <select value={typeF} onChange={e=>setTypeF(e.target.value)} style={{padding:"7px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",background:T.white,color:T.text,outline:"none"}}>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Type</label>
+            <select value={typeF} onChange={e=>setTypeF(e.target.value)} style={{padding:"7px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,background:T.white,color:T.text,outline:"none"}}>
               <option value="all">All Types</option>
               {["DBS","Training","RTW","NMC/PIN"].map(t=><option key={t} value={t}>{t}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Month</label>
-            <select value={monthF} onChange={e=>setMonthF(e.target.value)} style={{padding:"7px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",background:T.white,color:T.text,outline:"none"}}>
+            <label style={{display:"block",fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Month</label>
+            <select value={monthF} onChange={e=>setMonthF(e.target.value)} style={{padding:"7px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,background:T.white,color:T.text,outline:"none"}}>
               <option value="all">All Months</option>
               {months.map(m=><option key={m} value={m}>{m}</option>)}
             </select>
@@ -9096,21 +9436,21 @@ const ExpiryCalendar = ({user,complianceReqs}) => {
         const label={[months[0]]:"March 2026",[months[1]]:"April 2026",[months[2]]:"May 2026",[months[3]]:"June 2026"}[m];
         return (
           <div key={m}>
-            <div style={{fontSize:13,fontWeight:800,color:T.text,marginBottom:8,paddingLeft:4}}>{label}</div>
+            <div style={{fontSize:13,fontWeight:600,color:T.text,marginBottom:8,paddingLeft:4}}>{label}</div>
             <Card style={{padding:0,overflow:"hidden"}}>
               {monthItems.map((e,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 18px",borderBottom:i<monthItems.length-1?`1px solid ${T.border}`:"none",background:e.status==="expired"?"#fff5f5":e.status==="expiring"?"#fffbeb":"transparent"}}>
+                <div key={i} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 18px",borderBottom:i<monthItems.length-1?`1px solid ${T.border}`:"none",background:e.status==="expired"?"#fff5f5":e.status==="expiring"?T.amberBg:"transparent"}}>
                   <div style={{width:52,textAlign:"center",flexShrink:0}}>
-                    <div style={{fontSize:18,fontWeight:800,color:statusColor[e.status]}}>{e.date.split("-")[2]}</div>
-                    <div style={{fontSize:9,fontWeight:700,color:T.muted,textTransform:"uppercase"}}>{["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(e.date.split("-")[1])]}</div>
+                    <div style={{fontSize:18,fontWeight:600,color:statusColor[e.status]}}>{e.date.split("-")[2]}</div>
+                    <div style={{fontSize:9,fontWeight:560,color:T.muted}}>{["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(e.date.split("-")[1])]}</div>
                   </div>
                   <div style={{width:3,height:36,borderRadius:2,background:statusColor[e.status],flexShrink:0}}/>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:13,color:T.text}}>{e.label}</div>
+                    <div style={{fontWeight:560,fontSize:13,color:T.text}}>{e.label}</div>
                     <div style={{fontSize:11,color:T.muted,marginTop:1}}>{e.agency} · {e.role}</div>
                   </div>
-                  <Badge label={e.type} color={T.purple} bg={T.purpleBg}/>
-                  <span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,color:statusColor[e.status],background:statusBg[e.status],textTransform:"capitalize"}}>{e.status==="expiring"?"Expiring Soon":e.status}</span>
+                  <Badge label={cap(e.type)} color={T.purple} bg={T.purpleBg}/>
+                  <span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,color:statusColor[e.status],background:statusBg[e.status],textTransform:"capitalize"}}>{e.status==="expiring"?"Expiring Soon":e.status}</span>
                 </div>
               ))}
             </Card>
@@ -9130,23 +9470,23 @@ const CQCReadinessReport = ({user,complianceReqs}) => {
   const pinOk=WORKERS.filter(w=>w.pin||(w.role!=="RGN"&&w.role!=="RMN")).length;
   const overallScore=Math.round(((dbsOk+trainOk+rtwOk+pinOk)/(totalWorkers*4))*100);
   const sections=[
-    {label:"DBS Certificates",    pass:dbsOk,   total:totalWorkers, icon:"🔍", notes:"Enhanced DBS required for all staff"},
-    {label:"Mandatory Training",  pass:trainOk, total:totalWorkers, icon:"📚", notes:"Safeguarding, fire, IPC, moving & handling"},
-    {label:"Right to Work",       pass:rtwOk,   total:totalWorkers, icon:"🪪", notes:"All workers verified pre-placement"},
-    {label:"NMC/PIN (Nurses)",    pass:pinOk,   total:WORKERS.filter(w=>w.role==="RGN"||w.role==="RMN").length, icon:"⚕️",notes:"Active PIN verified against NMC register"},
+    {label:"DBS Certificates",    pass:dbsOk,   total:totalWorkers, icon:"search", notes:"Enhanced DBS required for all staff"},
+    {label:"Mandatory Training",  pass:trainOk, total:totalWorkers, icon:"book", notes:"Safeguarding, fire, IPC, moving & handling"},
+    {label:"Right to Work",       pass:rtwOk,   total:totalWorkers, icon:"idCard", notes:"All workers verified pre-placement"},
+    {label:"NMC/PIN (Nurses)",    pass:pinOk,   total:WORKERS.filter(w=>w.role==="RGN"||w.role==="RMN").length, icon:"medical",notes:"Active PIN verified against NMC register"},
   ];
   const agencyCompliance=AGENCIES.map(a=>({name:a.name,tier:a.tier,compliance:a.compliance,shifts:a.shifts,fillRate:a.fillRate})).sort((a,b)=>b.compliance-a.compliance);
-  const accent=user?.role==="clientadmin"?"#7c3aed":T.amber;
+  const accent=user?.role==="clientadmin"?T.purple:T.amber;
   return (
-    <Page title="CQC Readiness Report" sub="One-click compliance summary for inspection readiness" icon="🏅">
-      <div style={{background:`linear-gradient(135deg,${T.navy},#1e3a5f)`,borderRadius:16,padding:"24px 28px",marginBottom:20,display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+    <Page title="CQC Readiness Report" sub="One-click compliance summary for inspection readiness" icon="award">
+      <div style={{background:`linear-gradient(135deg,${T.navy},#1e3a5f)`,borderRadius:18,padding:"24px 28px",marginBottom:20,display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
         <div style={{textAlign:"center"}}>
-          <div style={{fontSize:48,fontWeight:800,color:T.white,lineHeight:1}}>{overallScore}%</div>
+          <div style={{fontSize:48,fontWeight:600,color:T.white,lineHeight:1}}>{overallScore}%</div>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:4}}>Overall Readiness</div>
         </div>
         <div style={{width:1,height:60,background:"rgba(255,255,255,0.15)"}}/>
         <div style={{flex:1}}>
-          <div style={{fontFamily:"Instrument Serif,serif",fontSize:18,color:T.white,marginBottom:6}}>CQC Inspection Readiness</div>
+          <div style={{fontFamily:FONT,fontSize:18,color:T.white,marginBottom:6}}>CQC Inspection Readiness</div>
           <p style={{fontSize:12,color:"rgba(255,255,255,0.6)",lineHeight:1.6,margin:0}}>This report consolidates worker credentials, compliance rates, and agency performance into a single inspection-ready summary. Generated {new Date().toLocaleDateString("en-GB")}.</p>
         </div>
         <Btn onClick={()=>exportHTML("CQC Readiness Report","Nexus RPO","<h2>Generated: "+new Date().toLocaleDateString("en-GB")+"</h2><p>Overall score: "+overallScore+"%</p>")}>Export PDF</Btn>
@@ -9154,15 +9494,15 @@ const CQCReadinessReport = ({user,complianceReqs}) => {
       <Grid cols={4}>
         {sections.map(s=>{
           const pct=Math.round((s.pass/Math.max(s.total,1))*100);
-          const col=pct>=95?T.green:pct>=80?"#b45309":T.red;
+          const col=pct>=95?T.green:pct>=80?T.amberText:T.red;
           return(
             <Card key={s.label}>
-              <div style={{fontSize:24,marginBottom:8}}>{s.icon}</div>
-              <div style={{fontWeight:800,fontSize:13,color:T.text,marginBottom:2}}>{s.label}</div>
+              <div style={{marginBottom:8,display:"flex",justifyContent:"center",color:T.faint}}>{renderIcon(s.icon,22)}</div>
+              <div style={{fontWeight:600,fontSize:13,color:T.text,marginBottom:2}}>{s.label}</div>
               <div style={{fontSize:11,color:T.muted,marginBottom:10}}>{s.notes}</div>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
                 <ProgressBar value={pct} color={col}/>
-                <span style={{fontWeight:800,fontSize:14,color:col}}>{pct}%</span>
+                <span style={{fontWeight:600,fontSize:14,color:col}}>{pct}%</span>
               </div>
               <div style={{fontSize:11,color:T.muted}}>{s.pass}/{s.total} workers compliant</div>
             </Card>
@@ -9171,24 +9511,24 @@ const CQCReadinessReport = ({user,complianceReqs}) => {
       </Grid>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         <Card>
-          <CardHead title="Agency Compliance League" icon="🏆"/>
+          <CardHead title="Agency Compliance League" icon="trophy"/>
           <Table headers={["Agency","Tier","Compliance","Fill Rate","Shifts"]} rows={agencyCompliance.map((a,i)=>(
             <tr key={a.name} style={{borderBottom:`1px solid ${T.border}`}}>
-              <Td><span style={{fontWeight:700,marginRight:6,color:T.muted}}>#{i+1}</span>{a.name}</Td>
-              <Td><Badge label={a.tier} color={TIER_CFG[a.tier]?.c||T.muted} bg={TIER_CFG[a.tier]?.bg||"#f1f5f9"}/></Td>
-              <Td><span style={{fontWeight:700,color:a.compliance>=95?T.green:a.compliance>=80?"#b45309":T.red}}>{a.compliance}%</span></Td>
+              <Td><span style={{fontWeight:560,marginRight:6,color:T.muted}}>#{i+1}</span>{a.name}</Td>
+              <Td><Badge label={a.tier} color={TIER_CFG[a.tier]?.c||T.muted} bg={TIER_CFG[a.tier]?.bg||T.sunken}/></Td>
+              <Td><span style={{fontWeight:560,color:a.compliance>=95?T.green:a.compliance>=80?T.amberText:T.red}}>{a.compliance}%</span></Td>
               <Td>{a.fillRate}%</Td>
               <Td>{a.shifts}</Td>
             </tr>
           ))}/>
         </Card>
         <Card>
-          <CardHead title="Compliance Requirements Register" icon="🛡"/>
+          <CardHead title="Compliance Requirements Register" icon="shield"/>
           <Table headers={["Requirement","Scope","Mandatory","Expiry"]} rows={(complianceReqs||INIT_COMPLIANCE_REQS).filter(r=>r.active).map(r=>(
             <tr key={r.id} style={{borderBottom:`1px solid ${T.border}`}}>
               <Td bold>{r.name}</Td>
               <Td><Badge label={r.scope==="global"?"Global":"Site"} color={r.scope==="global"?T.blue:T.purple} bg={r.scope==="global"?T.blueBg:T.purpleBg}/></Td>
-              <Td>{r.mandatory?<Badge label="Mandatory" color={T.red} bg={T.redBg}/>:<Badge label="Recommended" color={T.muted} bg="#f1f5f9"/>}</Td>
+              <Td>{r.mandatory?<Badge label="Mandatory" color={T.red} bg={T.redBg}/>:<Badge label="Recommended" color={T.muted} bg={T.sunken}/>}</Td>
               <Td style={{fontSize:11,color:T.muted}}>{r.expiryMonths?`${r.expiryMonths}m`:"Permanent"}</Td>
             </tr>
           ))}/>
@@ -9200,12 +9540,12 @@ const CQCReadinessReport = ({user,complianceReqs}) => {
 
 /* ─── DEMAND FORECAST ─────────────────────────────────────────────────────────── */
 const DemandForecast = ({user}) => {
-  const accent=user?.role==="clientadmin"?"#7c3aed":T.amber;
+  const accent=user?.role==="clientadmin"?T.purple:T.amber;
   const sites=Object.keys(SITE_COLORS);
   const siteForecasts=sites.map(s=>({site:s,weeks:FORECAST_DATA.map(w=>({...w,value:Math.round((w.forecast||0)*(0.15+Math.random()*0.25))}))}));
   return (
-    <Page title="Demand Forecast" sub="Predicted shift demand based on historical patterns — next 6 weeks" icon="🔮">
-      <Alert type="info">📊 Forecasts use 12-week rolling averages weighted by day-of-week, seasonality, and historic fill patterns. Actual demand may vary.</Alert>
+    <Page title="Demand Forecast" sub="Predicted shift demand based on historical patterns — next 6 weeks" icon="forecast">
+      <Alert type="info">Forecasts use 12-week rolling averages weighted by day-of-week, seasonality, and historic fill patterns. Actual demand may vary.</Alert>
       <Grid cols={4}>
         <Stat label="Forecast This Week"  value={21}  sub="shifts predicted" accent/>
         <Stat label="Peak Week"           value="w/c 31 Mar" sub="24 shifts — Easter period"/>
@@ -9213,37 +9553,37 @@ const DemandForecast = ({user}) => {
         <Stat label="Capacity Risk"       value="High" sub="Easter week — book early"/>
       </Grid>
       <Card>
-        <CardHead title="Total Shift Demand — 6 Week Forecast" icon="📈"/>
+        <CardHead title="Total Shift Demand — 6 Week Forecast" icon="trendingUp"/>
         <ResponsiveContainer width="100%" height={260}>
           <ComposedChart data={FORECAST_DATA} margin={{top:10,right:20,left:0,bottom:0}}>
-            <CartesianGrid strokeDasharray="3 3" stroke={T.border}/>
-            <XAxis dataKey="week" tick={{fontSize:11,fill:T.muted}} tickLine={false}/>
-            <YAxis tick={{fontSize:11,fill:T.muted}} tickLine={false} axisLine={false}/>
-            <Tooltip contentStyle={{borderRadius:10,border:`1px solid ${T.border}`,fontFamily:"Syne,sans-serif",fontSize:12}}/>
-            <Bar dataKey="actual" fill={T.navy} name="Actual" radius={[4,4,0,0]} maxBarSize={32}/>
+            <CartesianGrid strokeDasharray="2 4" stroke={T.hairline} vertical={false}/>
+            <XAxis dataKey="week" tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+            <YAxis tick={{fontSize:11.5,fill:T.faint}} axisLine={false} tickLine={false}/>
+            <Tooltip contentStyle={TOOLTIP_STYLE}/>
+            <Bar dataKey="actual" fill={T.accent} name="Actual" radius={[4,4,0,0]} maxBarSize={32}/>
             <Line dataKey="forecast" stroke={accent} strokeWidth={2.5} dot={{r:4,fill:accent}} name="Forecast" strokeDasharray="6 3"/>
           </ComposedChart>
         </ResponsiveContainer>
       </Card>
       <Card>
-        <CardHead title="Forecast by Site" icon="🏥"/>
+        <CardHead title="Forecast by Site" icon="hospital"/>
         <Table headers={["Site","w/c 10 Mar","w/c 17 Mar","w/c 24 Mar","w/c 31 Mar","w/c 7 Apr","w/c 14 Apr","Trend"]} rows={siteForecasts.map(sf=>(
           <tr key={sf.site} style={{borderBottom:`1px solid ${T.border}`}}>
-            <Td><span style={{fontWeight:700,fontSize:12,color:SITE_COLORS[sf.site]||T.text}}>{sf.site}</span></Td>
-            {sf.weeks.map((w,i)=><Td key={i}><span style={{fontWeight:600,color:w.value>5?T.red:w.value>3?"#b45309":T.text}}>{w.value}</span></Td>)}
-            <Td><span style={{color:T.green,fontWeight:700}}>↑ +12%</span></Td>
+            <Td><span style={{fontWeight:560,fontSize:12,color:SITE_COLORS[sf.site]||T.text}}>{sf.site}</span></Td>
+            {sf.weeks.map((w,i)=><Td key={i}><span style={{fontWeight:600,color:w.value>5?T.red:w.value>3?T.amberText:T.text}}>{w.value}</span></Td>)}
+            <Td><span style={{color:T.green,fontWeight:560}}>↑ +12%</span></Td>
           </tr>
         ))}/>
       </Card>
       <Card style={{padding:"18px 20px"}}>
-        <CardHead title="Unfill Root Cause Analysis" icon="🔍"/>
+        <CardHead title="Unfill Root Cause Analysis" icon="search"/>
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:8}}>
           {[["No workers available",38],["Short notice",24],["Rate too low",18],["Location too far",11],["Worker declined",9]].map(([reason,pct])=>(
-            <div key={reason} style={{flex:1,minWidth:140,padding:"12px 14px",border:`1px solid ${T.border}`,borderRadius:10,background:"#f8fafc"}}>
+            <div key={reason} style={{flex:1,minWidth:140,padding:"12px 14px",border:`1px solid ${T.border}`,borderRadius:10,background:T.raised}}>
               <div style={{fontSize:11,color:T.muted,marginBottom:4}}>{reason}</div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <ProgressBar value={pct} color={pct>30?T.red:pct>20?"#b45309":T.muted}/>
-                <span style={{fontWeight:700,fontSize:13,color:T.text}}>{pct}%</span>
+                <ProgressBar value={pct} color={pct>30?T.red:pct>20?T.amberText:T.muted}/>
+                <span style={{fontWeight:560,fontSize:13,color:T.text}}>{pct}%</span>
               </div>
             </div>
           ))}
@@ -9266,13 +9606,13 @@ const BudgetTracker = ({careHome,budgets,setBudgets}) => {
   };
   const mtdPct=Math.round((b.mtdSpend/b.monthly)*100);
   const ytdPct=Math.round((b.ytdSpend/b.annual)*100);
-  const mtdCol=mtdPct>=90?T.red:mtdPct>=75?"#b45309":T.green;
+  const mtdCol=mtdPct>=90?T.red:mtdPct>=75?T.amberText:T.green;
   const remaining=b.monthly-b.mtdSpend;
   const daysInMonth=31; const dayOfMonth=10;
   const projectedMonthly=Math.round(b.mtdSpend*(daysInMonth/dayOfMonth));
   const overUnder=projectedMonthly-b.monthly;
   return (
-    <Card style={{border:`1px solid ${mtdPct>=90?T.red:mtdPct>=75?"#fcd34d":T.border}`}}>
+    <Card style={{border:`1px solid ${mtdPct>=90?T.red:mtdPct>=75?"rgba(178,94,0,0.3)":T.border}`}}>
       {editModal&&(
         <Modal title={`Set Budget — ${site}`} onClose={()=>setEditModal(false)}>
           <Alert type="info">These budgets control the tracker bar and alert thresholds. Spend figures are populated automatically from approved timesheets.</Alert>
@@ -9281,10 +9621,10 @@ const BudgetTracker = ({careHome,budgets,setBudgets}) => {
             <Input label="Annual Budget (£)"  type="number" value={editForm.annual}  onChange={v=>setEditForm(f=>({...f,annual:v}))}/>
           </div>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:10}}>Budget Alerts</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:10}}>Budget Alerts</label>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {[{k:"alertAt75",label:"Alert me when 75% of monthly budget is used",color:"#b45309",bg:"#fef3c7"},{k:"alertAt90",label:"Alert me when 90% of monthly budget is used",color:T.red,bg:T.redBg}].map(opt=>(
-                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1.5px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
+              {[{k:"alertAt75",label:"Alert me when 75% of monthly budget is used",color:T.amberText,bg:T.amberBg},{k:"alertAt90",label:"Alert me when 90% of monthly budget is used",color:T.red,bg:T.redBg}].map(opt=>(
+                <label key={opt.k} onClick={()=>setEditForm(f=>({...f,[opt.k]:!f[opt.k]}))} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:8,border:`1px solid ${editForm[opt.k]?opt.color:T.border}`,background:editForm[opt.k]?opt.bg:T.white,cursor:"pointer"}}>
                   <input type="checkbox" checked={editForm[opt.k]} readOnly style={{accentColor:opt.color,width:14,height:14}}/>
                   <span style={{fontSize:13,fontWeight:600,color:editForm[opt.k]?opt.color:T.text}}>{opt.label}</span>
                 </label>
@@ -9297,23 +9637,23 @@ const BudgetTracker = ({careHome,budgets,setBudgets}) => {
           </div>
         </Modal>
       )}
-      <CardHead title="Budget Tracker" icon="💰" action={<Btn small variant="secondary" onClick={openEdit}>Set Budget</Btn>}/>
-      {mtdPct>=90&&<Alert type="error">⚠️ 90% of monthly budget reached. £{remaining.toLocaleString()} remaining this month.</Alert>}
-      {mtdPct>=75&&mtdPct<90&&<Alert type="warning">📊 75% of monthly budget used. Monitor spending carefully.</Alert>}
+      <CardHead title="Budget Tracker" icon="money" action={<Btn small variant="secondary" onClick={openEdit}>Set Budget</Btn>}/>
+      {mtdPct>=90&&<Alert type="error">90% of monthly budget reached. £{remaining.toLocaleString()} remaining this month.</Alert>}
+      {mtdPct>=75&&mtdPct<90&&<Alert type="warning">75% of monthly budget used. Monitor spending carefully.</Alert>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-        <div style={{padding:"14px",background:"#f8fafc",borderRadius:10}}>
-          <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Month to Date</div>
+        <div style={{padding:"14px",background:T.raised,borderRadius:10}}>
+          <div style={{fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Month to Date</div>
           <ProgressBar value={mtdPct} color={mtdCol}/>
           <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
-            <span style={{fontSize:13,fontWeight:800,color:mtdCol}}>£{b.mtdSpend.toLocaleString()}</span>
+            <span style={{fontSize:13,fontWeight:600,color:mtdCol}}>£{b.mtdSpend.toLocaleString()}</span>
             <span style={{fontSize:11,color:T.muted}}>of £{b.monthly.toLocaleString()}</span>
           </div>
         </div>
-        <div style={{padding:"14px",background:"#f8fafc",borderRadius:10}}>
-          <div style={{fontSize:10,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:6}}>Year to Date</div>
+        <div style={{padding:"14px",background:T.raised,borderRadius:10}}>
+          <div style={{fontSize:10,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:6}}>Year to Date</div>
           <ProgressBar value={ytdPct} color={ytdPct>=85?T.red:T.blue}/>
           <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
-            <span style={{fontSize:13,fontWeight:800,color:T.blue}}>£{b.ytdSpend.toLocaleString()}</span>
+            <span style={{fontSize:13,fontWeight:600,color:T.blue}}>£{b.ytdSpend.toLocaleString()}</span>
             <span style={{fontSize:11,color:T.muted}}>of £{b.annual.toLocaleString()}</span>
           </div>
         </div>
@@ -9321,12 +9661,12 @@ const BudgetTracker = ({careHome,budgets,setBudgets}) => {
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
         <div style={{flex:1,padding:"10px 14px",borderRadius:8,background:overUnder>0?T.redBg:T.greenBg,border:`1px solid ${overUnder>0?T.red+"44":T.green+"44"}`}}>
           <div style={{fontSize:10,color:T.muted,fontWeight:600}}>End-of-month projection</div>
-          <div style={{fontSize:14,fontWeight:800,color:overUnder>0?T.red:T.green}}>£{projectedMonthly.toLocaleString()}</div>
+          <div style={{fontSize:14,fontWeight:600,color:overUnder>0?T.red:T.green}}>£{projectedMonthly.toLocaleString()}</div>
           <div style={{fontSize:11,color:overUnder>0?T.red:T.green}}>{overUnder>0?`£${overUnder.toLocaleString()} over budget`:`£${Math.abs(overUnder).toLocaleString()} under budget`}</div>
         </div>
-        <div style={{flex:1,padding:"10px 14px",borderRadius:8,background:"#f8fafc",border:`1px solid ${T.border}`}}>
+        <div style={{flex:1,padding:"10px 14px",borderRadius:8,background:T.raised,border:`1px solid ${T.border}`}}>
           <div style={{fontSize:10,color:T.muted,fontWeight:600}}>Remaining this month</div>
-          <div style={{fontSize:14,fontWeight:800,color:T.text}}>£{remaining.toLocaleString()}</div>
+          <div style={{fontSize:14,fontWeight:600,color:T.text}}>£{remaining.toLocaleString()}</div>
           <div style={{fontSize:11,color:T.muted}}>≈ {Math.round(remaining/35)} RGN day shifts</div>
         </div>
       </div>
@@ -9346,18 +9686,18 @@ const RateUpliftManager = ({user,rateUplifts,setRateUplifts}) => {
     const nu={id:`ru${uplifts.length+1}`,agency:"First Choice Nursing",role:form.role,current:parseFloat(form.current),requested:parseFloat(form.requested),reason:form.reason,status:"pending",submittedDate:"2026-03-10",respondedDate:null,respondedBy:null,notes:""};
     setLocal(u=>[nu,...u]);setShowForm(false);setForm({role:"RGN",current:"",requested:"",reason:""});
   };
-  const statusColor={pending:"#b45309",approved:T.green,rejected:T.red};
-  const statusBg={pending:"#fef3c7",approved:T.greenBg,rejected:T.redBg};
+  const statusColor={pending:T.amberText,approved:T.green,rejected:T.red};
+  const statusBg={pending:T.amberBg,approved:T.greenBg,rejected:T.redBg};
   return (
-    <Page title={isAdmin?"Rate Uplift Requests":"Rate Uplift Requests"} sub={isAdmin?"Review and approve agency rate change requests":"Submit a rate change request to Nexus RPO"} icon="📈">
+    <Page title={isAdmin?"Rate Uplift Requests":"Rate Uplift Requests"} sub={isAdmin?"Review and approve agency rate change requests":"Submit a rate change request to Nexus RPO"} icon="trendingUp">
       {isAgency&&(
         <div style={{marginBottom:16}}>
           {showForm?(
             <Card style={{padding:20}}>
-              <CardHead title="New Rate Request" icon="➕"/>
+              <CardHead title="New Rate Request" icon="plus"/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
-                <div><label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:4}}>Role</label>
-                  <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}>
+                <div><label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:4}}>Role</label>
+                  <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}>
                     {["RGN","RMN","HCA","Senior Carer"].map(r=><option key={r}>{r}</option>)}
                   </select>
                 </div>
@@ -9381,15 +9721,15 @@ const RateUpliftManager = ({user,rateUplifts,setRateUplifts}) => {
       <Card>
         <Table headers={isAdmin?["Agency","Role","Current","Requested","Uplift","Reason","Submitted","Status","Actions"]:["Role","Current","Requested","Reason","Submitted","Status"]}
           rows={uplifts.map(u=>(
-            <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="pending"?"#fffbeb":"transparent"}}>
+            <tr key={u.id} style={{borderBottom:`1px solid ${T.border}`,background:u.status==="pending"?T.amberBg:"transparent"}}>
               {isAdmin&&<Td bold>{u.agency}</Td>}
               <Td><Badge label={u.role} color={T.purple} bg={T.purpleBg}/></Td>
               <Td>£{u.current}{"/hr"}</Td>
               <Td bold>£{u.requested}{"/hr"}</Td>
-              <Td><span style={{fontWeight:700,color:T.green}}>+£{(u.requested-u.current).toFixed(2)}</span></Td>
+              <Td><span style={{fontWeight:560,color:T.green}}>+£{(u.requested-u.current).toFixed(2)}</span></Td>
               <Td style={{maxWidth:200,whiteSpace:"normal",fontSize:11,color:T.muted}}>{u.reason}</Td>
               <Td style={{fontSize:11,color:T.muted}}>{u.submittedDate}</Td>
-              <Td><span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,color:statusColor[u.status],background:statusBg[u.status],textTransform:"capitalize"}}>{u.status}</span></Td>
+              <Td><span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,color:statusColor[u.status],background:statusBg[u.status],textTransform:"capitalize"}}>{cap(u.status)}</span></Td>
               {isAdmin&&<Td>{u.status==="pending"&&<div style={{display:"flex",gap:4}}><Btn small onClick={()=>respond(u.id,"approved")}>✓ Approve</Btn><Btn small variant="danger" onClick={()=>respond(u.id,"rejected")}>✕ Reject</Btn></div>}</Td>}
             </tr>
           ))}
@@ -9409,17 +9749,17 @@ const CreditNoteManager = ({user}) => {
     setShowForm(false);setForm({invoiceRef:"",agency:"",reason:"",amount:""});
   };
   return (
-    <Page title="Credit Notes" sub="Manage credit notes against disputed or adjusted invoices" icon="🧾">
+    <Page title="Credit Notes" sub="Manage credit notes against disputed or adjusted invoices" icon="receipt">
       <div style={{marginBottom:16,display:"flex",gap:10}}>
         <Btn onClick={()=>setShowForm(s=>!s)}>+ New Credit Note</Btn>
       </div>
       {showForm&&(
         <Card style={{padding:20,marginBottom:16}}>
-          <CardHead title="Issue Credit Note" icon="🧾"/>
+          <CardHead title="Issue Credit Note" icon="receipt"/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <Input label="Invoice Reference" value={form.invoiceRef} onChange={v=>setForm(f=>({...f,invoiceRef:v}))} placeholder="INV-0010"/>
-            <div><label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:4}}>Agency</label>
-              <select value={form.agency} onChange={e=>setForm(f=>({...f,agency:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}>
+            <div><label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:4}}>Agency</label>
+              <select value={form.agency} onChange={e=>setForm(f=>({...f,agency:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}>
                 <option value="">Select agency</option>
                 {AGENCIES.map(a=><option key={a.name} value={a.name}>{a.name}</option>)}
               </select>
@@ -9442,9 +9782,9 @@ const CreditNoteManager = ({user}) => {
             <Td style={{fontSize:11,color:T.muted}}>{n.invoiceRef}</Td>
             <Td>{n.agency}</Td>
             <Td style={{fontSize:11,color:T.muted,maxWidth:200,whiteSpace:"normal"}}>{n.reason}</Td>
-            <Td><span style={{fontWeight:700,color:T.red}}>-£{n.amount.toLocaleString()}</span></Td>
+            <Td><span style={{fontWeight:560,color:T.red}}>-£{n.amount.toLocaleString()}</span></Td>
             <Td style={{fontSize:11,color:T.muted}}>{n.issuedDate}</Td>
-            <Td><span style={{fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,color:n.status==="applied"?T.green:"#b45309",background:n.status==="applied"?T.greenBg:"#fef3c7",textTransform:"capitalize"}}>{n.status==="applied"?"Applied":"Pending"}</span></Td>
+            <Td><span style={{fontSize:11,fontWeight:560,padding:"3px 10px",borderRadius:20,color:n.status==="applied"?T.green:T.amberText,background:n.status==="applied"?T.greenBg:T.amberBg,textTransform:"capitalize"}}>{n.status==="applied"?"Applied":"Pending"}</span></Td>
             <Td>{n.status==="pending"&&<Btn small onClick={()=>setNotes(ns=>ns.map(x=>x.id===n.id?{...x,status:"applied"}:x))}>Mark Applied</Btn>}</Td>
           </tr>
         ))}/>
@@ -9465,15 +9805,15 @@ const RecurringShifts = ({user}) => {
   };
   const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   return (
-    <Page title="Recurring Shift Patterns" sub="Auto-publish shifts on a weekly schedule without manual entry" icon="🔄">
-      <Alert type="info">⚡ Active patterns auto-publish shifts every week. Nexus RPO will broadcast them to agencies based on your tier configuration.</Alert>
+    <Page title="Recurring Shift Patterns" sub="Auto-publish shifts on a weekly schedule without manual entry" icon="refresh">
+      <Alert type="info">Active patterns auto-publish shifts every week. Nexus RPO will broadcast them to agencies based on your tier configuration.</Alert>
       <div style={{marginBottom:16}}><Btn onClick={()=>setShowForm(s=>!s)}>+ New Pattern</Btn></div>
       {showForm&&(
         <Card style={{padding:20,marginBottom:16}}>
-          <CardHead title="New Recurring Pattern" icon="🔄"/>
+          <CardHead title="New Recurring Pattern" icon="refresh"/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
-            <div><label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:4}}>Role</label>
-              <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}>
+            <div><label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:4}}>Role</label>
+              <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}>
                 {["RGN","RMN","HCA","Senior Carer"].map(r=><option key={r}>{r}</option>)}
               </select>
             </div>
@@ -9481,9 +9821,9 @@ const RecurringShifts = ({user}) => {
             <Input label="Rate (£/hr)" type="number" value={form.rate} onChange={v=>setForm(f=>({...f,rate:parseFloat(v)||0}))}/>
           </div>
           <div style={{marginBottom:12}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:6}}>Days</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:6}}>Days</label>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              {days.map(d=><button key={d} onClick={()=>toggleDay(d)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${form.days.includes(d)?T.amber:T.border}`,background:form.days.includes(d)?T.amberBg:"transparent",color:form.days.includes(d)?T.amberText:T.muted,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"Syne,sans-serif"}}>{d}</button>)}
+              {days.map(d=><button key={d} onClick={()=>toggleDay(d)} style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${form.days.includes(d)?T.amber:T.border}`,background:form.days.includes(d)?T.amberBg:"transparent",color:form.days.includes(d)?T.amberText:T.muted,fontSize:12,fontWeight:560,cursor:"pointer",fontFamily:FONT}}>{d}</button>)}
             </div>
           </div>
           <Input label="Notes" value={form.notes} onChange={v=>setForm(f=>({...f,notes:v}))}/>
@@ -9494,10 +9834,10 @@ const RecurringShifts = ({user}) => {
         <Table headers={["Role","Days","Time","Rate","Status","Created By","Actions"]} rows={patterns.map(p=>(
           <tr key={p.id} style={{borderBottom:`1px solid ${T.border}`,opacity:p.active?1:0.5}}>
             <Td><Badge label={p.role} color={T.purple} bg={T.purpleBg}/></Td>
-            <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{p.days.map(d=><span key={d} style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,background:T.amberBg,color:T.amberText}}>{d}</span>)}</div></Td>
+            <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{p.days.map(d=><span key={d} style={{fontSize:11,fontWeight:560,padding:"2px 7px",borderRadius:20,background:T.amberBg,color:T.amberText}}>{d}</span>)}</div></Td>
             <Td style={{fontSize:12,color:T.muted}}>{p.time}</Td>
             <Td bold>£{p.rate}{"/hr"}</Td>
-            <Td>{p.active?<Badge label="Active" color={T.green} bg={T.greenBg} dot/>:<Badge label="Paused" color={T.muted} bg="#f1f5f9"/>}</Td>
+            <Td>{p.active?<Badge label="Active" color={T.green} bg={T.greenBg} dot/>:<Badge label="Paused" color={T.muted} bg={T.sunken}/>}</Td>
             <Td style={{fontSize:11,color:T.muted}}>{p.createdBy}</Td>
             <Td><div style={{display:"flex",gap:4}}>
               <Btn small variant="secondary" onClick={()=>setPatterns(ps=>ps.map(x=>x.id===p.id?{...x,active:!x.active}:x))}>{p.active?"Pause":"Resume"}</Btn>
@@ -9524,21 +9864,21 @@ const WorkerPreferences = ({user}) => {
     setShowForm(false);setForm({workerId:"",type:"favourite",note:""});
   };
   return (
-    <Page title="Worker Preferences" sub="Flag preferred or restricted workers for your site" icon="⭐">
+    <Page title="Worker Preferences" sub="Flag preferred or restricted workers for your site" icon="star">
       <div style={{marginBottom:16}}><Btn onClick={()=>setShowForm(s=>!s)}>+ Add Preference</Btn></div>
       {showForm&&(
         <Card style={{padding:20,marginBottom:16}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            <div><label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:4}}>Worker</label>
-              <select value={form.workerId} onChange={e=>setForm(f=>({...f,workerId:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}>
+            <div><label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:4}}>Worker</label>
+              <select value={form.workerId} onChange={e=>setForm(f=>({...f,workerId:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}>
                 <option value="">Select worker…</option>
                 {WORKERS.map(w=><option key={w.id} value={w.id}>{w.name} ({w.role})</option>)}
               </select>
             </div>
-            <div><label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,marginBottom:4}}>Type</label>
-              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:"Syne,sans-serif",outline:"none"}}>
-                <option value="favourite">⭐ Favourite — request first</option>
-                <option value="blocked">🚫 Blocked — do not place</option>
+            <div><label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,marginBottom:4}}>Type</label>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} style={{width:"100%",padding:"8px 10px",border:`1px solid ${T.border}`,borderRadius:8,fontSize:12,fontFamily:FONT,outline:"none"}}>
+                <option value="favourite">Favourite — request first</option>
+                <option value="blocked">Blocked — do not place</option>
               </select>
             </div>
           </div>
@@ -9549,16 +9889,16 @@ const WorkerPreferences = ({user}) => {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
         {["favourite","blocked"].map(type=>(
           <Card key={type}>
-            <CardHead title={type==="favourite"?"⭐ Preferred Workers":"🚫 Blocked Workers"} icon=""/>
+            <CardHead title={type==="favourite"?"Preferred Workers":"Blocked Workers"} icon=""/>
             {myPrefs.filter(p=>p.type===type).length===0?<p style={{color:T.muted,fontSize:12,padding:"8px 0"}}>None set.</p>:
             myPrefs.filter(p=>p.type===type).map((p,i)=>(
               <div key={i} style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",padding:"10px 0",borderBottom:i<myPrefs.filter(x=>x.type===type).length-1?`1px solid ${T.border}`:"none"}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:13,color:T.text}}>{p.workerName}</div>
+                  <div style={{fontWeight:560,fontSize:13,color:T.text}}>{p.workerName}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>{p.note}</div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Added by {p.addedBy}</div>
+                  <div style={{fontSize:10,color:T.ghost,marginTop:2}}>Added by {p.addedBy}</div>
                 </div>
-                <button onClick={()=>setPrefs(ps=>ps.filter((_,j)=>j!==prefs.indexOf(p)))} style={{background:"none",border:"none",cursor:"pointer",color:T.red,fontSize:13,fontWeight:700}}>✕</button>
+                <button onClick={()=>setPrefs(ps=>ps.filter((_,j)=>j!==prefs.indexOf(p)))} style={{background:"none",border:"none",cursor:"pointer",color:T.red,fontSize:13,fontWeight:560}}>✕</button>
               </div>
             ))}
           </Card>
@@ -9576,15 +9916,15 @@ const AgencyOnboarding = ({user}) => {
   const cl=checklists.find(c=>c.agencyId===selected)||checklists[0];
   const pct=cl?Math.round((cl.items.filter(i=>i.done).length/cl.items.length)*100):0;
   return (
-    <Page title="Agency Onboarding Checklists" sub="Track agency setup progress from contract to first shift" icon="✅">
+    <Page title="Agency Onboarding Checklists" sub="Track agency setup progress from contract to first shift" icon="checkCircle">
       <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:16}}>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {checklists.map(c=>{
             const p=Math.round((c.items.filter(i=>i.done).length/c.items.length)*100);
             return(
-              <div key={c.agencyId} onClick={()=>setSelected(c.agencyId)} style={{padding:"12px 14px",borderRadius:10,border:`1.5px solid ${selected===c.agencyId?T.amber:T.border}`,background:selected===c.agencyId?T.amberBg:T.white,cursor:"pointer"}}>
-                <div style={{fontWeight:700,fontSize:12,color:T.text,marginBottom:4}}>{c.agencyName}</div>
-                <ProgressBar value={p} color={p===100?T.green:p>=50?"#b45309":T.red}/>
+              <div key={c.agencyId} onClick={()=>setSelected(c.agencyId)} style={{padding:"12px 14px",borderRadius:10,border:`1px solid ${selected===c.agencyId?T.amber:T.border}`,background:selected===c.agencyId?T.amberBg:T.white,cursor:"pointer"}}>
+                <div style={{fontWeight:560,fontSize:12,color:T.text,marginBottom:4}}>{c.agencyName}</div>
+                <ProgressBar value={p} color={p===100?T.green:p>=50?T.amberText:T.red}/>
                 <div style={{fontSize:11,color:T.muted,marginTop:3}}>{p}% complete</div>
               </div>
             );
@@ -9593,15 +9933,15 @@ const AgencyOnboarding = ({user}) => {
         </div>
         {cl&&(
           <Card>
-            <CardHead title={cl.agencyName} icon="🤝"/>
+            <CardHead title={cl.agencyName} icon="briefcase"/>
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,padding:"12px 14px",background:pct===100?T.greenBg:T.amberBg,borderRadius:10}}>
-              <div style={{flex:1}}><ProgressBar value={pct} color={pct===100?T.green:"#b45309"}/></div>
-              <span style={{fontWeight:800,fontSize:14,color:pct===100?T.green:"#b45309"}}>{pct}%</span>
+              <div style={{flex:1}}><ProgressBar value={pct} color={pct===100?T.green:T.amberText}/></div>
+              <span style={{fontWeight:600,fontSize:14,color:pct===100?T.green:T.amberText}}>{pct}%</span>
               <span style={{fontSize:12,color:T.muted}}>{cl.items.filter(i=>i.done).length}/{cl.items.length} complete</span>
             </div>
             {cl.items.map(item=>(
               <div key={item.id} onClick={()=>toggle(cl.agencyId,item.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${T.border}`,cursor:"pointer"}}>
-                <div style={{width:22,height:22,borderRadius:6,border:`2px solid ${item.done?T.green:T.border}`,background:item.done?T.green:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <div style={{width:22,height:22,borderRadius:8,border:`2px solid ${item.done?T.green:T.border}`,background:item.done?T.green:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                   {item.done&&<span style={{color:T.white,fontSize:12,lineHeight:1}}>✓</span>}
                 </div>
                 <div style={{flex:1}}>
@@ -9631,18 +9971,18 @@ const EscalationTimeline = ({shift}) => {
     {label:"Auto-cancelled",   mins:120,  desc:"No cover — care home notified",           done:false, active:false},
   ];
   return (
-    <div style={{padding:"14px 16px",background:"#f8fafc",borderRadius:10,marginTop:12}}>
-      <div style={{fontSize:11,fontWeight:700,color:T.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:"0.07em"}}>Escalation Timeline — {minsElapsed}m since broadcast</div>
+    <div style={{padding:"14px 16px",background:T.raised,borderRadius:10,marginTop:12}}>
+      <div style={{fontSize:11,fontWeight:560,color:T.muted,marginBottom:12,letterSpacing:"-0.006em"}}>Escalation Timeline — {minsElapsed}m since broadcast</div>
       <div style={{display:"flex",alignItems:"flex-start",gap:0,position:"relative"}}>
         {stages.map((s,i)=>(
           <div key={i} style={{flex:1,position:"relative"}}>
             <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
               <div style={{width:28,height:28,borderRadius:"50%",background:s.done?T.green:s.active?T.amber:T.border,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1,position:"relative",transition:"all 0.3s"}}>
-                <span style={{color:T.white,fontSize:12,fontWeight:700}}>{s.done?"✓":s.active?"●":""}</span>
+                <span style={{color:T.white,fontSize:12,fontWeight:560}}>{s.done?"✓":s.active?"●":""}</span>
               </div>
               {i<stages.length-1&&<div style={{position:"absolute",top:14,left:"50%",width:"100%",height:2,background:s.done?T.green:T.border,zIndex:0}}/>}
               <div style={{marginTop:8,textAlign:"center",padding:"0 4px"}}>
-                <div style={{fontSize:11,fontWeight:700,color:s.active?T.amber:s.done?T.green:T.muted}}>{s.label}</div>
+                <div style={{fontSize:11,fontWeight:560,color:s.active?T.amber:s.done?T.green:T.muted}}>{s.label}</div>
                 <div style={{fontSize:9,color:T.muted,marginTop:2}}>+{s.mins}min</div>
                 <div style={{fontSize:10,color:T.muted,marginTop:2,lineHeight:1.3}}>{s.desc}</div>
               </div>
@@ -9687,7 +10027,7 @@ const ClientAdminShifts = ({user}) => {
   };
 
   return (
-    <Page title="All Shifts" sub="Group-wide shift overview" icon="📋">
+    <Page title="All Shifts" sub="Group-wide shift overview" icon="clipboard">
       {pubModal && (
         <Modal title={`Publish Shift — ${pubModal.carehome} (${pubModal.role})`} onClose={()=>{setPubModal(null);setSelectedBroadcast("bank_first");}}>
           <p style={{fontSize:13,color:T.muted,marginBottom:14}}>{pubModal.date} · {pubModal.time}</p>
@@ -9696,10 +10036,10 @@ const ClientAdminShifts = ({user}) => {
               const sel=selectedBroadcast===opt.key;
               return (
                 <button key={opt.key} onClick={()=>setSelectedBroadcast(opt.key)}
-                  style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:"Syne,sans-serif",width:"100%"}}>
-                  <span style={{fontSize:20}}>{opt.icon}</span>
+                  style={{display:"flex",gap:12,alignItems:"flex-start",padding:"12px 14px",borderRadius:10,border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.bg:T.white,cursor:"pointer",textAlign:"left",fontFamily:FONT,width:"100%"}}>
+                  <span style={{display:"flex"}}>{renderIcon(opt.icon,18)}</span>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:12,color:sel?opt.color:T.text,marginBottom:2}}>{opt.label}</div>
+                    <div style={{fontWeight:560,fontSize:12,color:sel?opt.color:T.text,marginBottom:2}}>{opt.label}</div>
                     <div style={{fontSize:11,color:T.muted,lineHeight:1.4}}>{opt.desc}</div>
                   </div>
                   <div style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${sel?opt.color:T.border}`,background:sel?opt.color:"transparent",flexShrink:0,marginTop:2}}/>
@@ -9717,9 +10057,9 @@ const ClientAdminShifts = ({user}) => {
       {/* Cancel/Withdraw modal */}
       {actionModal && (
         <Modal title={actionModal.type==="cancel" ? "Cancel Agency from Shift" : "Withdraw Worker from Shift"} onClose={()=>{setActionModal(null);setActionReason("");}}>
-          <div style={{padding:"12px 16px",background:"#f8fafc",borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
+          <div style={{padding:"12px 16px",background:T.raised,borderRadius:10,marginBottom:16,border:`1px solid ${T.border}`}}>
             <div style={{fontSize:11,color:T.muted,fontWeight:600,marginBottom:3}}>SHIFT</div>
-            <div style={{fontWeight:800,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
+            <div style={{fontWeight:600,fontSize:15}}>{actionModal.shift.role} — {actionModal.shift.carehome}</div>
             <div style={{fontSize:12,color:T.muted}}>{actionModal.shift.date} · {actionModal.shift.time}</div>
             {actionModal.type==="cancel"   && <div style={{marginTop:6,fontSize:12}}>Agency: <strong>{actionModal.shift.agency}</strong></div>}
             {actionModal.type==="withdraw" && <div style={{marginTop:6,fontSize:12}}>Worker: <strong>{actionModal.shift.worker}</strong> ({actionModal.shift.agency})</div>}
@@ -9730,10 +10070,10 @@ const ClientAdminShifts = ({user}) => {
               : "Withdrawing this worker will reopen the shift. The agency and Nexus RPO will be notified."}
           </Alert>
           <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:11,fontWeight:700,color:T.muted,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:5}}>Reason (optional)</label>
+            <label style={{display:"block",fontSize:11,fontWeight:560,color:T.muted,letterSpacing:"-0.006em",marginBottom:5}}>Reason (optional)</label>
             <textarea value={actionReason} onChange={e=>setActionReason(e.target.value)} rows={2}
               placeholder="e.g. Worker no longer available, agency withdrew candidate…"
-              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1.5px solid ${T.border}`,fontSize:12,fontFamily:"Syne,sans-serif",resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
+              style={{width:"100%",padding:"9px 12px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:12,fontFamily:FONT,resize:"vertical",outline:"none",boxSizing:"border-box"}}/>
           </div>
           <div style={{display:"flex",gap:8}}>
             <Btn variant="danger" onClick={doAction}>
@@ -9760,9 +10100,9 @@ const ClientAdminShifts = ({user}) => {
             const active=site===s;
             return (
               <button key={s} onClick={()=>setSite(s)}
-                style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${active?CA_PURPLE:T.border}`,
-                  background:active?`${CA_PURPLE}18`:T.white,fontWeight:700,fontSize:12,cursor:"pointer",
-                  color:active?CA_PURPLE:T.muted,fontFamily:"Syne,sans-serif"}}>
+                style={{padding:"6px 14px",borderRadius:20,border:`1px solid ${active?CA_PURPLE:T.border}`,
+                  background:active?`${CA_PURPLE}18`:T.white,fontWeight:560,fontSize:12,cursor:"pointer",
+                  color:active?CA_PURPLE:T.muted,fontFamily:FONT}}>
                 {s==="all"?"All Sites":s}
               </button>
             );
@@ -9772,16 +10112,16 @@ const ClientAdminShifts = ({user}) => {
         <div style={{width:1,height:24,background:T.border}}/>
 
         {/* Status tabs */}
-        <div style={{display:"flex",gap:0,background:"#f1f5f9",borderRadius:10,padding:4}}>
+        <div style={{display:"flex",gap:0,background:T.sunken,borderRadius:10,padding:4}}>
           {tabDefs.map(t=>{
             const active=tab===t.k;
             return (
               <button key={t.k} onClick={()=>setTab(t.k)}
-                style={{padding:"6px 16px",borderRadius:8,border:"none",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",
+                style={{padding:"6px 16px",borderRadius:8,border:"none",fontFamily:FONT,fontWeight:560,fontSize:13,cursor:"pointer",
                   background:active?T.white:"transparent",color:active?T.navy:T.muted,
                   boxShadow:active?"0 1px 4px rgba(0,0,0,0.1)":"none",display:"flex",alignItems:"center",gap:6}}>
                 {t.l}
-                <span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:20,
+                <span style={{fontSize:11,fontWeight:560,padding:"2px 7px",borderRadius:20,
                   background:active?t.color+"18":"transparent",color:active?t.color:T.muted}}>
                   {t.count}
                 </span>
@@ -9805,16 +10145,16 @@ const ClientAdminShifts = ({user}) => {
               rows={visible.map(s=>(
                 <tr key={s.id} style={{borderBottom:`1px solid ${T.border}`}}>
                   <Td>
-                    <span style={{fontSize:12,fontWeight:700,color:SITE_COLORS[s.carehome]||CA_PURPLE}}>{s.carehome}</span>
+                    <span style={{fontSize:12,fontWeight:560,color:SITE_COLORS[s.carehome]||CA_PURPLE}}>{s.carehome}</span>
                   </Td>
                   <Td><Badge label={s.role} color={T.purple} bg={T.purpleBg}/></Td>
                   <Td bold>{s.date}</Td>
                   <Td style={{fontSize:12,color:T.muted}}>{s.time}</Td>
-                  <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{s.urgency}</span></Td>
+                  <Td><span style={{fontSize:12,color:urgencyColor(s.urgency),fontWeight:600}}><UrgDot u={s.urgency}/>{cap(s.urgency)}</span></Td>
                   <Td><SBadge s={s.status}/></Td>
                   {tab!=="expired" && <>
                     <Td style={{fontSize:12}}>{s.agency||"—"}</Td>
-                    <Td style={{fontSize:12}}>{s.worker||<span style={{color:"#94a3b8"}}>Awaiting</span>}</Td>
+                    <Td style={{fontSize:12}}>{s.worker||<span style={{color:T.ghost}}>Awaiting</span>}</Td>
                     <Td>
                       {publishedToBank.includes(s.id)
                         ? <Badge label="Published" color={T.teal} bg={T.tealBg}/>
@@ -9887,6 +10227,14 @@ const AppShell = ({user,onLogout}) => {
   const [bankRates,setBankRates]               = useState(INIT_BANK_RATES);
   const [shiftPatterns,setShiftPatterns]       = useState(INIT_SHIFT_PATTERNS);
   const [showNotifs,setShowNotifs]             = useState(false);
+  /* Chrome appearance is a per-user preference, so it outlives the session. */
+  const [chrome,setChrome] = useState(() => {
+    try { return localStorage.getItem("nexus.chrome") === "dark" ? "dark" : "light"; }
+    catch { return "light"; }
+  });
+  React.useEffect(() => {
+    try { localStorage.setItem("nexus.chrome", chrome); } catch { /* private mode */ }
+  }, [chrome]);
 
   const thisUser = users.find(u=>u.email===user.email||(u.role===user.role&&u.org===user.org)) || users.find(u=>u.role===user.role);
   const perms    = thisUser?.superAdmin ? null : (thisUser?.perms || null);
@@ -9903,23 +10251,46 @@ const AppShell = ({user,onLogout}) => {
     : 0;
 
   const unreadNotifs = (INIT_NOTIFICATIONS[user.role]||[]).filter(n=>!n.read).length;
-  const accent = user.role==="bank"?T.teal:user.role==="clientadmin"?"#7c3aed":T.amber;
+  const accent = roleAccent(user.role);
+  const c = CHROME[chrome] || CHROME.light;
+  const initials = (user.name||"").split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toUpperCase();
 
   const View = VIEWS[user.role]?.[effectiveTab];
 
   return (
-    <div style={{display:"flex",minHeight:"100vh",fontFamily:"Syne,sans-serif"}}>
+    <div style={{display:"flex",minHeight:"100vh",fontFamily:FONT,background:T.bg}}>
       <style>{FONTS}</style>
-      <Sidebar role={user.role} active={effectiveTab} setActive={setTab} user={user} onLogout={onLogout} tsBadge={pendingTs} perms={perms}/>
+      <Sidebar role={user.role} active={effectiveTab} setActive={setTab} user={user} onLogout={onLogout} tsBadge={pendingTs} perms={perms} chrome={chrome}/>
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
-        {/* Top notification bar */}
-        <div style={{height:48,background:T.white,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:24,gap:12,flexShrink:0}}>
-          <button onClick={()=>setShowNotifs(s=>!s)} style={{position:"relative",background:"none",border:"none",cursor:"pointer",padding:6,borderRadius:8,color:T.text,fontSize:20,lineHeight:1,transition:"background 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="#f1f5f9"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
-            🔔
-            {unreadNotifs>0&&<span style={{position:"absolute",top:2,right:2,width:16,height:16,borderRadius:"50%",background:accent,color:T.white,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadNotifs}</span>}
+        {/* Top bar — frosted, sits above the scrolling content */}
+        <div style={{height:52,background:c.surface,backdropFilter:"saturate(180%) blur(24px)",WebkitBackdropFilter:"saturate(180%) blur(24px)",
+          borderBottom:`1px solid ${c.border}`,display:"flex",alignItems:"center",justifyContent:"flex-end",
+          padding:"0 20px",gap:6,flexShrink:0,position:"sticky",top:0,zIndex:60,transition:`background ${T.t}, border-color ${T.t}`}}>
+
+          <button onClick={()=>setChrome(m=>m==="dark"?"light":"dark")}
+            title={chrome==="dark"?"Switch to light chrome":"Switch to dark chrome"} aria-label="Toggle appearance"
+            onMouseEnter={e=>e.currentTarget.style.background=c.itemHoverBg}
+            onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",width:32,height:32,background:"transparent",border:"none",cursor:"pointer",borderRadius:T.rXs,color:c.item,transition:`background ${T.t}, color ${T.t}`}}>
+            <Icon name={chrome==="dark"?"sun":"moon"} size={17}/>
           </button>
-          <div style={{fontSize:12,color:T.muted,fontWeight:600}}>{user.name}</div>
+
+          <button onClick={()=>setShowNotifs(s=>!s)} aria-label="Notifications"
+            onMouseEnter={e=>e.currentTarget.style.background=c.itemHoverBg}
+            onMouseLeave={e=>e.currentTarget.style.background="transparent"}
+            style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",width:32,height:32,background:"transparent",border:"none",cursor:"pointer",borderRadius:T.rXs,color:c.item,transition:`background ${T.t}, color ${T.t}`}}>
+            <Icon name="bell" size={17}/>
+            {unreadNotifs>0&&(
+              <span style={{position:"absolute",top:3,right:3,minWidth:15,height:15,padding:"0 4px",borderRadius:T.rPill,background:T.red,color:"#fff",fontSize:9.5,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${c.solid}`,fontVariantNumeric:"tabular-nums"}}>{unreadNotifs}</span>
+            )}
+          </button>
+
+          <div style={{width:1,height:20,background:c.border,margin:"0 6px"}}/>
+
+          <div style={{display:"flex",alignItems:"center",gap:9,paddingRight:2}}>
+            <div style={{width:27,height:27,borderRadius:"50%",background:`${accent}1F`,color:accent,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:600,letterSpacing:"-0.01em",flexShrink:0}}>{initials}</div>
+            <div style={{fontSize:13,color:c.name,fontWeight:510,letterSpacing:"-0.011em"}}>{user.name}</div>
+          </div>
         </div>
         <div style={{flex:1,overflowY:"auto"}}>
           {View
@@ -9929,7 +10300,7 @@ const AppShell = ({user,onLogout}) => {
       </div>
       {showNotifs&&(
         <>
-          <div onClick={()=>setShowNotifs(false)} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,0.2)"}}/>
+          <div onClick={()=>setShowNotifs(false)} style={{position:"fixed",inset:0,zIndex:999,background:"rgba(0,0,0,0.18)",backdropFilter:"blur(2px)",WebkitBackdropFilter:"blur(2px)",animation:"fcScrim 0.2s ease both"}}/>
           <NotificationPanel role={user.role} onClose={()=>setShowNotifs(false)} onNavigate={(tab)=>{setTab(tab);setShowNotifs(false);}}/>
         </>
       )}
