@@ -1,6 +1,8 @@
 import { Icon, renderIcon } from "../Icon.jsx";
 import { T } from "../../theme/tokens.js";
 
+/* ─── CARDS, GRIDS & STAT TILES ─────────────────────────────────────────── */
+
 export const Stat = ({label,value,sub,accent,icon,trend,trendUp,tone}) => {
   const tint = tone || (accent ? T.accent : T.muted);
   return (

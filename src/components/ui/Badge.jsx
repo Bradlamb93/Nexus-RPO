@@ -2,7 +2,7 @@ import { renderIcon } from "../Icon.jsx";
 import { urgencyColor } from "../../lib/format.js";
 import { T } from "../../theme/tokens.js";
 
-/* ─── ATOMS ──────────────────────────────────────────────────────────────────── */
+/* ─── BADGES & STATUS PILLS ─────────────────────────────────────────────── */
 export const Badge = ({label,color=T.blue,bg=T.blueBg,dot,icon}) => (
   <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3.5px 9px",borderRadius:T.rPill,fontSize:11.5,fontWeight:590,letterSpacing:"-0.005em",color,background:bg,whiteSpace:"nowrap",lineHeight:1.45}}>
     {dot && <span style={{width:5.5,height:5.5,borderRadius:"50%",background:color,display:"inline-block",flexShrink:0}}/>}

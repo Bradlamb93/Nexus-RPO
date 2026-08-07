@@ -1,6 +1,8 @@
 import { Icon } from "../Icon.jsx";
 import { T } from "../../theme/tokens.js";
 
+/* ─── ALERTS, MODALS & PROGRESS ─────────────────────────────────────────── */
+
 export const Alert = ({type="info",children}) => {
   const cfg = {
     info:   {bg:T.accentBg, color:T.accentText, icon:"info"},

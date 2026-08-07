@@ -1,3 +1,5 @@
+/* ─── WORKERS & BANK STAFF — FIXTURE DATA ───────────────────────────────── */
+
 export const WORKERS = [
   {id:1,name:"Sarah Johnson",role:"RGN",agency:"ProCare",dbs:"valid",dbsExpiry:"2027-03-01",training:"valid",trainingExpiry:"2026-09-15",pin:"12A3456",pinStatus:true,compliance:100,phone:"07711 111111",email:"sarah.j@email.com",available:true,
    rtwType:"british_passport",rtwRef:"PASS-001",rtwExpiry:null,rtwVerified:"2024-01-10",rtwVerifiedBy:"Rachel Obi",hoursRestriction:null,visaType:null,rtwNotes:""},

@@ -1,3 +1,5 @@
+/* ─── ANALYTICS & FORECAST — FIXTURE DATA ───────────────────────────────── */
+
 export const ANALYTICS_FILL = [
   {month:"Oct",rate:78},{month:"Nov",rate:82},{month:"Dec",rate:75},{month:"Jan",rate:84},{month:"Feb",rate:89},{month:"Mar",rate:91},
 ];

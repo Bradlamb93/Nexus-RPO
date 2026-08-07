@@ -13,6 +13,8 @@ import { INIT_TIMESHEETS } from "../data/timesheets.js";
 import { INIT_USERS } from "../data/users.js";
 import { CHROME, FONT, FONTS, T, roleAccent } from "../theme/tokens.js";
 
+/* ─── APP SHELL — CHROME, SHARED STATE & ACTIVE VIEW ────────────────────── */
+
 export const AppShell = ({user,onLogout}) => {
   const [tab,setTab]                           = useState("dashboard");
   const [timesheets,setTimesheets]             = useState(INIT_TIMESHEETS);

@@ -1,3 +1,5 @@
+/* ─── TIMESHEETS — FIXTURE DATA ─────────────────────────────────────────── */
+
 export const INIT_TIMESHEETS = [
   {id:"TS-001",shiftId:8, agency:"First Choice",carehome:"Riverside Manor",worker:"Emma Clarke",role:"RMN",date:"2026-03-08",time:"07:00–19:00",scheduledHrs:12,hoursWorked:12,breakMins:30,rate:38,total:456,status:"approved",submittedAt:"2026-03-09",approvedBy:"Steve Walters",disputeReason:"",invoiceId:null},
   {id:"TS-002",shiftId:16,agency:"First Choice",carehome:"Sunrise Care",worker:"Emma Clarke",role:"RMN",date:"2026-03-07",time:"07:00–19:00",scheduledHrs:12,hoursWorked:12,breakMins:30,rate:38,total:456,status:"pending",submittedAt:"2026-03-08",approvedBy:null,disputeReason:"",invoiceId:null},

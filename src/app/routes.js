@@ -52,6 +52,8 @@ import { WorkerDirectory } from "../features/workers/WorkerDirectory.jsx";
 import { WorkerOnboarding } from "../features/workers/WorkerOnboarding.jsx";
 import { WorkerPreferences } from "../features/workers/WorkerPreferences.jsx";
 
+/* ─── ROUTE MAP — ROLE → VIEW KEY → COMPONENT ───────────────────────────── */
+
 export const VIEWS = {
   admin:       {
     dashboard:AdminDashboard,shifts:ShiftBoard,schedule:Scheduler,agencies:AgencyManagement,

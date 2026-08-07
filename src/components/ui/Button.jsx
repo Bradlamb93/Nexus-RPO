@@ -1,6 +1,8 @@
 import { renderIcon } from "../Icon.jsx";
 import { FONT, T } from "../../theme/tokens.js";
 
+/* ─── BUTTONS & FILTER PILLS ────────────────────────────────────────────── */
+
 export const BTN_VARIANTS = {
   primary:  {background:T.accent, color:"#fff",   border:"1px solid transparent", hover:T.accentHover, press:T.accentPress, shadow:"0 1px 2px rgba(0,0,0,0.06)"},
   secondary:{background:T.white,  color:T.text,   border:`1px solid ${T.border}`, hover:T.raised,      press:T.sunken,      shadow:T.sh1},

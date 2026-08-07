@@ -1,6 +1,6 @@
 import { T } from "../theme/tokens.js";
 
-/* ─── MOCK DATA ──────────────────────────────────────────────────────────────── */
+/* ─── SHIFTS — FIXTURE DATA ─────────────────────────────────────────────── */
 export const SHIFTS = [
   {id:1,carehome:"Sunrise Care",role:"RGN",date:"2026-03-12",time:"07:00–19:00",status:"open",agency:null,worker:null,rate:35,urgency:"urgent",notes:"Experienced RGN required"},
   {id:2,carehome:"Meadowbrook Lodge",role:"HCA",date:"2026-03-12",time:"19:00–07:00",status:"filled",agency:"ProCare",worker:"Sarah Johnson",rate:18,urgency:"normal",notes:""},

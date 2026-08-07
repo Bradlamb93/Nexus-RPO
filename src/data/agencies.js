@@ -1,3 +1,5 @@
+/* ─── AGENCIES — FIXTURE DATA ───────────────────────────────────────────── */
+
 export const AGENCIES = [
   {id:1,name:"First Choice Nursing",tier:"Tier 1",contact:"Laura Bennett",email:"laura@firstchoice.co.uk",phone:"07700 900123",shifts:42,fillRate:94,avgResponse:"18m",compliance:98,status:"active",spend:28900,joined:"2023-01-15"},
   {id:2,name:"ProCare Staffing",tier:"Tier 1",contact:"Daniel Reid",email:"d.reid@procare.co.uk",phone:"07700 900456",shifts:38,fillRate:89,avgResponse:"25m",compliance:95,status:"active",spend:24650,joined:"2023-03-10"},

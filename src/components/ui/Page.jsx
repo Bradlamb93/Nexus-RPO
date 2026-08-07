@@ -1,6 +1,8 @@
 import { renderIcon } from "../Icon.jsx";
 import { FONT, FONTS, T } from "../../theme/tokens.js";
 
+/* ─── PAGE SHELL ────────────────────────────────────────────────────────── */
+
 export const Page = ({title,sub,action,children,icon}) => (
   <div style={{flex:1,padding:"34px 38px 48px",background:T.bg,minHeight:"100vh",fontFamily:FONT,maxWidth:"100%",overflow:"hidden",animation:"fcFade 0.28s ease both"}}>
     <style>{FONTS}</style>

@@ -1,3 +1,5 @@
+/* ─── INVOICES, BUDGETS & CREDIT NOTES — FIXTURE DATA ───────────────────── */
+
 export const INVOICES = [
   {id:"INV-0012",agency:"ProCare",period:"Feb 2026",shifts:38,amount:24650,status:"paid",due:"2026-03-01",issued:"2026-02-28"},
   {id:"INV-0011",agency:"First Choice",period:"Feb 2026",shifts:42,amount:28900,status:"paid",due:"2026-03-01",issued:"2026-02-28"},

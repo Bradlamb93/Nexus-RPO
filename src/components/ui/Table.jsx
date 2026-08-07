@@ -1,5 +1,7 @@
 import { T } from "../../theme/tokens.js";
 
+/* ─── TABLES ────────────────────────────────────────────────────────────── */
+
 export const Th = ({children}) => <th style={{padding:"11px 16px",fontSize:12,fontWeight:510,color:T.faint,textAlign:"left",letterSpacing:"-0.005em",background:"transparent",borderBottom:`1px solid ${T.divider}`,whiteSpace:"nowrap"}}>{children}</th>;
 
 export const Td = ({children,bold}) => <td style={{padding:"12px 16px",fontSize:13.5,color:T.text,fontWeight:bold?560:420,letterSpacing:"-0.008em",verticalAlign:"middle",borderBottom:`1px solid ${T.divider}`}}>{children}</td>;
