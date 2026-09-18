@@ -51,17 +51,17 @@ main{display:flex;flex-direction:column;gap:28px;padding:28px 16px;max-width:124
 .cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
 .cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.panel{background:var(--cloud);border-radius:var(--r-card);padding:22px}
+.panel{background:var(--cloud);border-radius:var(--r-card);padding:22px;align-content:start}
 .panel.aqua{background:var(--aqua)}
 .panel.navy{background:var(--navy);color:#D6E0EE}
 .panel.navy h3,.panel.navy h4{color:var(--white)}
 .panel.deep{background:var(--deep);color:#D6E0EE}
 .panel.deep h3{color:var(--white)}
-.stack{display:grid;gap:8px}
+.stack{display:grid;gap:8px;align-content:start}
 .kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px 18px;font-size:14px}
 .kv dt{font-weight:600;color:var(--navy)}
 .kv dd{margin:0}
-ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
 ul.plain li{padding-left:18px;position:relative}
 ul.plain li::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:8px;border-radius:50%;background:var(--teal)}
 ul.plain.no li::before{background:var(--crit)}
@@ -80,7 +80,7 @@ ul.plain.no li::before{background:var(--crit)}
 
 /* swatches */
 .swatch{border-radius:var(--r-card);overflow:hidden;border:1px solid var(--line);display:grid;grid-template-rows:96px auto}
-.swatch .chip{display:flex;align-items:flex-end;padding:12px 14px;font-family:var(--display);font-weight:700;font-size:15px}
+.swatch .sw-top{display:flex;align-items:flex-end;padding:12px 14px;font-family:var(--display);font-weight:700;font-size:15px}
 .swatch .meta{padding:12px 14px;display:grid;gap:3px;font-size:13px;background:var(--white)}
 .swatch .meta .hex{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--navy);font-weight:600}
 .tints{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-radius:var(--r-card);overflow:hidden;border:1px solid var(--line)}
@@ -143,7 +143,8 @@ ul.plain.no li::before{background:var(--crit)}
 .kpi .l{font-size:12.5px;color:var(--navy-70)}
 .table{width:100%;border-collapse:collapse;font-size:13px}
 .table th{text-align:left;font-weight:600;color:var(--navy-70);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line)}
-.table td{padding:10px;border-bottom:1px solid var(--mist);font-variant-numeric:tabular-nums}
+.table td{padding:10px;border-bottom:1px solid var(--mist);font-variant-numeric:tabular-nums;vertical-align:top}
+.table .chip{white-space:nowrap}
 .table tr:last-child td{border-bottom:0}
 .toast{display:inline-flex;align-items:center;gap:10px;background:var(--deep);color:#fff;border-radius:var(--r-card);padding:10px 14px;font-size:13.5px;box-shadow:var(--shadow)}
 .toast i{width:18px;height:18px;border-radius:50%;background:var(--teal);display:grid;place-items:center;color:var(--deep);font-style:normal;font-weight:800;font-size:12px}
@@ -184,7 +185,7 @@ ul.plain.no li::before{background:var(--crit)}
 .sig .rule{width:3px;height:44px;background:var(--teal);border-radius:2px}
 .dont{display:grid;gap:8px;justify-items:center;text-align:center;font-size:12.5px;padding:14px 10px;border:1px dashed #E8B4B9;border-radius:var(--r-card);background:#FFF8F8;color:var(--crit)}
 .dont .box{width:100%;height:64px;display:grid;place-items:center;background:var(--white);border-radius:6px;color:var(--navy);overflow:hidden}
-.check{display:grid;gap:8px;font-size:13.5px}
+.check{display:grid;gap:8px;font-size:13.5px;align-content:start}
 .check div{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start}
 .check div::before{content:"";width:16px;height:16px;border:2px solid var(--navy-30);border-radius:4px;margin-top:2px}
 
@@ -212,15 +213,21 @@ ul.plain.no li::before{background:var(--crit)}
   body{padding:0}
   .topbar{display:none}
   main{padding:0;gap:0;max-width:none}
-  .sheet{border:0;border-radius:0;box-shadow:none;width:297mm;min-height:210mm;padding:14mm 16mm 10mm;break-after:page;page-break-after:always;grid-template-rows:auto 1fr auto}
+  .sheet{border:0;border-radius:0;box-shadow:none;width:297mm;min-height:210mm;padding:14mm 16mm 10mm;break-after:page;page-break-after:always}
+  .sheet:not(#cover){display:flex;flex-direction:column}
+  .sheet:not(#cover)>*{flex:none}
+  .sheet:not(#cover) .foot{margin-top:auto}
+  #cover{grid-template-rows:1fr auto;min-height:210mm!important}
+  #components{padding-block:10mm 8mm;gap:16px}
+  #components .cols{gap:16px}
+  #components .table td{padding:7px 10px}
+  #components .table th{padding:6px 10px}
   .sheet.dark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #type{padding-block:8mm 7mm;gap:12px}
   #type .head{gap:4px}
-  #type .typeline:first-child>span:not(.lab){font-size:38px}
   #type ul.plain{gap:4px}
   #type .typeline{padding:2px 0}
-  #type .typeline>span:not(.lab){font-size:.82em}
   #type .panel{padding:10px 14px}
   #type .cols{gap:12px}
   #type .stack{gap:10px}
@@ -421,12 +428,12 @@ ul.plain.no li::before{background:var(--crit)}
     <p class="lede">Six core colours. Navy and Deep Navy carry structure and authority. Teal is spent on actions, links and connection, so it stays meaningful. Soft Aqua and Cloud keep interfaces calm.</p>
   </div>
   <div class="cols cols-3">
-    <div class="swatch"><div class="chip" style="background:#08275A;color:#fff">CuraHub Navy</div><div class="meta"><span class="hex">#08275A</span><span>Primary brand, navigation, headings, primary text on light grounds.</span><span class="muted">RGB 8 39 90 · CMYK 100 78 24 22</span></div></div>
-    <div class="swatch"><div class="chip" style="background:#08BDB8;color:#041A3E">CuraHub Teal</div><div class="meta"><span class="hex">#08BDB8</span><span>Actions, links, connection and positive emphasis. Fills and icons, not small text on white.</span><span class="muted">RGB 8 189 184 · CMYK 72 0 32 0</span></div></div>
-    <div class="swatch"><div class="chip" style="background:#041A3E;color:#fff">Deep Navy</div><div class="meta"><span class="hex">#041A3E</span><span>Premium backgrounds, app sidebar, high-contrast text and text on teal.</span><span class="muted">RGB 4 26 62 · CMYK 100 84 36 42</span></div></div>
-    <div class="swatch"><div class="chip" style="background:#DDF7F5;color:#08275A">Soft Aqua</div><div class="meta"><span class="hex">#DDF7F5</span><span>Warm panels, selected states and gentle highlights.</span><span class="muted">RGB 221 247 245 · CMYK 12 0 4 0</span></div></div>
-    <div class="swatch"><div class="chip" style="background:#F6F8FA;color:#08275A;border-bottom:1px solid #E4E9F0">Cloud</div><div class="meta"><span class="hex">#F6F8FA</span><span>Application backgrounds and separation between surfaces.</span><span class="muted">RGB 246 248 250 · CMYK 2 1 0 0</span></div></div>
-    <div class="swatch"><div class="chip" style="background:#263449;color:#fff">Graphite</div><div class="meta"><span class="hex">#263449</span><span>Body copy, labels and supporting information.</span><span class="muted">RGB 38 52 73 · CMYK 78 62 40 24</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#08275A;color:#fff">CuraHub Navy</div><div class="meta"><span class="hex">#08275A</span><span>Primary brand, navigation, headings, primary text on light grounds.</span><span class="muted">RGB 8 39 90 · CMYK 100 78 24 22</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#08BDB8;color:#041A3E">CuraHub Teal</div><div class="meta"><span class="hex">#08BDB8</span><span>Actions, links, connection and positive emphasis. Fills and icons, not small text on white.</span><span class="muted">RGB 8 189 184 · CMYK 72 0 32 0</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#041A3E;color:#fff">Deep Navy</div><div class="meta"><span class="hex">#041A3E</span><span>Premium backgrounds, app sidebar, high-contrast text and text on teal.</span><span class="muted">RGB 4 26 62 · CMYK 100 84 36 42</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#DDF7F5;color:#08275A">Soft Aqua</div><div class="meta"><span class="hex">#DDF7F5</span><span>Warm panels, selected states and gentle highlights.</span><span class="muted">RGB 221 247 245 · CMYK 12 0 4 0</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#F6F8FA;color:#08275A;border-bottom:1px solid #E4E9F0">Cloud</div><div class="meta"><span class="hex">#F6F8FA</span><span>Application backgrounds and separation between surfaces.</span><span class="muted">RGB 246 248 250 · CMYK 2 1 0 0</span></div></div>
+    <div class="swatch"><div class="sw-top" style="background:#263449;color:#fff">Graphite</div><div class="meta"><span class="hex">#263449</span><span>Body copy, labels and supporting information.</span><span class="muted">RGB 38 52 73 · CMYK 78 62 40 24</span></div></div>
   </div>
   <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>03 · Colour system</span></div>
 </section>
@@ -674,8 +681,6 @@ ul.plain.no li::before{background:var(--crit)}
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="btn primary">Publish rota</span><span class="btn secondary">Save draft</span><span class="btn tertiary">Cancel</span></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="btn primary sm">Approve</span><span class="btn secondary sm">Request change</span><span class="btn danger sm">Remove shift</span></div>
       <p class="small muted">Primary is CuraHub Teal with Deep Navy text, one per screen. Destructive actions are outlined, never a red fill.</p>
-      <h3>Feedback</h3>
-      <span class="toast"><i>✓</i>Rota published. Staff have been notified.</span>
     </div>
     <div class="stack" style="gap:14px">
       <h3>Form fields</h3>
@@ -686,14 +691,20 @@ ul.plain.no li::before{background:var(--crit)}
     <div class="stack" style="gap:14px">
       <h3>Status</h3>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip ok">Compliant</span><span class="chip warn">Due in 12 days</span><span class="chip crit">Overdue</span><span class="chip info">In review</span><span class="chip neutral">Not started</span></div>
-      <h3>Table</h3>
-      <div style="overflow-x:auto"><table class="table">
-        <tr><th>Staff member</th><th>Item</th><th>Expires</th><th>Status</th></tr>
-        <tr><td>James Okafor</td><td>DBS check</td><td>03 Oct 2026</td><td><span class="chip warn">Due soon</span></td></tr>
-        <tr><td>Sophie Reeves</td><td>Moving and handling</td><td>28 Aug 2026</td><td><span class="chip crit">Overdue</span></td></tr>
-        <tr><td>Priya Nair</td><td>Safeguarding L2</td><td>14 Mar 2027</td><td><span class="chip ok">Compliant</span></td></tr>
-      </table></div>
+      <p class="small muted">A chip always carries a word. The dot repeats the colour for scanning, never replaces the label.</p>
+      <h3>Feedback</h3>
+      <span class="toast"><i>✓</i>Rota published. Staff have been notified.</span>
     </div>
+  </div>
+  <div class="stack" style="gap:10px">
+    <h3>Table</h3>
+    <div style="overflow-x:auto"><table class="table">
+      <tr><th>Staff member</th><th>Item</th><th>Expires</th><th>Status</th><th>Action</th></tr>
+      <tr><td>James Okafor</td><td>DBS check</td><td>03 Oct 2026</td><td><span class="chip warn">Due soon</span></td><td><span class="btn tertiary sm">Book renewal</span></td></tr>
+      <tr><td>Sophie Reeves</td><td>Moving and handling refresher</td><td>28 Aug 2026</td><td><span class="chip crit">Overdue</span></td><td><span class="btn tertiary sm">Book now</span></td></tr>
+      <tr><td>Priya Nair</td><td>Safeguarding level 2</td><td>14 Mar 2027</td><td><span class="chip ok">Compliant</span></td><td><span class="btn tertiary sm">View</span></td></tr>
+    </table></div>
+    <p class="small muted">Uppercase column labels, tabular numerals, one action per row as a tertiary button. Rows are 44 px tall on touch devices.</p>
   </div>
   <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>08 · Core components</span></div>
 </section>

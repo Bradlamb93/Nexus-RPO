@@ -4,6 +4,7 @@ Version 2.0, September 2026. Replaces the earlier working-name pack.
 
 - `index.html` – the full brand and design pack as a web page (opens in any browser).
 - `CuraHub_Brand_and_Design_Pack.pdf` – the same pack as an 18-page A4 landscape PDF.
+- `teaser.html` and `CuraHub_Teaser.pdf` – five-page teaser on what CuraHub offers, for prospects.
 - `logo/` – logo files. SVGs have the wordmark converted to outlines, so no font is needed.
   - `curahub-logo-horizontal-*` – primary, reversed, mono navy, mono white
   - `curahub-logo-stacked-*` – primary, reversed
