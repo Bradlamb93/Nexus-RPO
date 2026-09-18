@@ -1,0 +1,872 @@
+<title>CuraHub Brand Pack</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --navy:#08275A; --teal:#08BDB8; --deep:#041A3E; --aqua:#DDF7F5; --cloud:#F6F8FA; --graphite:#263449;
+  --teal-ink:#067F7B; --teal-deep:#045C59; --navy-70:#3A527F; --navy-30:#B4BFD1; --navy-10:#E6EAF1;
+  --mist:#EEF2F6; --line:#D9E0EA; --white:#FFFFFF;
+  --ok:#13704A; --ok-bg:#DDF3E7; --warn:#95540B; --warn-bg:#FCEFD9; --crit:#C0303D; --crit-bg:#FBE3E5; --info:#2B62C9; --info-bg:#E2EBFB;
+  --display:"Manrope","Segoe UI",Arial,Helvetica,sans-serif;
+  --body:"Inter","Segoe UI",Arial,Helvetica,sans-serif;
+  --r-ctl:6px; --r-card:10px; --r-pill:999px;
+  --shadow:0 1px 2px rgba(4,26,62,.06),0 6px 20px rgba(4,26,62,.08);
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{background:var(--cloud);color:var(--graphite);font-family:var(--body);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+body{margin:0;padding-block:0 64px}
+h1,h2,h3,h4{font-family:var(--display);color:var(--navy);margin:0;text-wrap:balance;line-height:1.15}
+h1{font-size:44px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:30px;font-weight:700;letter-spacing:-.015em}
+h3{font-size:18px;font-weight:700}
+h4{font-size:15px;font-weight:600}
+p{margin:0}
+a{color:var(--teal-ink)}
+.eyebrow{font-family:var(--body);font-size:11.5px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--teal-ink)}
+.lede{font-size:17px;color:var(--navy-70);max-width:62ch}
+.muted{color:var(--navy-70)}
+.small{font-size:13px}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;letter-spacing:0}
+
+/* top bar */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--white);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:20px;padding:10px 24px;overflow-x:auto;white-space:nowrap}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;color:var(--navy);font-size:15px}
+.topbar nav{display:flex;gap:18px;font-size:13px}
+.topbar nav a{color:var(--graphite);text-decoration:none}
+.topbar nav a:hover,.topbar nav a:focus-visible{color:var(--teal-ink);outline:none;text-decoration:underline}
+.topbar .badge{margin-left:auto;font-size:12px;color:var(--navy-70);border:1px solid var(--line);border-radius:var(--r-pill);padding:3px 10px}
+
+/* sheets */
+main{display:flex;flex-direction:column;gap:28px;padding:28px 16px;max-width:1240px;margin:0 auto}
+.sheet{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:44px 48px 40px;display:grid;grid-template-columns:minmax(0,1fr);gap:26px;position:relative;box-shadow:0 1px 2px rgba(4,26,62,.04)}
+.sheet.dark{background:var(--deep);color:#D6E0EE;border-color:var(--deep)}
+.sheet.dark h1,.sheet.dark h2,.sheet.dark h3{color:var(--white)}
+.sheet.dark .eyebrow{color:var(--teal)}
+.sheet.dark .lede,.sheet.dark .muted{color:#9FB0C9}
+.sheet .head{display:grid;gap:8px;max-width:70ch}
+.sheet .foot{display:flex;justify-content:space-between;font-size:12px;color:var(--navy-70);border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.sheet.dark .foot{border-color:rgba(255,255,255,.14);color:#9FB0C9}
+.foot b{font-weight:600;color:inherit}
+.cols{display:grid;gap:22px}
+.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.panel{background:var(--cloud);border-radius:var(--r-card);padding:22px}
+.panel.aqua{background:var(--aqua)}
+.panel.navy{background:var(--navy);color:#D6E0EE}
+.panel.navy h3,.panel.navy h4{color:var(--white)}
+.panel.deep{background:var(--deep);color:#D6E0EE}
+.panel.deep h3{color:var(--white)}
+.stack{display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px 18px;font-size:14px}
+.kv dt{font-weight:600;color:var(--navy)}
+.kv dd{margin:0}
+ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+ul.plain li{padding-left:18px;position:relative}
+ul.plain li::before{content:"";position:absolute;left:0;top:.62em;width:8px;height:8px;border-radius:50%;background:var(--teal)}
+ul.plain.no li::before{background:var(--crit)}
+
+/* logo */
+.logo{display:inline-flex;align-items:center;gap:.28em;font-family:var(--display);font-weight:800;letter-spacing:-.025em;line-height:1;color:var(--navy);text-decoration:none}
+.logo .word b{font-weight:800}
+.logo .word .hub{color:var(--teal)}
+.logo.rev{color:var(--white)}
+.logo.mono .word .hub{color:inherit}
+.mark{--ring:var(--navy);--hub:var(--teal);--node:var(--navy);width:1em;height:1em;flex:none;display:block}
+.mark.rev{--ring:#fff;--node:#fff}
+.mark.mono{--hub:var(--navy)}
+.mark.mono-w{--ring:#fff;--node:#fff;--hub:#fff}
+.mark.mono-t{--ring:var(--teal);--node:var(--teal);--hub:var(--teal)}
+
+/* swatches */
+.swatch{border-radius:var(--r-card);overflow:hidden;border:1px solid var(--line);display:grid;grid-template-rows:96px auto}
+.swatch .chip{display:flex;align-items:flex-end;padding:12px 14px;font-family:var(--display);font-weight:700;font-size:15px}
+.swatch .meta{padding:12px 14px;display:grid;gap:3px;font-size:13px;background:var(--white)}
+.swatch .meta .hex{font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--navy);font-weight:600}
+.tints{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-radius:var(--r-card);overflow:hidden;border:1px solid var(--line)}
+.tints div{height:58px;display:flex;align-items:flex-end;padding:6px 8px;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace}
+.pair{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;border-radius:var(--r-ctl);padding:12px 14px;font-size:14px}
+.pair .ratio{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;border-radius:var(--r-pill);padding:2px 9px;background:rgba(255,255,255,.85);color:var(--navy)}
+.pair.fail .ratio{background:var(--crit-bg);color:var(--crit)}
+
+/* type */
+.typeline{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line)}
+.typeline:last-child{border-bottom:0}
+.typeline .lab{font-size:12px;color:var(--navy-70);font-family:ui-monospace,Menlo,Consolas,monospace}
+
+/* modules */
+.mod{display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;align-items:start;padding:18px;border:1px solid var(--line);border-radius:var(--r-card);background:var(--white)}
+.mod .ltr{width:44px;height:44px;border-radius:9px;background:var(--navy);color:var(--teal);font-family:var(--display);font-weight:800;font-size:22px;display:grid;place-items:center}
+.mod h3{font-size:16px}
+.mod p{font-size:13.5px;color:var(--graphite);margin-top:4px}
+.mod .val{margin-top:8px;font-size:12px;font-weight:600;color:var(--teal-ink);letter-spacing:.06em;text-transform:uppercase}
+
+/* messaging */
+.msg{display:grid;gap:6px;padding:18px 20px;border-left:3px solid var(--teal);background:var(--cloud);border-radius:0 var(--r-card) var(--r-card) 0}
+.msg .q{font-family:var(--display);font-weight:700;font-size:22px;color:var(--navy);letter-spacing:-.01em}
+.msg .q.big{font-size:32px;letter-spacing:-.02em}
+
+/* tokens */
+.spacing{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+.spacing div{display:grid;gap:6px;justify-items:center;font-size:11px;font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--navy-70)}
+.spacing span{display:block;background:var(--teal);border-radius:3px}
+.radii{display:flex;gap:16px;flex-wrap:wrap}
+.radii div{width:92px;height:64px;border:2px solid var(--navy);display:grid;place-items:center;font-size:12px;font-family:ui-monospace,Menlo,Consolas,monospace;color:var(--navy)}
+
+/* components */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 18px;border-radius:var(--r-ctl);font-family:var(--body);font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;line-height:1;text-decoration:none}
+.btn.primary{background:var(--teal);color:var(--deep)}
+.btn.primary:hover{background:#07ABA6}
+.btn.secondary{background:var(--white);color:var(--navy);border-color:var(--navy-30)}
+.btn.tertiary{background:transparent;color:var(--teal-ink);padding:0 6px}
+.btn.danger{background:var(--white);color:var(--crit);border-color:#E8B4B9}
+.btn.sm{height:32px;padding:0 12px;font-size:13px}
+.btn:focus-visible{outline:2px solid var(--teal-ink);outline-offset:2px}
+.field{display:grid;gap:6px;font-size:13px}
+.field label{font-weight:600;color:var(--navy)}
+.field .in{height:40px;border:1px solid var(--navy-30);border-radius:var(--r-ctl);padding:0 12px;display:flex;align-items:center;background:var(--white);color:var(--graphite);font-size:14px}
+.field .in.focus{border-color:var(--teal-ink);box-shadow:0 0 0 3px rgba(8,189,184,.28)}
+.field .in.err{border-color:var(--crit)}
+.field .help{color:var(--navy-70);font-size:12px}
+.field .help.err{color:var(--crit)}
+.chip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 10px 0 8px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.crit{background:var(--crit-bg);color:var(--crit)}
+.chip.info{background:var(--info-bg);color:var(--info)}
+.chip.neutral{background:var(--navy-10);color:var(--navy)}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r-card);padding:18px;display:grid;gap:10px}
+.card.raised{box-shadow:var(--shadow);border-color:transparent}
+.card h4{font-size:14px}
+.kpi .n{font-family:var(--display);font-weight:800;font-size:30px;color:var(--navy);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.kpi .l{font-size:12.5px;color:var(--navy-70)}
+.table{width:100%;border-collapse:collapse;font-size:13px}
+.table th{text-align:left;font-weight:600;color:var(--navy-70);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line)}
+.table td{padding:10px;border-bottom:1px solid var(--mist);font-variant-numeric:tabular-nums}
+.table tr:last-child td{border-bottom:0}
+.toast{display:inline-flex;align-items:center;gap:10px;background:var(--deep);color:#fff;border-radius:var(--r-card);padding:10px 14px;font-size:13.5px;box-shadow:var(--shadow)}
+.toast i{width:18px;height:18px;border-radius:50%;background:var(--teal);display:grid;place-items:center;color:var(--deep);font-style:normal;font-weight:800;font-size:12px}
+
+/* app shell mockup */
+.app{display:grid;grid-template-columns:200px minmax(0,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--cloud);min-height:420px}
+.app .side{background:var(--deep);color:#C5D2E6;padding:18px 14px;display:grid;gap:4px;align-content:start;font-size:13px}
+.app .side .lg{margin-bottom:14px;padding:0 6px}
+.app .side .it{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px}
+.app .side .it b{width:22px;height:22px;border-radius:5px;background:rgba(255,255,255,.08);color:var(--teal);display:grid;place-items:center;font-size:11px;font-family:var(--display);font-weight:800}
+.app .side .it.on{background:rgba(8,189,184,.16);color:#fff}
+.app .side .it.on b{background:var(--teal);color:var(--deep)}
+.app .main{padding:18px 20px;display:grid;gap:16px;align-content:start}
+.app .bar{display:flex;align-items:center;gap:12px}
+.app .bar h3{font-size:18px}
+.app .bar .sp{flex:1}
+.app .bar .who{width:30px;height:30px;border-radius:50%;background:var(--aqua);color:var(--teal-deep);display:grid;place-items:center;font-size:12px;font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+
+/* phone */
+.phone{width:250px;border:8px solid var(--deep);border-radius:34px;background:var(--cloud);overflow:hidden;box-shadow:var(--shadow);justify-self:center}
+.phone .top{background:var(--white);padding:14px 16px 10px;display:grid;gap:6px;border-bottom:1px solid var(--line)}
+.phone .photo{height:120px;margin:12px;border-radius:10px;background:linear-gradient(135deg,var(--aqua),#B9E9E7 55%,#8FD6D3);position:relative}
+.phone .photo::after{content:"Photo: a real moment in care";position:absolute;inset:auto 10px 8px;font-size:11px;color:var(--teal-deep)}
+.phone .post{margin:0 12px 12px;display:grid;gap:6px;font-size:12.5px}
+.phone .post b{font-family:var(--display);color:var(--navy)}
+.phone .tabs{display:flex;justify-content:space-around;padding:10px;border-top:1px solid var(--line);background:var(--white);font-size:10.5px;color:var(--navy-70)}
+.phone .tabs span.on{color:var(--teal-ink);font-weight:600}
+
+/* applications */
+.appicon{width:96px;height:96px;border-radius:22px;background:var(--deep);display:grid;place-items:center}
+.appicon.light{background:var(--white);border:1px solid var(--line)}
+.favicon{width:32px;height:32px;border-radius:7px;background:var(--deep);display:grid;place-items:center}
+.cover{aspect-ratio:1/1.35;max-width:100%;background:var(--deep);border-radius:8px;padding:22px;display:grid;align-content:space-between;color:#fff;box-shadow:var(--shadow)}
+.cover .t{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.2;letter-spacing:-.01em}
+.cover .s{font-size:12px;color:#9FB0C9}
+.sig{border:1px solid var(--line);border-radius:var(--r-card);padding:16px 18px;background:var(--white);display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;font-size:13px}
+.sig .rule{width:3px;height:44px;background:var(--teal);border-radius:2px}
+.dont{display:grid;gap:8px;justify-items:center;text-align:center;font-size:12.5px;padding:14px 10px;border:1px dashed #E8B4B9;border-radius:var(--r-card);background:#FFF8F8;color:var(--crit)}
+.dont .box{width:100%;height:64px;display:grid;place-items:center;background:var(--white);border-radius:6px;color:var(--navy);overflow:hidden}
+.check{display:grid;gap:8px;font-size:13.5px}
+.check div{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start}
+.check div::before{content:"";width:16px;height:16px;border:2px solid var(--navy-30);border-radius:4px;margin-top:2px}
+
+/* clear space diagram */
+.clear{position:relative;display:inline-block;padding:32px;border:1px dashed var(--teal-ink);background:var(--cloud);border-radius:6px}
+.clear::before,.clear::after{content:"x";position:absolute;font-size:11px;color:var(--teal-ink);font-family:ui-monospace,Menlo,Consolas,monospace}
+.clear::before{top:8px;left:50%}
+.clear::after{left:12px;top:50%}
+
+@media (max-width:900px){
+  .cols-2,.cols-3,.cols-4,.kpis,.tints{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sheet{padding:28px 20px 24px}
+  h1{font-size:34px} h2{font-size:26px}
+  .app{grid-template-columns:minmax(0,1fr)} .app .side{display:none}
+  .kv{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:560px){
+  .cols-2,.cols-3,.cols-4,.kpis{grid-template-columns:minmax(0,1fr)}
+  .tints{grid-template-columns:repeat(5,minmax(0,1fr))}
+  main{padding:16px 16px}
+}
+@media print{
+  @page{size:A4 landscape;margin:0}
+  html,body{background:var(--white)}
+  body{padding:0}
+  .topbar{display:none}
+  main{padding:0;gap:0;max-width:none}
+  .sheet{border:0;border-radius:0;box-shadow:none;width:297mm;min-height:210mm;padding:14mm 16mm 10mm;break-after:page;page-break-after:always;grid-template-rows:auto 1fr auto}
+  .sheet.dark{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #type{padding-block:8mm 7mm;gap:12px}
+  #type .head{gap:4px}
+  #type .typeline:first-child>span:not(.lab){font-size:38px}
+  #type ul.plain{gap:4px}
+  #type .typeline{padding:2px 0}
+  #type .typeline>span:not(.lab){font-size:.82em}
+  #type .panel{padding:10px 14px}
+  #type .cols{gap:12px}
+  #type .stack{gap:10px}
+  #type .head .lede{font-size:14.5px}
+  .sheet{gap:20px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 100 100">
+    <path d="M73.14 22.42 A36 36 0 1 0 73.14 77.58" fill="none" stroke="var(--ring)" stroke-width="10" stroke-linecap="round"/>
+    <path d="M50 50 L86 34 M50 50 L86 66" stroke="var(--hub)" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="86" cy="34" r="5.5" fill="var(--node)"/>
+    <circle cx="86" cy="66" r="5.5" fill="var(--node)"/>
+    <circle cx="50" cy="50" r="10.5" fill="var(--hub)"/>
+  </symbol>
+</svg>
+
+<header class="topbar">
+  <span class="brand"><svg class="mark" style="font-size:22px"><use href="#mark"/></svg>CuraHub</span>
+  <nav>
+    <a href="#foundation">Foundation</a><a href="#logo">Logo</a><a href="#colour">Colour</a><a href="#type">Type</a><a href="#platform">Platform</a><a href="#messaging">Messaging</a><a href="#principles">Principles</a><a href="#tokens">Tokens</a><a href="#components">Components</a><a href="#product">Product</a><a href="#applications">Applications</a><a href="#adoption">Adopting the name</a>
+  </nav>
+  <span class="badge">Version 2.0 · September 2026</span>
+</header>
+
+<main>
+
+<!-- COVER -->
+<section class="sheet dark" id="cover" style="grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:end;min-height:560px">
+  <div class="stack" style="gap:26px">
+    <a class="logo rev" href="#cover" style="font-size:64px"><svg class="mark rev"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></a>
+    <div class="stack" style="gap:10px">
+      <span class="eyebrow">Brand and design pack</span>
+      <h1 style="font-size:40px">Everything care.<br>One connected hub.</h1>
+      <p class="lede">The identity, design system and messaging for CuraHub, the operating system for modern care services. Use this pack for the web platform, mobile app, family portal, proposals and every document that carries the name.</p>
+    </div>
+  </div>
+  <div class="panel" style="background:rgba(255,255,255,.06);color:#D6E0EE">
+    <h3 style="margin-bottom:12px">Contents</h3>
+    <dl class="kv" style="grid-template-columns:32px minmax(0,1fr);gap:6px 12px;font-size:13.5px">
+      <dt style="color:var(--teal)">01</dt><dd>Brand foundation</dd>
+      <dt style="color:var(--teal)">02</dt><dd>Logo system, versions and use</dd>
+      <dt style="color:var(--teal)">03</dt><dd>Colour system and contrast</dd>
+      <dt style="color:var(--teal)">04</dt><dd>Typography</dd>
+      <dt style="color:var(--teal)">05</dt><dd>Platform architecture and modules</dd>
+      <dt style="color:var(--teal)">06</dt><dd>Messaging, voice and tone</dd>
+      <dt style="color:var(--teal)">07</dt><dd>Digital principles</dd>
+      <dt style="color:var(--teal)">08</dt><dd>Design tokens and components</dd>
+      <dt style="color:var(--teal)">09</dt><dd>Product applications</dd>
+      <dt style="color:var(--teal)">10</dt><dd>Brand applications</dd>
+      <dt style="color:var(--teal)">11</dt><dd>Adopting the name</dd>
+    </dl>
+  </div>
+  <div class="foot" style="grid-column:1/-1"><span><b>CuraHub</b> brand and design pack · Version 2.0</span><span>September 2026</span></div>
+</section>
+
+<!-- 01 FOUNDATION -->
+<section class="sheet" id="foundation">
+  <div class="head">
+    <span class="eyebrow">01 · Brand foundation</span>
+    <h2>What CuraHub represents</h2>
+    <p class="lede">A central operating system for modern care services. Cura comes from the Latin word for care. Hub is the single connected place where care operations, people, residents, families and decisions come together.</p>
+  </div>
+  <div class="cols cols-3">
+    <div class="panel aqua stack">
+      <span class="eyebrow">Brand promise</span>
+      <h3>Make care operations clearer, more connected and easier to act on.</h3>
+    </div>
+    <div class="panel stack">
+      <span class="eyebrow">Personality</span>
+      <h3>Human, capable and quietly confident.</h3>
+      <p class="small">Warm enough for families. Credible enough for operators, commissioners and multi-site care groups.</p>
+    </div>
+    <div class="panel stack">
+      <span class="eyebrow">Who it serves</span>
+      <ul class="plain small">
+        <li>Registered managers and home managers</li>
+        <li>Group operators and regional directors</li>
+        <li>Care teams, nurses and support staff</li>
+        <li>Residents and their families</li>
+        <li>Commissioners and inspectors, indirectly</li>
+      </ul>
+    </div>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack">
+      <h3>The name</h3>
+      <p>Write it as <b>CuraHub</b>: capital C, capital H, no space. Never Cura Hub, Curahub or CURAHUB in running text. The company and the platform share the name. Modules take the name as a prefix, for example CuraHub Workforce.</p>
+    </div>
+    <div class="stack">
+      <h3>The idea in one line</h3>
+      <p>One source of truth for a care service, with the people around it connected to it. Everything in this pack, from the open C in the logo to the teal reserved for actions, follows from that idea.</p>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>01 · Brand foundation</span></div>
+</section>
+
+<!-- 02 LOGO -->
+<section class="sheet" id="logo">
+  <div class="head">
+    <span class="eyebrow">02 · Logo system</span>
+    <h2>The connected care hub</h2>
+    <p class="lede">The open C is care that stays accessible and human. The teal node at its centre is CuraHub: one source of truth. The two connected nodes are the people and relationships around every service, residents and families, teams and operators.</p>
+  </div>
+  <div class="cols cols-2" style="align-items:stretch">
+    <div class="panel" style="display:grid;place-items:center;min-height:260px">
+      <a class="logo" href="#logo" style="font-size:72px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></a>
+    </div>
+    <div class="panel deep" style="display:grid;place-items:center;min-height:260px">
+      <a class="logo rev" href="#logo" style="font-size:72px"><svg class="mark rev"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></a>
+    </div>
+  </div>
+  <div class="cols cols-3">
+    <div class="stack"><h4>Primary</h4><p class="small">Navy ring and wordmark, teal hub. Use on white, Cloud or Soft Aqua.</p></div>
+    <div class="stack"><h4>Reversed</h4><p class="small">White ring and wordmark, teal hub. Use on CuraHub Navy or Deep Navy.</p></div>
+    <div class="stack"><h4>Construction</h4><p class="small">The wordmark is Manrope ExtraBold 800 with tightened tracking. The icon sits at cap height and the gap between icon and wordmark is one-quarter of the icon width.</p></div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>02 · Logo system</span></div>
+</section>
+
+<section class="sheet" id="logo-versions">
+  <div class="head">
+    <span class="eyebrow">02 · Logo versions</span>
+    <h2>One mark, five approved versions</h2>
+    <p class="lede">Every version is built from the same geometry. Choose by background, then by available colour. Nothing else is approved.</p>
+  </div>
+  <div class="cols cols-4" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div class="stack"><div class="panel" style="display:grid;place-items:center;height:130px"><svg class="mark" style="font-size:84px"><use href="#mark"/></svg></div><h4>Icon, primary</h4><p class="small muted">App icons, favicons, avatars, social profiles.</p></div>
+    <div class="stack"><div class="panel deep" style="display:grid;place-items:center;height:130px"><svg class="mark rev" style="font-size:84px"><use href="#mark"/></svg></div><h4>Icon, reversed</h4><p class="small muted">On Navy or Deep Navy grounds.</p></div>
+    <div class="stack"><div class="panel" style="display:grid;place-items:center;height:130px"><svg class="mark mono" style="font-size:84px"><use href="#mark"/></svg></div><h4>Mono navy</h4><p class="small muted">Single-colour print, embossing, stamps.</p></div>
+    <div class="stack"><div class="panel deep" style="display:grid;place-items:center;height:130px"><svg class="mark mono-w" style="font-size:84px"><use href="#mark"/></svg></div><h4>Mono white</h4><p class="small muted">Photography overlays and dark video.</p></div>
+    <div class="stack"><div class="panel" style="display:grid;place-items:center;height:130px;background:var(--aqua)"><svg class="mark mono-t" style="font-size:84px"><use href="#mark"/></svg></div><h4>Mono teal</h4><p class="small muted">Decorative use only, never as the main identifier.</p></div>
+  </div>
+  <div class="cols cols-3">
+    <div class="panel stack" style="align-items:start">
+      <span class="eyebrow">Horizontal lock-up</span>
+      <a class="logo" href="#logo" style="font-size:34px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></a>
+      <p class="small muted">Default for headers, documents and proposals.</p>
+    </div>
+    <div class="panel stack" style="align-items:start">
+      <span class="eyebrow">Stacked lock-up</span>
+      <div style="display:grid;gap:10px;justify-items:center"><svg class="mark" style="font-size:52px"><use href="#mark"/></svg><span class="logo" style="font-size:28px"><span class="word">Cura<span class="hub">Hub</span></span></span></div>
+      <p class="small muted">Square placements, app splash screens and badges.</p>
+    </div>
+    <div class="panel stack" style="align-items:start">
+      <span class="eyebrow">Single-colour wordmark</span>
+      <a class="logo mono" href="#logo" style="font-size:34px"><svg class="mark mono"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></a>
+      <p class="small muted">Use below 140 px, in one-colour print and in body-text contexts.</p>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>02 · Logo versions</span></div>
+</section>
+
+<section class="sheet" id="logo-use">
+  <div class="head">
+    <span class="eyebrow">02 · Logo use</span>
+    <h2>Consistency protects recognition</h2>
+  </div>
+  <div class="cols cols-3">
+    <div class="stack">
+      <h3>Clear space</h3>
+      <div class="clear"><span class="logo" style="font-size:30px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>
+      <p class="small">Keep a margin of at least one-quarter of the icon width (x) clear on every side. Nothing enters this space: no text, rules, photography or other logos.</p>
+    </div>
+    <div class="stack">
+      <h3>Minimum size</h3>
+      <dl class="kv" style="grid-template-columns:110px minmax(0,1fr)">
+        <dt>Horizontal</dt><dd>140 px digital, 35 mm print</dd>
+        <dt>Stacked</dt><dd>96 px digital, 24 mm print</dd>
+        <dt>Icon alone</dt><dd>32 px digital, 8 mm print</dd>
+        <dt>Below 140 px</dt><dd>Switch to the single-colour wordmark</dd>
+      </dl>
+      <h3 style="margin-top:6px">File formats</h3>
+      <p class="small">SVG for digital products and print-ready vector work. PNG at 2x and 3x for office documents and email. Never a JPEG on a coloured background.</p>
+    </div>
+    <div class="stack">
+      <h3>Do not</h3>
+      <div class="cols cols-2" style="gap:10px">
+        <div class="dont"><div class="box"><span class="logo" style="font-size:20px;transform:scaleX(1.35)"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>Stretch or squash</div>
+        <div class="dont"><div class="box"><span class="logo" style="font-size:22px;transform:rotate(-14deg)"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>Rotate</div>
+        <div class="dont"><div class="box"><span class="logo" style="font-size:22px;color:#7C3AED"><svg class="mark" style="--ring:#7C3AED;--hub:#F59E0B;--node:#7C3AED"><use href="#mark"/></svg><span class="word">Cura<span class="hub" style="color:#F59E0B">Hub</span></span></span></div>Recolour</div>
+        <div class="dont"><div class="box"><span class="logo" style="font-size:22px;text-shadow:2px 2px 0 #B4BFD1"><svg class="mark" style="filter:drop-shadow(2px 2px 0 #B4BFD1)"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>Add shadows or gradients</div>
+        <div class="dont"><div class="box"><span class="logo" style="font-size:22px;font-family:Georgia,serif;font-weight:400"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>Retype the wordmark</div>
+        <div class="dont"><div class="box" style="overflow:hidden"><svg class="mark" style="font-size:44px;margin-left:-26px"><use href="#mark"/></svg></div>Crop the icon</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>02 · Logo use</span></div>
+</section>
+
+<!-- 03 COLOUR -->
+<section class="sheet" id="colour">
+  <div class="head">
+    <span class="eyebrow">03 · Colour system</span>
+    <h2>Navy for trust, teal for action</h2>
+    <p class="lede">Six core colours. Navy and Deep Navy carry structure and authority. Teal is spent on actions, links and connection, so it stays meaningful. Soft Aqua and Cloud keep interfaces calm.</p>
+  </div>
+  <div class="cols cols-3">
+    <div class="swatch"><div class="chip" style="background:#08275A;color:#fff">CuraHub Navy</div><div class="meta"><span class="hex">#08275A</span><span>Primary brand, navigation, headings, primary text on light grounds.</span><span class="muted">RGB 8 39 90 · CMYK 100 78 24 22</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#08BDB8;color:#041A3E">CuraHub Teal</div><div class="meta"><span class="hex">#08BDB8</span><span>Actions, links, connection and positive emphasis. Fills and icons, not small text on white.</span><span class="muted">RGB 8 189 184 · CMYK 72 0 32 0</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#041A3E;color:#fff">Deep Navy</div><div class="meta"><span class="hex">#041A3E</span><span>Premium backgrounds, app sidebar, high-contrast text and text on teal.</span><span class="muted">RGB 4 26 62 · CMYK 100 84 36 42</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#DDF7F5;color:#08275A">Soft Aqua</div><div class="meta"><span class="hex">#DDF7F5</span><span>Warm panels, selected states and gentle highlights.</span><span class="muted">RGB 221 247 245 · CMYK 12 0 4 0</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#F6F8FA;color:#08275A;border-bottom:1px solid #E4E9F0">Cloud</div><div class="meta"><span class="hex">#F6F8FA</span><span>Application backgrounds and separation between surfaces.</span><span class="muted">RGB 246 248 250 · CMYK 2 1 0 0</span></div></div>
+    <div class="swatch"><div class="chip" style="background:#263449;color:#fff">Graphite</div><div class="meta"><span class="hex">#263449</span><span>Body copy, labels and supporting information.</span><span class="muted">RGB 38 52 73 · CMYK 78 62 40 24</span></div></div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>03 · Colour system</span></div>
+</section>
+
+<section class="sheet" id="colour-extended">
+  <div class="head">
+    <span class="eyebrow">03 · Extended palette and contrast</span>
+    <h2>Working colours for product interfaces</h2>
+    <p class="lede">The six brand colours need supporting tints, a text-safe teal and four status colours to build real screens. These are the only additions permitted.</p>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack">
+      <h3>Teal in text</h3>
+      <p class="small">CuraHub Teal fails WCAG contrast on white, so it is never used for links or text under 24 px on light grounds. Use <b>Teal Ink</b> for links and text, and keep CuraHub Teal for fills, icons, the logo and dark grounds.</p>
+      <div class="stack" style="gap:8px">
+        <div class="pair" style="background:#fff;border:1px solid var(--line);color:#08BDB8"><span>CuraHub Teal text on white</span><span class="ratio" style="background:var(--crit-bg);color:var(--crit)">2.3 : 1 · fails</span></div>
+        <div class="pair" style="background:#fff;border:1px solid var(--line);color:#067F7B"><span>Teal Ink #067F7B on white</span><span class="ratio" style="background:var(--ok-bg);color:var(--ok)">4.8 : 1 · AA</span></div>
+        <div class="pair" style="background:#08BDB8;color:#041A3E"><span>Deep Navy on CuraHub Teal (buttons)</span><span class="ratio">7.4 : 1 · AAA</span></div>
+        <div class="pair" style="background:#041A3E;color:#08BDB8"><span>CuraHub Teal on Deep Navy</span><span class="ratio">7.4 : 1 · AAA</span></div>
+        <div class="pair" style="background:#fff;border:1px solid var(--line);color:#08275A"><span>CuraHub Navy on white</span><span class="ratio">14.5 : 1 · AAA</span></div>
+        <div class="pair" style="background:#fff;border:1px solid var(--line);color:#263449"><span>Graphite on white</span><span class="ratio">12.6 : 1 · AAA</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>Navy tints</h3>
+      <div class="tints">
+        <div style="background:#08275A;color:#fff">#08275A</div><div style="background:#3A527F;color:#fff">#3A527F</div><div style="background:#B4BFD1;color:#08275A">#B4BFD1</div><div style="background:#E6EAF1;color:#08275A">#E6EAF1</div><div style="background:#EEF2F6;color:#08275A">#EEF2F6</div>
+      </div>
+      <p class="small muted">Navy 70 for secondary text and captions. Navy 30 for borders and disabled states. Navy 10 and Mist for dividers, table rules and subtle fills.</p>
+      <h3 style="margin-top:6px">Teal tints</h3>
+      <div class="tints">
+        <div style="background:#045C59;color:#fff">#045C59</div><div style="background:#067F7B;color:#fff">#067F7B</div><div style="background:#08BDB8;color:#041A3E">#08BDB8</div><div style="background:#B9E9E7;color:#045C59">#B9E9E7</div><div style="background:#DDF7F5;color:#045C59">#DDF7F5</div>
+      </div>
+      <h3 style="margin-top:6px">Status colours</h3>
+      <p class="small">Always paired with a word or icon, never decoration or a brand accent. Each text colour passes AA on its tint and on white.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span class="chip ok">Compliant · #13704A</span><span class="chip warn">Due soon · #95540B</span><span class="chip crit">Overdue · #C0303D</span><span class="chip info">In review · #2B62C9</span><span class="chip neutral">Not started</span>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>03 · Extended palette and contrast</span></div>
+</section>
+
+<!-- 04 TYPE -->
+<section class="sheet" id="type">
+  <div class="head">
+    <span class="eyebrow">04 · Typography</span>
+    <h2>Clear, modern and highly readable</h2>
+    <p class="lede">Manrope carries headings, campaigns and high-impact statements. Inter carries the product interface, body text, forms, tables and operational information. Both are open source and free to use in product and print.</p>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack">
+      <div class="typeline"><span class="lab">Display · 48/1.05</span><span style="font-family:var(--display);font-weight:800;font-size:48px;letter-spacing:-.025em;color:var(--navy);line-height:1.05">Everything care.</span></div>
+      <div class="typeline"><span class="lab">H1 · 34/1.15 · 800</span><span style="font-family:var(--display);font-weight:800;font-size:34px;letter-spacing:-.02em;color:var(--navy);line-height:1.15">Occupancy this month</span></div>
+      <div class="typeline"><span class="lab">H2 · 26/1.2 · 700</span><span style="font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:-.015em;color:var(--navy)">Compliance exceptions</span></div>
+      <div class="typeline"><span class="lab">H3 · 20/1.3 · 700</span><span style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--navy)">Rota for week commencing 21 September</span></div>
+      <div class="typeline"><span class="lab">Body · 15/1.55 · 400</span><span style="font-size:15px">Three DBS renewals are due within 30 days. Review each record and book the renewal before the expiry date.</span></div>
+      <div class="typeline"><span class="lab">Small · 13/1.5 · 500</span><span style="font-size:13px;font-weight:500">Last updated 14:32 by Priya Nair</span></div>
+      <div class="typeline"><span class="lab">Label · 11.5 · 600 · caps</span><span class="eyebrow">Workforce · Attendance</span></div>
+    </div>
+    <div class="stack" style="gap:18px">
+      <div class="panel stack">
+        <h3 style="font-family:var(--display)">Manrope</h3>
+        <p style="font-family:var(--display);font-size:22px;font-weight:600;color:var(--navy);letter-spacing:-.01em">AaBbCc 0123456789<br><span style="font-weight:800">Semibold 600 and ExtraBold 800</span></p>
+        <p class="small">Headings, numbers on dashboards, campaign lines and the wordmark. Tighten tracking slightly above 26 px.</p>
+      </div>
+      <div class="panel stack">
+        <h3 style="font-family:var(--body)">Inter</h3>
+        <p style="font-size:22px;color:var(--navy)">AaBbCc 0123456789<br><span style="font-weight:500">Regular 400, Medium 500, Semibold 600</span></p>
+        <p class="small">Interface, body copy, forms and tables. Turn on tabular numerals wherever figures sit in columns.</p>
+      </div>
+      <div class="stack">
+        <h4>Rules</h4>
+        <ul class="plain small">
+          <li>Sentence case for headings, buttons and labels. Uppercase only for short eyebrow labels with letter-spacing.</li>
+          <li>Short headings, plain English, no jargon. Running text stays under 70 characters a line.</li>
+          <li>Where brand fonts are unavailable, use Arial or Helvetica. Never substitute a serif or decorative face.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>04 · Typography</span></div>
+</section>
+
+<!-- 05 PLATFORM -->
+<section class="sheet" id="platform">
+  <div class="head">
+    <span class="eyebrow">05 · Platform architecture</span>
+    <h2>One brand with six connected modules</h2>
+    <p class="lede">Each module is a focused part of one connected platform, never a separate sub-brand. Medication management sits intentionally outside this architecture.</p>
+  </div>
+  <div class="cols cols-3">
+    <div class="mod"><div class="ltr">F</div><div><h3>CuraHub Family</h3><p>Secure family updates, photos, communication and meaningful visibility into care.</p><div class="val">Connection and reassurance</div></div></div>
+    <div class="mod"><div class="ltr">C</div><div><h3>CuraHub Compliance</h3><p>CQC readiness, training, documents, policies, audits and workforce compliance.</p><div class="val">Confidence and readiness</div></div></div>
+    <div class="mod"><div class="ltr">O</div><div><h3>CuraHub Occupancy</h3><p>Enquiries, admissions, resident administration, assessments and occupancy oversight.</p><div class="val">Growth and continuity</div></div></div>
+    <div class="mod"><div class="ltr">W</div><div><h3>CuraHub Workforce</h3><p>Rotas, attendance, clocking, leave, absence, agency control and staff records.</p><div class="val">People and dependable delivery</div></div></div>
+    <div class="mod"><div class="ltr">P</div><div><h3>CuraHub Pay</h3><p>Timesheets, billing inputs, payroll preparation, rates and financial administration.</p><div class="val">Accuracy and control</div></div></div>
+    <div class="mod"><div class="ltr">I</div><div><h3>CuraHub Insights</h3><p>Dashboards, trends, exceptions and decision-ready operational reporting.</p><div class="val">Clarity and action</div></div></div>
+  </div>
+  <div class="cols cols-3">
+    <div class="stack"><h4>Naming modules</h4><p class="small">Always the full form on first mention: CuraHub Workforce. In navigation and inside the product, the short form Workforce is fine because the master brand is already present.</p></div>
+    <div class="stack"><h4>Module marks</h4><p class="small">The letter tile is a wayfinding device, not a logo. Navy tile, teal letter, Manrope ExtraBold. It never appears with the CuraHub icon at the same size and never on external materials on its own.</p></div>
+    <div class="stack"><h4>Adding a module</h4><p class="small">A new module needs a one-word name, a two-word value statement and a single letter that is not already taken. It joins this sheet before anything ships.</p></div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>05 · Platform architecture</span></div>
+</section>
+
+<!-- 06 MESSAGING -->
+<section class="sheet" id="messaging">
+  <div class="head">
+    <span class="eyebrow">06 · Messaging system</span>
+    <h2>Simple language for a complex operation</h2>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack" style="gap:14px">
+      <div class="msg"><span class="eyebrow">Primary line</span><span class="q big">Everything care. One connected hub.</span></div>
+      <div class="msg"><span class="eyebrow">Positioning</span><span class="q">The complete operating system for modern care services.</span></div>
+      <div class="msg"><span class="eyebrow">Supporting message</span><p>Manage residents, occupancy, compliance, staffing, payroll, performance and family engagement from one connected platform.</p></div>
+    </div>
+    <div class="stack" style="gap:14px">
+      <div class="msg"><span class="eyebrow">Family line</span><span class="q">Closer to the moments that matter.</span></div>
+      <div class="msg"><span class="eyebrow">Brand promise</span><span class="q">Clearer operations. Better connections. More time for care.</span></div>
+      <div class="panel stack">
+        <h4>How the lines are used</h4>
+        <ul class="plain small">
+          <li>The primary line sits with the logo on covers, website heroes and event materials. It is never rewritten.</li>
+          <li>The positioning line is the one-sentence answer to “what is CuraHub?” in proposals, bios and app store listings.</li>
+          <li>The family line belongs to CuraHub Family and the family-facing app only.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>06 · Messaging system</span></div>
+</section>
+
+<section class="sheet" id="voice">
+  <div class="head">
+    <span class="eyebrow">06 · Voice and tone</span>
+    <h2>Human, clear and quietly confident</h2>
+  </div>
+  <div class="cols cols-3" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    <div class="panel stack"><h3>Human</h3><p class="small">Speak about people before processes. Warm does not mean sentimental.</p></div>
+    <div class="panel stack"><h3>Clear</h3><p class="small">Plain English, active verbs, short explanations. Make the next action obvious.</p></div>
+    <div class="panel stack"><h3>Confident</h3><p class="small">Assured and evidence-led, without exaggeration or empty superlatives.</p></div>
+    <div class="panel stack"><h3>Operational</h3><p class="small">Show how the platform improves daily work, oversight and decisions.</p></div>
+    <div class="panel stack"><h3>Inclusive</h3><p class="small">Write for residents, relatives, care teams, managers and group operators.</p></div>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack">
+      <h3>Say this</h3>
+      <ul class="plain small">
+        <li>“Three training certificates expire this month. Book renewals now.”</li>
+        <li>“Your rota for next week is published. Two night shifts are still open.”</li>
+        <li>“Margaret enjoyed the garden this afternoon. Here is a photo from the team.”</li>
+        <li>“Occupancy is 94%, up two beds on last month.”</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h3>Not this</h3>
+      <ul class="plain no small">
+        <li>“Leverage our best-in-class compliance engine to revolutionise your outcomes.”</li>
+        <li>“ALERT: CRITICAL ROTA GAP DETECTED.”</li>
+        <li>“Your loved one’s wellbeing journey has been updated in the system.”</li>
+        <li>“Unfortunately an error has occurred. Please try again later.”</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>06 · Voice and tone</span></div>
+</section>
+
+<!-- 07 PRINCIPLES -->
+<section class="sheet" id="principles">
+  <div class="head">
+    <span class="eyebrow">07 · Digital principles</span>
+    <h2>Designed around action and trust</h2>
+    <p class="lede">Seven rules every screen is checked against before it ships. They apply to the web platform, the mobile app and the family portal equally.</p>
+  </div>
+  <div class="cols cols-4">
+    <div class="panel stack"><h4>One obvious primary action per screen.</h4><p class="small muted">One teal button. Everything else is secondary or tertiary.</p></div>
+    <div class="panel stack"><h4>Teal for actions and emphasis, not long text.</h4><p class="small muted">Links and text use Teal Ink. Paragraphs stay Graphite.</p></div>
+    <div class="panel stack"><h4>Pair every status colour with a word or icon.</h4><p class="small muted">Colour alone is never the signal.</p></div>
+    <div class="panel stack"><h4>Generous spacing and calm, uncluttered layouts.</h4><p class="small muted">Use the 8-point grid. When in doubt, add space.</p></div>
+    <div class="panel stack"><h4>Make exceptions, deadlines and risks visible without alarm.</h4><p class="small muted">Surface what needs attention first, in a measured tone.</p></div>
+    <div class="panel stack"><h4>Real care settings and genuine human moments in photography.</h4><p class="small muted">No stock handshakes, no staged smiles, no stethoscope close-ups.</p></div>
+    <div class="panel stack"><h4>Meet WCAG 2.2 AA and design accessibility in from the start.</h4><p class="small muted">Contrast, focus states, keyboard paths and 44 px touch targets.</p></div>
+    <div class="panel aqua stack"><h4>The test</h4><p class="small">Could a registered manager on a night shift understand this screen in five seconds and know what to do next?</p></div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>07 · Digital principles</span></div>
+</section>
+
+<!-- 08 TOKENS -->
+<section class="sheet" id="tokens">
+  <div class="head">
+    <span class="eyebrow">08 · Design tokens</span>
+    <h2>The numbers behind every screen</h2>
+    <p class="lede">Tokens are the single source for spacing, radius, elevation and layout. Designers and developers use the same names, so a decision made once holds everywhere.</p>
+  </div>
+  <div class="cols cols-2">
+    <div class="stack" style="gap:16px">
+      <div class="stack">
+        <h3>Spacing · 4-point base, 8-point rhythm</h3>
+        <div class="spacing">
+          <div><span style="width:4px;height:4px"></span>4</div><div><span style="width:8px;height:8px"></span>8</div><div><span style="width:12px;height:12px"></span>12</div><div><span style="width:16px;height:16px"></span>16</div><div><span style="width:24px;height:24px"></span>24</div><div><span style="width:32px;height:32px"></span>32</div><div><span style="width:48px;height:48px"></span>48</div><div><span style="width:64px;height:64px"></span>64</div>
+        </div>
+        <p class="small muted">space-1 to space-8. Component padding uses 12 and 16, section gaps use 24 and 32, page margins use 48 and 64.</p>
+      </div>
+      <div class="stack">
+        <h3>Radius</h3>
+        <div class="radii"><div style="border-radius:6px">6 · controls</div><div style="border-radius:10px">10 · cards</div><div style="border-radius:14px">14 · sheets</div><div style="border-radius:999px">pill · chips</div></div>
+      </div>
+    </div>
+    <div class="stack" style="gap:16px">
+      <div class="stack">
+        <h3>Elevation</h3>
+        <div class="cols cols-3" style="gap:12px">
+          <div class="card" style="min-height:70px"><h4>Level 0</h4><p class="small muted">Border only. Tables, panels, most cards.</p></div>
+          <div class="card raised" style="min-height:70px"><h4>Level 1</h4><p class="small muted">Menus, popovers, the one lifted card.</p></div>
+          <div class="card" style="min-height:70px;background:var(--deep);border-color:var(--deep);color:#D6E0EE"><h4 style="color:#fff">Level 2</h4><p class="small">Toasts and dialogs. Deep Navy surface.</p></div>
+        </div>
+      </div>
+      <div class="stack">
+        <h3>Layout</h3>
+        <dl class="kv" style="grid-template-columns:130px minmax(0,1fr)">
+          <dt>Grid</dt><dd>12 columns, 24 px gutters, 1280 px max content width</dd>
+          <dt>Sidebar</dt><dd>240 px expanded, 64 px collapsed, Deep Navy</dd>
+          <dt>Breakpoints</dt><dd>600 · 900 · 1200 · 1536</dd>
+          <dt>Touch target</dt><dd>44 × 44 px minimum on mobile</dd>
+          <dt>Focus ring</dt><dd>2 px Teal Ink, 2 px offset</dd>
+          <dt>Motion</dt><dd>150 ms ease-out for state, 240 ms for layout. Respect reduced-motion.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>08 · Design tokens</span></div>
+</section>
+
+<section class="sheet" id="components">
+  <div class="head">
+    <span class="eyebrow">08 · Core components</span>
+    <h2>Built from the tokens</h2>
+  </div>
+  <div class="cols cols-3">
+    <div class="stack" style="gap:14px">
+      <h3>Buttons</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="btn primary">Publish rota</span><span class="btn secondary">Save draft</span><span class="btn tertiary">Cancel</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><span class="btn primary sm">Approve</span><span class="btn secondary sm">Request change</span><span class="btn danger sm">Remove shift</span></div>
+      <p class="small muted">Primary is CuraHub Teal with Deep Navy text, one per screen. Destructive actions are outlined, never a red fill.</p>
+      <h3>Feedback</h3>
+      <span class="toast"><i>✓</i>Rota published. Staff have been notified.</span>
+    </div>
+    <div class="stack" style="gap:14px">
+      <h3>Form fields</h3>
+      <div class="field"><label>Resident name</label><div class="in">Margaret Holloway</div></div>
+      <div class="field"><label>Admission date</label><div class="in focus">21/09/2026</div><span class="help">Use the date the resident moved in.</span></div>
+      <div class="field"><label>NMC PIN</label><div class="in err">12A</div><span class="help err">Enter the full 8-character PIN, for example 12A3456E.</span></div>
+    </div>
+    <div class="stack" style="gap:14px">
+      <h3>Status</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip ok">Compliant</span><span class="chip warn">Due in 12 days</span><span class="chip crit">Overdue</span><span class="chip info">In review</span><span class="chip neutral">Not started</span></div>
+      <h3>Table</h3>
+      <div style="overflow-x:auto"><table class="table">
+        <tr><th>Staff member</th><th>Item</th><th>Expires</th><th>Status</th></tr>
+        <tr><td>James Okafor</td><td>DBS check</td><td>03 Oct 2026</td><td><span class="chip warn">Due soon</span></td></tr>
+        <tr><td>Sophie Reeves</td><td>Moving and handling</td><td>28 Aug 2026</td><td><span class="chip crit">Overdue</span></td></tr>
+        <tr><td>Priya Nair</td><td>Safeguarding L2</td><td>14 Mar 2027</td><td><span class="chip ok">Compliant</span></td></tr>
+      </table></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>08 · Core components</span></div>
+</section>
+
+<!-- 09 PRODUCT -->
+<section class="sheet" id="product">
+  <div class="head">
+    <span class="eyebrow">09 · Product application</span>
+    <h2>The operator dashboard</h2>
+    <p class="lede">Deep Navy sidebar, Cloud workspace, one teal action. Numbers lead, exceptions follow, and every status carries a word.</p>
+  </div>
+  <div class="app">
+    <div class="side">
+      <div class="lg"><span class="logo rev" style="font-size:22px"><svg class="mark rev"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span></div>
+      <div class="it"><b>I</b>Insights</div>
+      <div class="it on"><b>W</b>Workforce</div>
+      <div class="it"><b>C</b>Compliance</div>
+      <div class="it"><b>O</b>Occupancy</div>
+      <div class="it"><b>P</b>Pay</div>
+      <div class="it"><b>F</b>Family</div>
+      <div style="margin-top:auto;padding:10px 10px 0;font-size:11.5px;color:#7F92B0">Oakwood Nursing · 3 of 6 homes</div>
+    </div>
+    <div class="main">
+      <div class="bar"><h3>Workforce · This week</h3><span class="sp"></span><span class="btn secondary sm">Export</span><span class="btn primary sm">Publish rota</span><span class="who">PN</span></div>
+      <div class="kpis">
+        <div class="card kpi"><span class="n">94%</span><span class="l">Shifts filled</span></div>
+        <div class="card kpi"><span class="n" style="color:var(--warn)">3</span><span class="l">Open night shifts</span></div>
+        <div class="card kpi"><span class="n">97%</span><span class="l">Training compliance</span></div>
+        <div class="card kpi"><span class="n">£4,120</span><span class="l">Agency spend, week to date</span></div>
+      </div>
+      <div class="card" style="gap:8px">
+        <div style="display:flex;align-items:center;gap:10px"><h4>Needs attention</h4><span class="chip crit">2 overdue</span><span class="chip warn">4 due soon</span></div>
+        <div style="overflow-x:auto"><table class="table">
+          <tr><th>What</th><th>Who</th><th>When</th><th>Status</th><th></th></tr>
+          <tr><td>Night shift uncovered, Willow unit</td><td>RGN needed</td><td>Sat 26 Sep</td><td><span class="chip crit">Unfilled</span></td><td><span class="btn tertiary sm">Offer to agency</span></td></tr>
+          <tr><td>Moving and handling refresher</td><td>Sophie Reeves</td><td>Expired 28 Aug</td><td><span class="chip crit">Overdue</span></td><td><span class="btn tertiary sm">Book</span></td></tr>
+          <tr><td>Annual leave request</td><td>James Okafor</td><td>12 to 16 Oct</td><td><span class="chip info">In review</span></td><td><span class="btn tertiary sm">Review</span></td></tr>
+        </table></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>09 · Product application</span></div>
+</section>
+
+<section class="sheet" id="product-family" style="grid-template-columns:minmax(0,1fr)">
+  <div class="head">
+    <span class="eyebrow">09 · Product application</span>
+    <h2>CuraHub Family on mobile</h2>
+    <p class="lede">The same system, warmer. Soft Aqua does more work, photography leads, and the tone speaks to a daughter checking in on her mother, not to an operator.</p>
+  </div>
+  <div class="cols cols-3" style="grid-template-columns:auto minmax(0,1fr) minmax(0,1fr);align-items:start">
+    <div class="phone">
+      <div class="top"><span class="logo" style="font-size:18px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span><span class="small muted" style="font-size:12px">Margaret · Oakwood Nursing</span></div>
+      <div class="photo"></div>
+      <div class="post"><b>An afternoon in the garden</b><span>Margaret spent an hour outside with Priya today and asked for her favourite tea. She is in good spirits.</span><span class="muted" style="font-size:11px">Today, 15:40 · Priya, Senior carer</span></div>
+      <div class="post" style="background:var(--aqua);padding:10px;border-radius:8px"><b>Next visit</b><span>Sunday 27 September, 2 pm. Family lounge booked.</span></div>
+      <div class="tabs"><span class="on">Updates</span><span>Messages</span><span>Visits</span><span>Care plan</span></div>
+    </div>
+    <div class="stack" style="gap:14px">
+      <h3>What changes</h3>
+      <ul class="plain small">
+        <li>Soft Aqua panels replace Cloud for warmth. Deep Navy is used only for the status bar and dialogs.</li>
+        <li>Photos are full-bleed within the card and always real. The caption names who wrote the update.</li>
+        <li>Headings use Manrope Semibold 600, not ExtraBold, so the tone softens without a second typeface.</li>
+        <li>The primary action is quieter: “Send a message”, not “Submit”.</li>
+      </ul>
+    </div>
+    <div class="stack" style="gap:14px">
+      <h3>What stays the same</h3>
+      <ul class="plain small">
+        <li>The master logo, never a separate Family logo.</li>
+        <li>Teal for the single primary action and for links via Teal Ink.</li>
+        <li>Status always as a chip with a word: “Visit confirmed”, not a green dot.</li>
+        <li>Type scale, spacing tokens, radii and focus states.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>09 · Product application</span></div>
+</section>
+
+<!-- 10 APPLICATIONS -->
+<section class="sheet" id="applications">
+  <div class="head">
+    <span class="eyebrow">10 · Brand applications</span>
+    <h2>A flexible identity across product and sales</h2>
+    <p class="lede">Always lead with the master CuraHub brand. Module names are descriptors, not competing logos. That keeps one recognisable identity as the platform grows.</p>
+  </div>
+  <div class="cols cols-4" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);align-items:start">
+    <div class="stack">
+      <h3>App icon and favicon</h3>
+      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+        <div class="appicon"><svg class="mark rev" style="font-size:64px"><use href="#mark"/></svg></div>
+        <div class="appicon light"><svg class="mark" style="font-size:64px"><use href="#mark"/></svg></div>
+        <div class="favicon"><svg class="mark rev" style="font-size:22px"><use href="#mark"/></svg></div>
+      </div>
+      <p class="small muted">Deep Navy tile with the reversed icon is the default. The light tile is for platforms that force a white ground.</p>
+    </div>
+    <div class="stack">
+      <h3>Proposal cover</h3>
+      <div class="cover" style="max-width:170px">
+        <span class="logo rev" style="font-size:20px"><svg class="mark rev"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span>
+        <div class="stack" style="gap:6px"><span class="t">Proposal for Glenholme Care Group</span><span class="s">CuraHub Workforce and Compliance · September 2026</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>Slide and document</h3>
+      <div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--white)">
+        <div style="background:var(--navy);height:8px"></div>
+        <div style="padding:12px;display:grid;gap:8px">
+          <span class="logo" style="font-size:14px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span>
+          <span style="font-family:var(--display);font-weight:700;color:var(--navy);font-size:14px;line-height:1.2">Implementation plan, weeks 1 to 6</span>
+          <span style="height:5px;width:70%;background:var(--mist);border-radius:3px"></span><span style="height:5px;width:55%;background:var(--mist);border-radius:3px"></span><span style="height:5px;width:62%;background:var(--mist);border-radius:3px"></span>
+        </div>
+      </div>
+      <p class="small muted">Navy rule at the top, logo top-left, Manrope heading, Inter body. Teal appears only in one call-out per page.</p>
+    </div>
+    <div class="stack">
+      <h3>Email signature</h3>
+      <div class="sig">
+        <div class="rule"></div>
+        <div class="stack" style="gap:2px">
+          <b style="font-family:var(--display);color:var(--navy)">Bradley Lamb</b>
+          <span>Founder, CuraHub</span>
+          <span class="muted small">07700 900000 · bradley@curahub.co.uk</span>
+          <span class="logo" style="font-size:15px;margin-top:6px"><svg class="mark"><use href="#mark"/></svg><span class="word">Cura<span class="hub">Hub</span></span></span>
+        </div>
+      </div>
+      <p class="small muted">Plain text, one teal rule, no banners or quotes. The logo is a PNG at 2x.</p>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>10 · Brand applications</span></div>
+</section>
+
+<!-- 11 ADOPTION -->
+<section class="sheet" id="adoption">
+  <div class="head">
+    <span class="eyebrow">11 · Adopting the name</span>
+    <h2>Moving from the working name to CuraHub</h2>
+    <p class="lede">The visual system carries over unchanged. The name touches more places than it seems, so work through this list before anything public goes out.</p>
+  </div>
+  <div class="cols cols-3">
+    <div class="stack">
+      <h3>Protect it first</h3>
+      <div class="check">
+        <div>Clearance search at the UK IPO in classes 9, 42 and 44, and check similar marks such as Cura, CuraHub and Cura Systems already trading in UK care software.</div>
+        <div>File the UK trade mark for the word and the icon once the search is clear.</div>
+        <div>Companies House name check and change, or a new trading name registered.</div>
+        <div>Domains: curahub.co.uk and curahub.uk as a minimum, with .com if available. Note that curahub.app is already in use by another product.</div>
+        <div>Social handles on LinkedIn, X, Instagram and Facebook secured on the same day.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>Then switch the product</h3>
+      <div class="check">
+        <div>App names, bundle identifiers and store listings on iOS and Android.</div>
+        <div>Product name, email sender name and from-address on every automated message.</div>
+        <div>Login page, favicon, browser title and PDF exports.</div>
+        <div>In-app help, onboarding copy and release notes.</div>
+        <div>API names, subdomains and status page.</div>
+      </div>
+    </div>
+    <div class="stack">
+      <h3>Then everything else</h3>
+      <div class="check">
+        <div>Proposals, contracts, DPIA and data processing agreements.</div>
+        <div>Email signatures, letterheads, invoice templates.</div>
+        <div>Website, pitch deck, one-pagers and case studies.</div>
+        <div>Existing customers told once, clearly, with the reason and the date.</div>
+        <div>Old name redirected for 12 months, then retired.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span><b>CuraHub</b> brand and design pack</span><span>11 · Adopting the name</span></div>
+</section>
+
+</main>
